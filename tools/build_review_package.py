@@ -249,10 +249,6 @@ def main() -> int:
     sha_file.write_text("\n".join(sha_lines) + "\n", encoding="utf-8")
     print(f"  + Generated: manifests/SHA256SUMS.txt ({len(sha_lines)} entries)")
 
-    # Mirror manifests to repo manifests/
-    (REPO_ROOT / "manifests").mkdir(parents=True, exist_ok=True)
-    shutil.copy2(manifest_file, REPO_ROOT / "manifests" / "PACKAGE_MANIFEST.json")
-    shutil.copy2(sha_file, REPO_ROOT / "manifests" / "SHA256SUMS.txt")
 
     # 4. Create ZIP archive
     if FINAL_ZIP_PATH.exists():
