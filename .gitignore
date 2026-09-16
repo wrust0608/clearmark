@@ -60,6 +60,10 @@
 !/03_INTERMEDIATE_OUTPUT_LAYOUT_REGRESSION.docx
 !/04_CANDIDATE_LOSSLESS_OUTPUT.docx
 !/WATERMARK_DOCX_3_BASELINES.zip
+!/artifacts/
+/artifacts/*
+!/artifacts/v2.1/
+!/artifacts/v2.1/**
 
 # Exceptions even inside allowed trees
 .env

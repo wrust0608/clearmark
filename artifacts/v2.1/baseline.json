@@ -1,0 +1,59 @@
+{
+  "development_line": "v2.1-dev",
+  "base_commit": "41ef353afd8ff354905c25abb803ae964d06d3d9",
+  "v2_0_0_commit": "758d3085b8868566209a82ea981a32aa61147a44",
+  "v2_0_0_tag": "v2.0.0",
+  "git_status": "clean",
+  "recorded_at": "2026-09-16T14:10:00+07:00",
+  "environment": {
+    "python_version": "3.12.14 (main, Sep  1 2026, 14:17:39) [MSC v.1944 64 bit (AMD64)]",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "libreoffice_version": "LibreOffice 26.8.0.3 (C:\\Program Files\\LibreOffice\\program\\soffice.exe)",
+    "pytest_version": "pytest 9.1.1"
+  },
+  "full_pytest_baseline": {
+    "passed": 1359,
+    "failed": 0,
+    "skipped": 152,
+    "duration_seconds": 63.76,
+    "status": "PASS"
+  },
+  "frozen_golden_benchmarks": {
+    "golden_document": {
+      "filename": "01_GOLDEN_ORIGINAL_UNTOUCHED.docx",
+      "sha256": "c05ca5c1be3b020b75d5763cf22061879a255b3c4f57b0455ae562b54809f58d",
+      "size_bytes": 49959,
+      "paragraphs": 204,
+      "runs": 288,
+      "manual_page_breaks": 5,
+      "rendered_pages": 19,
+      "tables": 1,
+      "rows": 7,
+      "cells": 49,
+      "sections": 1,
+      "zip_members": 15
+    },
+    "v2_0_approved_candidate": {
+      "filename": "04_CANDIDATE_LOSSLESS_OUTPUT.docx",
+      "sha256": "7aa5549f6a0e0b78fa39245c0e79503b2cc9defd6cffbfa5c8a833072d430297",
+      "size_bytes": 49395,
+      "paragraphs": 204,
+      "runs": 288,
+      "manual_page_breaks": 5,
+      "rendered_pages": 19,
+      "tables": 1,
+      "rows": 7,
+      "cells": 49,
+      "sections": 1,
+      "zip_members": 15,
+      "visible_text_identical": true,
+      "non_target_parts_sha_identical": true,
+      "visual_regression": "PASS"
+    }
+  },
+  "rules": {
+    "docx_core_frozen": true,
+    "no_feature_code_before_baseline_freeze": true,
+    "invariants_are_permanent_regression_gates": true
+  }
+}
