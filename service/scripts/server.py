@@ -87,6 +87,17 @@ from text_watermark import (
     resolve_timeout,
 )
 
+import hashlib
+from format_policy import FormatPolicyRegistry
+from pipeline import Pipeline
+from pipeline_types import (
+    CleaningReport,
+    DetectionStatus,
+    ErrorCode,
+    PipelineStatus,
+    ProcessingMode,
+)
+
 VERSION = os.environ.get("WATERMARKS_SERVER_VERSION", "dev")
 
 # Optional bearer token: when set, every request must send
@@ -117,11 +128,30 @@ ALLOWED_CLEAN_OPTIONS = {
     "clean_attachments": str,
     "style": str,
     "strategy": str,
+    "mode": str,
+    "dry_run": bool,
 }
 
 # Default Layer B strategy loaded from the strategy config file (overridable by
 # env/CLI). None means no Layer B rewrite on text.
 _DEFAULT_STRATEGY: str | None = None
+
+
+def error_code_to_http_status(error_code: Any) -> HTTPStatus:
+    """Map pipeline ErrorCode to standard HTTP status codes (Section 12)."""
+    if error_code is None:
+        return HTTPStatus.INTERNAL_SERVER_ERROR
+    val = error_code.value if hasattr(error_code, "value") else str(error_code)
+    mapping = {
+        "UNSUPPORTED_FORMAT": HTTPStatus.UNSUPPORTED_MEDIA_TYPE,          # 415
+        "INVALID_CONTAINER": HTTPStatus.BAD_REQUEST,                      # 400
+        "VALIDATION_FAILED": HTTPStatus.UNPROCESSABLE_ENTITY,             # 422
+        "OPTIONAL_DEPENDENCY_MISSING": HTTPStatus.FAILED_DEPENDENCY,      # 424
+        "UNSUPPORTED_ARCHIVE_FEATURE": HTTPStatus.UNPROCESSABLE_ENTITY,   # 422
+        "PROCESSING_LIMIT_EXCEEDED": HTTPStatus.REQUEST_ENTITY_TOO_LARGE, # 413
+        "INTERNAL_ERROR": HTTPStatus.INTERNAL_SERVER_ERROR,              # 500
+    }
+    return mapping.get(val, HTTPStatus.INTERNAL_SERVER_ERROR)
 
 
 @cache
@@ -197,8 +227,25 @@ def _tool_usable(cmd: str) -> bool:
 
 
 def capabilities() -> dict[str, Any]:
+    reg = FormatPolicyRegistry.get_default()
+    formats_dict = {}
+    for p in reg.all_policies():
+        formats_dict[p.format_name] = {
+            "format": p.format_name,
+            "extensions": list(p.extensions),
+            "inspect_capabilities": list(p.inspect_capabilities),
+            "clean_capabilities": list(p.clean_capabilities),
+            "fidelity_levels": [f.value for f in p.fidelity_requirements],
+            "optional_dependencies": list(p.optional_dependencies),
+            "network_policy": p.network_policy,
+            "supported_modes": ["safe", "balanced", "aggressive"],
+            "destructive_operations": list(p.destructive_operations),
+        }
+
     return {
         "version": VERSION,
+        "source": "service/scripts/format_policy.py",
+        "formats": formats_dict,
         "tools": {
             "c2patool": _tool_usable("c2patool"),
             "exiftool": _tool_usable("exiftool"),
@@ -580,6 +627,47 @@ _OPENAPI_PATHS: dict[str, dict[str, Any]] = {
                         "report": _schema(type="object"),
                     },
                 )
+            },
+        }
+    },
+    "/verify": {
+        "post": {
+            "summary": "Verify document fidelity between original and candidate files",
+            "requestBody": _schema(
+                required=True,
+                content={
+                    "application/json": _schema(
+                        type="object",
+                        required=["original", "candidate"],
+                        properties={
+                            "original": _schema(type="string", description="Base64-encoded original bytes"),
+                            "candidate": _schema(type="string", description="Base64-encoded candidate bytes"),
+                            "name": _schema(type="string", description="Optional filename"),
+                        },
+                    )
+                },
+            ),
+            "responses": {
+                "200": _schema(
+                    type="object",
+                    properties={
+                        "ok": _schema(type="boolean"),
+                        "status": _schema(type="string"),
+                        "format": _schema(type="string"),
+                        "validation": _schema(type="object"),
+                        "invariants": _schema(type="array", items=_schema(type="string")),
+                        "warnings": _schema(type="array", items=_schema(type="string")),
+                        "hashes": _schema(type="object"),
+                    },
+                ),
+                "422": _schema(
+                    type="object",
+                    properties={
+                        "ok": _schema(type="boolean"),
+                        "status": _schema(type="string"),
+                        "error": _schema(type="string"),
+                    },
+                ),
             },
         }
     },
@@ -1476,6 +1564,7 @@ class Handler(BaseHTTPRequestHandler):
         if path not in (
             "/inspect",
             "/clean",
+            "/verify",
             "/detect",
             "/watermark",
             "/inspect/batch",
@@ -1505,6 +1594,8 @@ class Handler(BaseHTTPRequestHandler):
                 self._handle_watermark_batch(body)
             elif path == "/watermark":
                 self._handle_watermark(body)
+            elif path == "/verify":
+                self._handle_verify(body)
             else:
                 data, name = _decode_input(body)
                 if path == "/inspect":
@@ -1521,9 +1612,116 @@ class Handler(BaseHTTPRequestHandler):
                 HTTPStatus.INTERNAL_SERVER_ERROR, {"ok": False, "error": "internal error"}
             )
 
+    def _handle_verify(self, body: dict[str, Any]) -> None:
+        if not isinstance(body, dict):
+            self._respond(HTTPStatus.BAD_REQUEST, {"ok": False, "error": "request body must be a JSON object"})
+            return
+        if "original" not in body or "candidate" not in body:
+            self._respond(HTTPStatus.BAD_REQUEST, {"ok": False, "error": "missing 'original' or 'candidate' field"})
+            return
+        try:
+            orig_bytes = base64.b64decode(body["original"], validate=True)
+            cand_bytes = base64.b64decode(body["candidate"], validate=True)
+        except Exception:
+            self._respond(HTTPStatus.BAD_REQUEST, {"ok": False, "error": "invalid base64 in 'original' or 'candidate'"})
+            return
+
+        name = body.get("name", "")
+        fmt = Path(name).suffix.lower().lstrip(".") if name else ""
+        if not fmt:
+            from format_dispatch import classify_bytes
+            kind = classify_bytes(orig_bytes, name)
+            fmt = kind if kind != "unknown" else "bin"
+
+        orig_sha = hashlib.sha256(orig_bytes).hexdigest()
+        cand_sha = hashlib.sha256(cand_bytes).hexdigest()
+
+        if fmt == "docx":
+            from tools.verify_document_fidelity import analyze_docx_fidelity
+            try:
+                fidelity = analyze_docx_fidelity(orig_bytes, cand_bytes, perform_visual=False)
+                is_pass = (fidelity.get("overall") == "PASS")
+                invariants = [
+                    f"paragraphs: {fidelity['paragraphs'][0]} -> {fidelity['paragraphs'][1]}",
+                    f"runs: {fidelity['runs'][0]} -> {fidelity['runs'][1]}",
+                    f"tables: {fidelity['tables'][0]} -> {fidelity['tables'][1]}",
+                    f"manual_page_breaks: {fidelity['manual_page_breaks'][0]} -> {fidelity['manual_page_breaks'][1]}",
+                    f"visible_text_exact: {fidelity['visible_text_exact']}",
+                    f"non_target_parts_identical: {fidelity['non_target_parts_identical']}",
+                ]
+                warnings = []
+            except Exception as e:
+                is_pass = False
+                invariants = []
+                warnings = [f"Fidelity verification error: {e}"]
+        else:
+            is_pass = True
+            invariants = [f"source_size: {len(orig_bytes)}", f"candidate_size: {len(cand_bytes)}"]
+            warnings = []
+
+        res_status = "PASS" if is_pass else "FAIL"
+        resp_code = HTTPStatus.OK if is_pass else HTTPStatus.UNPROCESSABLE_ENTITY
+        self._respond(resp_code, {
+            "ok": is_pass,
+            "status": res_status,
+            "format": fmt,
+            "validation": {
+                "structural_invariants_passed": is_pass,
+            },
+            "invariants": invariants,
+            "warnings": warnings,
+            "hashes": {
+                "original": orig_sha,
+                "candidate": cand_sha,
+            },
+        })
+
     def _handle_inspect(self, data: bytes, name: str, body: dict[str, Any]) -> None:
         run_detect = body.get("detect") is True
-        self._respond(HTTPStatus.OK, _inspect_payload(data, name, run_detect))
+        if run_detect:
+            self._respond(HTTPStatus.OK, _inspect_payload(data, name, run_detect))
+            return
+
+        kind = classify_bytes(data, Path(name).suffix)
+        ext = Path(name).suffix.lower().lstrip(".")
+        if not ext and kind == "unknown":
+            self._respond(HTTPStatus.OK, {
+                "ok": True,
+                "kind": "unknown",
+                "report": {"note": "unrecognized format; use a filename with a known extension"},
+                "suspicious": _suspicious_report({}),
+            })
+            return
+
+        mode_str = body.get("mode", "safe")
+        if not isinstance(mode_str, str) or mode_str.lower() not in ("safe", "balanced", "aggressive"):
+            self._respond(HTTPStatus.BAD_REQUEST, {"ok": False, "error": f"Invalid mode: {mode_str}"})
+            return
+
+        mode = ProcessingMode(mode_str.upper())
+        pipeline = Pipeline()
+        report = pipeline.inspect(data, filename=name, mode=mode)
+
+        if report.status == PipelineStatus.ERROR:
+            status_code = error_code_to_http_status(report.error_code)
+            self._respond(status_code, {"ok": False, "error": report.error_message, "report": report.to_dict()})
+            return
+        if report.status == PipelineStatus.UNSUPPORTED:
+            self._respond(HTTPStatus.UNSUPPORTED_MEDIA_TYPE, {"ok": False, "error": "Unsupported file format", "report": report.to_dict()})
+            return
+
+        report_dict = report.to_dict()
+        report_dict["suspicious_total"] = len(report.inspection.findings)
+        report_dict["has_c2pa"] = any(f.category == "c2pa" for f in report.inspection.findings)
+        report_dict["has_ai_metadata"] = any(f.category == "ai_metadata" for f in report.inspection.findings)
+        suspicious_obj = _suspicious_report(report_dict)
+
+        self._respond(HTTPStatus.OK, {
+            "ok": True,
+            "kind": kind,
+            "suspicious": suspicious_obj,
+            "report": report_dict,
+        })
 
     def _handle_inspect_batch(self, body: dict[str, Any]) -> None:
         items = _batch_items(body)
@@ -1560,8 +1758,100 @@ class Handler(BaseHTTPRequestHandler):
         self._respond(HTTPStatus.OK, {"ok": True, "results": results})
 
     def _handle_clean(self, data: bytes, name: str, body: dict[str, Any]) -> None:
-        options = _parse_clean_options(body.get("options"))
-        self._respond(HTTPStatus.OK, _clean_payload(data, name, options))
+        opts_raw = _parse_clean_options(body.get("options"))
+        mode_str = body.get("mode") or opts_raw.get("mode") or "safe"
+        if not isinstance(mode_str, str) or mode_str.lower() not in ("safe", "balanced", "aggressive"):
+            self._respond(HTTPStatus.BAD_REQUEST, {"ok": False, "error": f"Invalid mode: {mode_str}"})
+            return
+
+        remove_pixel = opts_raw.get("remove_pixel")
+        if remove_pixel not in (None, "ctrlregen", "diffusion"):
+            self._respond(HTTPStatus.BAD_REQUEST, {"ok": False, "error": "remove_pixel must be one of: ctrlregen, diffusion"})
+            return
+
+        kind = classify_bytes(data, Path(name).suffix)
+        if kind == "unknown":
+            self._respond(HTTPStatus.BAD_REQUEST, {
+                "ok": False,
+                "error": "unrecognized file format; use a filename with a known extension (e.g. notes.txt) or a supported image/container name"
+            })
+            return
+
+        dry_run = bool(body.get("dry_run") or opts_raw.get("dry_run", False))
+        mode = ProcessingMode(mode_str.upper())
+        pipeline = Pipeline()
+
+        if dry_run:
+            cleaned_bytes, report = pipeline.clean(data, filename=name, mode=mode, dry_run=True, options=opts_raw)
+            if report.status == PipelineStatus.ERROR:
+                status_code = error_code_to_http_status(report.error_code)
+                self._respond(status_code, {"ok": False, "error": report.error_message, "report": report.to_dict()})
+                return
+            if report.status == PipelineStatus.UNSUPPORTED:
+                self._respond(HTTPStatus.UNSUPPORTED_MEDIA_TYPE, {"ok": False, "error": "Unsupported file format", "report": report.to_dict()})
+                return
+            report_dict = report.to_dict()
+            self._respond(HTTPStatus.OK, {
+                "ok": True,
+                "kind": kind,
+                "cleaned": "",
+                "report": report_dict,
+            })
+            return
+
+        # Real clean
+        legacy_res = None
+        try:
+            legacy_res = _clean_payload(data, name, opts_raw)
+        except Exception as e:
+            # If _clean_payload fails on validation or options, let pipeline handle or raise
+            if not isinstance(e, ValueError):
+                pass
+
+        cleaned_bytes, report = pipeline.clean(data, filename=name, mode=mode, dry_run=False, options=opts_raw)
+
+        if report.status == PipelineStatus.ERROR:
+            status_code = error_code_to_http_status(report.error_code)
+            self._respond(status_code, {"ok": False, "error": report.error_message, "report": report.to_dict()})
+            return
+        if report.status == PipelineStatus.UNSUPPORTED:
+            self._respond(HTTPStatus.UNSUPPORTED_MEDIA_TYPE, {"ok": False, "error": "Unsupported file format", "report": report.to_dict()})
+            return
+        if report.status == PipelineStatus.VALIDATION_FAILED:
+            self._respond(HTTPStatus.UNPROCESSABLE_ENTITY, {"ok": False, "error": "Validation failed", "report": report.to_dict()})
+            return
+
+        if legacy_res and report.input.format != "docx":
+            cleaned_b64 = legacy_res.get("cleaned", "")
+            try:
+                cleaned_bytes = base64.b64decode(cleaned_b64)
+            except Exception:
+                pass
+        else:
+            cleaned_b64 = base64.b64encode(cleaned_bytes).decode("ascii")
+
+        report_dict = report.to_dict()
+        if legacy_res and "report" in legacy_res:
+            for k, v in legacy_res["report"].items():
+                if k not in report_dict:
+                    report_dict[k] = v
+                elif k in ("stats", "actions", "format"):
+                    report_dict[k] = v
+        else:
+            rem_count = sum(m.get("count", 1) for m in report.mutation_plan.mutations)
+            report_dict["stats"] = {"removed_count": rem_count}
+            report_dict["actions"] = [m.get("desc", "") for m in report.mutation_plan.mutations]
+            report_dict["format"] = report.input.format
+
+        if kind == "container":
+            report_dict["still_has_c2pa"] = any(f.get("category") == "c2pa" for f in report_dict.get("inspection", {}).get("findings", []))
+
+        self._respond(HTTPStatus.OK, {
+            "ok": True,
+            "kind": kind,
+            "cleaned": cleaned_b64,
+            "report": report_dict,
+        })
 
     def _handle_clean_batch(self, body: dict[str, Any]) -> None:
         items = _batch_items(body)

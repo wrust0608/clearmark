@@ -25,6 +25,7 @@ from text_unicode import human_report, inspect_text
 
 
 def main() -> int:
+    sys.stderr.write("DEPRECATION NOTICE: inspect_file.py is deprecated; use 'watermarks inspect' instead.\n")
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("path", type=Path, help="File to inspect")
     p.add_argument("--json", action="store_true")

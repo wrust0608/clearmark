@@ -29,6 +29,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from common import (
     MAX_INPUT_BYTES,
+    looks_binary,
     safe_write_bytes,
 )
 try:
@@ -135,7 +136,23 @@ class Pipeline:
         ext = Path(name).suffix.lower().lstrip(".")
         if not ext or ext == "unknown":
             kind = classify_bytes(data, name)
-            ext = kind if kind != "unknown" else ""
+            from container_meta import detect_container_format
+            from image_meta import detect_format as detect_image_format
+            from av_meta import detect_av_format
+
+            det_c = detect_container_format(Path(name or "input"), data)
+            if det_c != "unknown":
+                ext = det_c
+            else:
+                det_i = detect_image_format(data)
+                if det_i != "unknown":
+                    ext = det_i
+                else:
+                    det_a = detect_av_format(data)
+                    if det_a != "unknown":
+                        ext = det_a
+                    else:
+                        ext = kind if kind != "unknown" else ""
 
         return data, name, ext
 
@@ -332,6 +349,23 @@ class Pipeline:
                     error_message=f"Corrupted image payload: {e}",
                 )
         elif fmt in ("txt", "md", "html", "latex"):
+            if looks_binary(data):
+                return CleaningReport(
+                    status=PipelineStatus.ERROR,
+                    input=ident,
+                    inspection=InspectionData(
+                        detectors_run=detectors_run,
+                        detection_status=DetectionStatus.UNAVAILABLE,
+                    ),
+                    policy=PolicySelection(mode=mode, format_policy=fmt),
+                    mutation_plan=MutationRecord(),
+                    validation=ValidationOutcome(status="FAIL", warnings=["refusing to inspect bytes that look like a binary container as text"]),
+                    output=OutputRecord(changed=False, would_change=False, size=size, sha256=sha),
+                    privacy=PrivacySummary(network_used=False),
+                    performance_elapsed_ms=(time.perf_counter() - t0) * 1000.0,
+                    error_code=ErrorCode.INVALID_CONTAINER,
+                    error_message="refusing to inspect bytes that look like a binary container as text",
+                )
             try:
                 from text_unicode import inspect_text
 
@@ -449,6 +483,7 @@ class Pipeline:
         self,
         input_source: Union[str, Path, bytes],
         output_path: Optional[Union[str, Path]] = None,
+        filename: Optional[str] = None,
         mode: ProcessingMode = ProcessingMode.SAFE,
         dry_run: bool = False,
         in_place: bool = False,
@@ -456,7 +491,7 @@ class Pipeline:
     ) -> Tuple[bytes, CleaningReport]:
         """Execute deterministic cleaning and validation across any supported format."""
         t0 = time.perf_counter()
-        data, name, fmt = self._resolve_input(input_source, None)
+        data, name, fmt = self._resolve_input(input_source, filename)
         size = len(data)
         sha = _compute_sha256(data)
         ident = FileIdentity(filename=name, format=fmt or "unknown", size=size, sha256=sha)
@@ -606,10 +641,61 @@ class Pipeline:
                     error_message=f"Validation failed: {e}",
                 )
                 return data, report
-        else:
-            # Fallback for other formats via existing container/image/text scrubbers
-            # Will be modularized in Phases 7 & 8
-            pass
+        elif fmt in ("txt", "text", "md", "html", "latex"):
+            if looks_binary(data):
+                report = CleaningReport(
+                    status=PipelineStatus.ERROR,
+                    input=ident,
+                    inspection=insp_report.inspection,
+                    policy=PolicySelection(mode=mode, format_policy=fmt),
+                    mutation_plan=MutationRecord(),
+                    validation=ValidationOutcome(status="FAIL", warnings=["refusing to clean bytes that look like a binary container as text"]),
+                    output=OutputRecord(changed=False, would_change=False, size=size, sha256=sha),
+                    privacy=PrivacySummary(network_used=False),
+                    performance_elapsed_ms=(time.perf_counter() - t0) * 1000.0,
+                    error_code=ErrorCode.INVALID_CONTAINER,
+                    error_message="refusing to clean bytes that look like a binary container as text",
+                )
+                return data, report
+            from text_unicode import clean_text
+            text_str = data.decode("utf-8", errors="surrogateescape")
+            cleaned_str, stats = clean_text(
+                text_str,
+                nfkc=opts.get("nfkc", False),
+                aggressive_homoglyphs=(mode == ProcessingMode.AGGRESSIVE),
+                normalize_spaces=opts.get("normalize_spaces", False if fmt == "md" else True),
+            )
+            cleaned_bytes = cleaned_str.encode("utf-8", errors="surrogateescape")
+            rem = stats.get("removed_count", 0)
+            if rem > 0:
+                mutations_applied.append({"action": "unicode_carrier_remove", "desc": f"removed {rem} carrier characters"})
+        elif fmt in ("png", "jpeg", "jpg", "webp", "gif", "bmp", "tiff", "avif", "heic"):
+            import tempfile
+            from image_meta import clean_image
+            with tempfile.TemporaryDirectory(prefix="wm-pipe-img-") as tmpdir:
+                tmppath = Path(tmpdir)
+                in_f = tmppath / f"in.{fmt}"
+                out_f = tmppath / f"out.{fmt}"
+                in_f.write_bytes(data)
+                res = clean_image(in_f, out_f)
+                if out_f.exists():
+                    cleaned_bytes = out_f.read_bytes()
+                for a in res.get("actions", []):
+                    mutations_applied.append({"action": "image_clean", "desc": str(a)})
+        elif fmt in ("pdf", "odt", "ods", "odp", "epub"):
+            import tempfile
+            from container_meta import clean_container
+            with tempfile.TemporaryDirectory(prefix="wm-pipe-cnt-") as tmpdir:
+                tmppath = Path(tmpdir)
+                ext = f".{fmt}"
+                in_f = tmppath / f"in{ext}"
+                out_f = tmppath / f"out{ext}"
+                in_f.write_bytes(data)
+                res = clean_container(in_f, out_f, also_layer_a_text=True)
+                if out_f.exists():
+                    cleaned_bytes = out_f.read_bytes()
+                for a in res.get("actions", []):
+                    mutations_applied.append({"action": "container_clean", "desc": str(a)})
 
         # 4. Invariant & Output Status Check
         out_size = len(cleaned_bytes)
@@ -628,7 +714,7 @@ class Pipeline:
                 dest_str = str(target_path)
             except Exception as e:
                 raise IOError(f"Atomic in-place replacement failed: {e}") from e
-        elif output_path and is_changed:
+        elif output_path:
             out_p = Path(output_path)
             safe_write_bytes(out_p, cleaned_bytes)
             dest_str = str(out_p)

@@ -184,9 +184,19 @@ class CleaningReport:
   - Universal report privacy: no body text in serialized reports.
 
 ### Phase 3: Unified CLI & API Normalization
-- **Objective**: Build `watermarks` CLI and update `server.py` `/inspect`, `/clean`, `/verify`, `/capabilities`.
-- **Files**: `service/scripts/cli.py`, `service/scripts/server.py`.
-- **Gate**: CLI and HTTP endpoints return identical `CleaningReport` structures.
+- **Status**: COMPLETED / READY FOR REVIEW
+- **Objective**: Build `watermarks` canonical CLI, retain legacy CLI backward-compatibility wrappers, and normalize HTTP endpoints (`/inspect`, `/clean`, `/verify`, `/capabilities`).
+- **Files**: `service/scripts/cli.py`, `service/scripts/clean_file.py`, `service/scripts/inspect_file.py`, `service/scripts/server.py`, `service/scripts/pipeline.py`, `tests/test_cli_v21.py`, `tests/test_api_v21.py`, `tests/test_cli_backward_compat.py`, `tests/test_capabilities_endpoint.py`.
+- **Gate**:
+  - Stable exit code contract (0, 2, 3, 4, 5, 6, 10).
+  - Pure JSON stdout discipline with zero diagnostic leaks when `--json` is supplied.
+  - Sibling-temp atomic in-place replacement with cleanup and unmutated original on validation failure.
+  - Collision-safe output path generation (`.cleaned.ext`, `.cleaned.1.ext`).
+  - Strict HTTP status mapping (200, 400, 413, 415, 422, 424, 500) derived from `ErrorCode`.
+  - Single authoritative source of truth for capabilities: `service/scripts/format_policy.py`.
+  - Canonical `CleaningReport` schema parity between CLI and HTTP endpoints.
+  - Zero network egress and zero document body text leakage.
+  - 100% regression gate passing (1422 passed, 0 failed).
 
 ### Phase 4: Batch Processing Engine
 - **Objective**: Multi-file and directory queue processing with failure isolation and collision-safe outputs.

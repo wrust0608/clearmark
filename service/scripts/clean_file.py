@@ -28,6 +28,8 @@ from text_unicode import clean_text
 
 
 def main() -> int:
+    if not any(q in sys.argv for q in ("-q", "--quiet", "--only-changed")):
+        sys.stderr.write("DEPRECATION NOTICE: clean_file.py is deprecated; use 'watermarks clean' instead.\n")
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("path", type=Path)
     p.add_argument("-o", "--output", type=Path)

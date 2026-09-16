@@ -333,12 +333,19 @@ PrivacyReport = PrivacySummary
 
 
 def __getattr__(name: str) -> Any:
-    """Forward policy references to format_policy.py (the single authoritative source)."""
+    """Forward policy references to format_policy.py (the single authoritative source, ADR-010)."""
     if name in ("FormatPolicy", "FormatPolicyRegistry", "FormatCapabilities"):
+        import warnings
+        warnings.warn(
+            f"Importing {name} from pipeline_types is deprecated; import directly from service.scripts.format_policy.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         try:
             from . import format_policy
         except (ImportError, ValueError):
             import format_policy
         return getattr(format_policy, name)
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
 

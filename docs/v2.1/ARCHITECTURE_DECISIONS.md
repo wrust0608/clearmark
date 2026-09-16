@@ -188,5 +188,43 @@ During Phase 1, `FormatPolicy` and `FormatPolicyRegistry` were consolidated into
 1. The dynamic `__getattr__` in `service/scripts/pipeline_types.py` is strictly a **temporary compatibility alias** for `FormatPolicy`, `FormatCapabilities`, and `FormatPolicyRegistry`.
 2. Do **NOT** extend this pattern. No additional service-layer objects or runtime business logic may be exposed through `pipeline_types.__getattr__`.
 3. `service/scripts/pipeline_types.py` must remain strictly data-model focused (dataclasses, enums, report serialization schemas).
-4. This temporary compatibility alias is scheduled for complete deprecation and removal in Phase 3 when CLI and API modules migrate to direct imports from `service/scripts/format_policy.py`.
+4. In Phase 3, all internal modules (`cli.py`, `server.py`, `pipeline.py`, `clean_file.py`, `inspect_file.py`) were migrated to direct imports from `service/scripts/format_policy.py`. The `pipeline_types.__getattr__` forwarder issues a `DeprecationWarning` when accessed to maintain backward compatibility for external callers while signaling deprecation.
+
+---
+
+## ADR-011: Canonical CLI Grammar, Exit Code Contract, and HTTP API Normalization
+
+### Context
+v2.0 and earlier relied on fragmented entry points (`clean_file.py`, `inspect_file.py`) and ad-hoc HTTP endpoints (`/clean`, `/inspect`) with varying exit codes, custom dictionary serialization, and inconsistent error status codes.
+
+### Decision
+1. **Canonical CLI Grammar (`service/scripts/cli.py`)**:
+   - Subcommands: `inspect`, `clean`, `verify`, `capabilities`.
+   - Public flags: `--mode {safe,balanced,aggressive}`, `--dry-run`, `--in-place`, `--output <path>`, `--json`.
+   - Batch commands are explicitly reserved for Phase 4.
+2. **Stable Exit Code Contract**:
+   - `0`: Success (inspected, cleaned, or verified with NO_CHANGE_REQUIRED / CLEANED / INSPECTED / PASS).
+   - `2`: Unsupported format or capability (`UNSUPPORTED_FORMAT`, `UNSUPPORTED_ARCHIVE_FEATURE`).
+   - `3`: Document invariant validation failed (`VALIDATION_FAILED`).
+   - `4`: Invalid CLI arguments or malformed/unparseable container input (`INVALID_CONTAINER`).
+   - `5`: Optional dependency missing (`OPTIONAL_DEPENDENCY_MISSING`).
+   - `6`: Processing resource limit exceeded (`PROCESSING_LIMIT_EXCEEDED`).
+   - `10`: Unhandled internal error (`INTERNAL_ERROR`).
+3. **JSON Output Discipline**:
+   - When `--json` is supplied, stdout contains solely the canonical JSON serialization of `CleaningReport` (or `capabilities` / `verify` outcome).
+   - Diagnostic prints, progress prose, and deprecation warnings route exclusively to stderr.
+4. **HTTP Status Code Mapping**:
+   - `ErrorCode.UNSUPPORTED_FORMAT` -> `415 Unsupported Media Type`
+   - `ErrorCode.INVALID_CONTAINER` -> `400 Bad Request`
+   - `ErrorCode.VALIDATION_FAILED` -> `422 Unprocessable Entity`
+   - `ErrorCode.OPTIONAL_DEPENDENCY_MISSING` -> `424 Failed Dependency`
+   - `ErrorCode.UNSUPPORTED_ARCHIVE_FEATURE` -> `422 Unprocessable Entity`
+   - `ErrorCode.PROCESSING_LIMIT_EXCEEDED` -> `413 Content Too Large`
+   - `ErrorCode.INTERNAL_ERROR` -> `500 Internal Server Error`
+5. **Authoritative Capabilities Source**:
+   - `GET /capabilities` generates its format capabilities dynamically from `FormatPolicyRegistry` in `service/scripts/format_policy.py`. Hardcoding capability matrices in HTTP handlers is prohibited.
+6. **Legacy Compatibility**:
+   - Legacy scripts `service/scripts/clean_file.py` and `service/scripts/inspect_file.py` are preserved as compatibility wrappers emitting deprecation notices to stderr.
+   - HTTP `/clean` preserves the legacy response envelope (`{"cleaned": base64, "report": {...}}`) containing backward-compatible legacy summary keys alongside the structured canonical `CleaningReport`.
+
 
