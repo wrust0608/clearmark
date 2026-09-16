@@ -1577,6 +1577,19 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
+    def _serve_file(self, file_path: Path, content_type: str) -> None:
+        try:
+            data = file_path.read_bytes()
+        except OSError:
+            self._respond(HTTPStatus.NOT_FOUND, {"ok": False, "error": "not found"})
+            return
+        self.send_response(HTTPStatus.OK)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("Cache-Control", "no-cache")
+        self.end_headers()
+        self.wfile.write(data)
+
     def do_GET(self) -> None:
         path = urlparse(self.path).path
         if not self._authorized():
@@ -1589,6 +1602,22 @@ class Handler(BaseHTTPRequestHandler):
         elif path == "/openapi.json":
             self._respond(HTTPStatus.OK, openapi_spec())
         else:
+            web_dir = Path(__file__).resolve().parent.parent / "web"
+            if path in ("/", "/index.html"):
+                target = web_dir / "index.html"
+                if target.is_file():
+                    self._serve_file(target, "text/html; charset=utf-8")
+                    return
+            elif path == "/app.js":
+                target = web_dir / "app.js"
+                if target.is_file():
+                    self._serve_file(target, "application/javascript; charset=utf-8")
+                    return
+            elif path == "/app.css":
+                target = web_dir / "app.css"
+                if target.is_file():
+                    self._serve_file(target, "text/css; charset=utf-8")
+                    return
             self._respond(HTTPStatus.NOT_FOUND, {"ok": False, "error": "not found"})
 
     def do_POST(self) -> None:

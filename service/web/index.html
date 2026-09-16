@@ -3,94 +3,178 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Công cụ nội bộ làm sạch metadata và dấu vết AI khỏi tệp bạn sở hữu.">
-  <title>ClearMark · Làm sạch tệp nội bộ</title>
+  <meta name="description" content="ClearMark v2.1 — Công cụ làm sạch metadata, dấu vết C2PA và ký tự ẩn với bảo toàn cấu trúc văn bản.">
+  <title>ClearMark v2.1 · Làm sạch tệp nội bộ</title>
   <link rel="stylesheet" href="/app.css">
 </head>
 <body>
   <div class="shell">
     <header class="topbar">
-      <a class="brand" href="/" aria-label="ClearMark — trang chủ">
+      <a class="brand" href="/" aria-label="ClearMark v2.1 — trang chủ">
         <span class="brand-mark" aria-hidden="true"><i></i><i></i></span>
-        <span>ClearMark</span>
+        <span class="brand-text">ClearMark <small class="version-tag">v2.1</small></span>
       </a>
-      <div class="server-state" id="serverState" aria-live="polite">
-        <span class="pulse"></span>
-        <span>Đang kết nối</span>
+      <div class="topbar-right">
+        <div class="privacy-badge" id="privacyBadge" title="Xử lý hoàn toàn nội bộ, không gửi dữ liệu ra bên ngoài">
+          <span class="privacy-icon" aria-hidden="true">🔒</span>
+          <span id="privacyText">Xử lý nội bộ</span>
+        </div>
+        <div class="server-state" id="serverState" aria-live="polite">
+          <span class="pulse"></span>
+          <span id="serverStatusText">Đang kết nối</span>
+        </div>
       </div>
     </header>
 
     <main>
       <section class="hero">
-        <div class="eyebrow"><span>01</span> Xử lý tại hạ tầng của bạn</div>
+        <div class="eyebrow"><span>01</span> Xử lý cục bộ · Bảo toàn cấu trúc tài liệu</div>
         <h1>Tệp sạch hơn.<br><em>Dữ liệu vẫn ở nhà.</em></h1>
-        <p class="lede">Loại bỏ metadata, dấu vết C2PA và ký tự ẩn khỏi ảnh, tài liệu, âm thanh hoặc video — ngay trên máy chủ nội bộ.</p>
+        <p class="lede">Gỡ bỏ metadata, dấu vết C2PA và ký tự ẩn vô hình khỏi tài liệu DOCX, hình ảnh, âm thanh và video — chạy trực tiếp trên máy chủ nội bộ với kiểm chứng trung thực Lossless.</p>
       </section>
 
       <section class="workspace" aria-labelledby="uploadTitle">
-        <div class="drop-zone" id="dropZone">
+        <div class="drop-zone" id="dropZone" tabindex="0" role="button" aria-label="Thả tệp vào đây hoặc nhấn để chọn tệp">
           <input id="fileInput" type="file" multiple aria-describedby="fileHelp">
           <div class="drop-icon" aria-hidden="true">
             <svg viewBox="0 0 48 48" fill="none"><path d="M24 32V11m0 0-8 8m8-8 8 8M10 30v5a4 4 0 0 0 4 4h20a4 4 0 0 0 4-4v-5"/></svg>
           </div>
           <h2 id="uploadTitle">Thả tệp vào đây</h2>
-          <p id="fileHelp">hoặc <button class="text-button" id="browseButton" type="button">chọn từ máy</button></p>
-          <div class="formats">PNG · JPG · PDF · DOCX · MP4 · MP3 · TXT <span>và nhiều định dạng khác</span></div>
+          <p id="fileHelp">hoặc <button class="text-button" id="browseButton" type="button">chọn từ máy tính</button></p>
+          <div class="formats" id="formatsDisplay">
+            <span class="formats-list">Đang tải định dạng hỗ trợ…</span>
+          </div>
+        </div>
+
+        <div class="batch-warning-banner" id="batchWarningBanner" hidden role="alert">
+          <span class="warning-icon" aria-hidden="true">⚠️</span>
+          <span id="batchWarningText">Kích thước đợt xử lý lớn (> 32 MB). Các tệp kết quả có thể không tải về trực tiếp qua trình duyệt (giới hạn an toàn bộ nhớ). Báo cáo kiểm tra và làm sạch vẫn được tạo đầy đủ.</span>
         </div>
 
         <div class="action-bar" id="actionBar" hidden>
-          <div>
-            <strong id="selectionCount">0 tệp đã chọn</strong>
-            <span id="selectionSize">0 B</span>
+          <div class="action-info">
+            <div class="selection-summary">
+              <strong id="selectionCount">0 tệp đã chọn</strong>
+              <span class="dot">·</span>
+              <span id="selectionSize">0 B</span>
+            </div>
+            <div class="mode-control">
+              <label for="modeSelect" class="control-label">Chế độ:</label>
+              <select id="modeSelect" class="select-mode" aria-label="Chọn chế độ xử lý">
+                <option value="safe" selected>SAFE (An toàn · Giữ nguyên định dạng)</option>
+                <option value="balanced">BALANCED (Cân bằng · Mở rộng metadata)</option>
+                <option value="aggressive">AGGRESSIVE (Triệt để · Chuẩn hóa ký tự)</option>
+              </select>
+              <label class="toggle-dry-run">
+                <input type="checkbox" id="dryRunToggle">
+                <span>Xem trước (Dry Run)</span>
+              </label>
+            </div>
+            <p class="mode-explanation" id="modeExplanation">
+              <strong>SAFE:</strong> Mặc định an toàn. Gỡ bỏ metadata nhận diện và ký tự ẩn với độ tin cậy cao, bảo toàn 100% cấu trúc tài liệu.
+            </p>
           </div>
           <div class="actions">
-            <button class="button button-ghost" id="clearButton" type="button">Xóa danh sách</button>
+            <button class="button button-ghost" id="inspectAllButton" type="button" title="Kiểm tra tất cả tệp">Kiểm tra tất cả</button>
+            <button class="button button-ghost" id="clearCompletedButton" type="button" title="Xóa các tệp đã hoàn tất">Xóa đã xong</button>
+            <button class="button button-ghost" id="clearButton" type="button" title="Xóa toàn bộ danh sách">Xóa tất cả</button>
             <button class="button button-primary" id="cleanAllButton" type="button">
-              <span>Làm sạch tất cả</span>
+              <span id="cleanAllText">Làm sạch tất cả</span>
               <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m7 4 6 6-6 6"/></svg>
             </button>
           </div>
         </div>
 
+        <div class="batch-summary-bar" id="batchSummaryBar" hidden aria-label="Tóm tắt trạng thái đợt xử lý">
+          <div class="summary-pill summary-total"><span class="label">Tổng:</span> <strong id="sumTotal">0</strong></div>
+          <div class="summary-pill summary-ready"><span class="label">Sẵn sàng:</span> <strong id="sumReady">0</strong></div>
+          <div class="summary-pill summary-cleaned"><span class="label">Đã làm sạch:</span> <strong id="sumCleaned">0</strong></div>
+          <div class="summary-pill summary-nochange"><span class="label">Không đổi:</span> <strong id="sumNoChange">0</strong></div>
+          <div class="summary-pill summary-inspected"><span class="label">Đã kiểm tra:</span> <strong id="sumInspected">0</strong></div>
+          <div class="summary-pill summary-unsupported"><span class="label">Không hỗ trợ:</span> <strong id="sumUnsupported">0</strong></div>
+          <div class="summary-pill summary-errors"><span class="label">Lỗi:</span> <strong id="sumErrors">0</strong></div>
+        </div>
+
         <div class="file-list" id="fileList" aria-live="polite"></div>
       </section>
 
-      <section class="trust-row" aria-label="Cam kết xử lý">
-        <article><span>001</span><h3>Riêng tư</h3><p>Trình duyệt chỉ gửi tệp tới máy chủ đang mở trang này.</p></article>
-        <article><span>002</span><h3>Không lưu trữ</h3><p>Tệp được xử lý trong bộ nhớ và thư mục tạm, không tạo thư viện đám mây.</p></article>
-        <article><span>003</span><h3>Giữ nguyên nội dung</h3><p>Mặc định chỉ gỡ metadata và dấu vô hình an toàn; không chỉnh sửa hình ảnh hiển thị.</p></article>
+      <section class="trust-row" aria-label="Cam kết xử lý và bảo vệ dữ liệu">
+        <article>
+          <span>001</span>
+          <h3>Kiểm tra trước khi sửa</h3>
+          <p>Mỗi tệp được quét phát hiện bề mặt metadata và ký tự vô hình trước khi thực hiện bất kỳ thao tác nào.</p>
+        </article>
+        <article>
+          <span>002</span>
+          <h3>Bảo toàn Lossless</h3>
+          <p>Tài liệu DOCX được bảo toàn tuyệt đối từng đoạn văn bản, ngắt trang và bảng biểu; xác minh trung thực tự động.</p>
+        </article>
+        <article>
+          <span>003</span>
+          <h3>Không rò rỉ dữ liệu</h3>
+          <p>Không gửi dữ liệu ra mạng internet, không lưu trữ đám mây. Báo cáo không chứa nội dung thân tài liệu.</p>
+        </article>
       </section>
     </main>
 
     <footer>
-      <span>Chỉ sử dụng với nội dung bạn sở hữu hoặc được phép xử lý.</span>
-      <button class="settings-toggle" id="settingsToggle" type="button">Khóa truy cập</button>
+      <span>Chỉ sử dụng với nội dung bạn sở hữu hoặc được phép xử lý hợp pháp.</span>
+      <div class="footer-links">
+        <button class="settings-toggle" id="settingsToggle" type="button">Khóa truy cập API</button>
+      </div>
     </footer>
   </div>
 
   <dialog id="settingsDialog">
     <form method="dialog" class="settings-card">
-      <div class="dialog-head"><div><span class="eyebrow">Cấu hình</span><h2>Khóa truy cập</h2></div><button class="icon-button" value="cancel" aria-label="Đóng">×</button></div>
-      <p>Nếu máy chủ yêu cầu khóa API, nhập khóa ở đây. Khóa chỉ được giữ trong phiên trình duyệt này.</p>
-      <label for="apiKey">API key</label>
+      <div class="dialog-head">
+        <div>
+          <span class="eyebrow">Cấu hình</span>
+          <h2>Khóa truy cập API</h2>
+        </div>
+        <button class="icon-button" value="cancel" aria-label="Đóng">×</button>
+      </div>
+      <p>Nếu máy chủ yêu cầu khóa API xác thực, hãy nhập khóa tại đây. Khóa được lưu an toàn trong phiên làm việc hiện tại của trình duyệt.</p>
+      <label for="apiKey">API Key (Bearer token)</label>
       <input id="apiKey" type="password" autocomplete="off" placeholder="Để trống nếu máy chủ không yêu cầu">
-      <div class="dialog-actions"><button class="button button-ghost" value="cancel">Hủy</button><button class="button button-primary" id="saveSettings" value="default">Lưu và kiểm tra</button></div>
+      <div class="dialog-actions">
+        <button class="button button-ghost" value="cancel">Hủy</button>
+        <button class="button button-primary" id="saveSettings" value="default">Lưu cấu hình</button>
+      </div>
     </form>
   </dialog>
 
   <template id="fileCardTemplate">
-    <article class="file-card">
-      <div class="file-thumb"><span class="file-ext"></span></div>
+    <article class="file-card" data-id="">
+      <div class="file-thumb" aria-hidden="true"><span class="file-ext">FILE</span></div>
       <div class="file-info">
-        <div class="file-title-row"><h3 class="file-name"></h3><button class="remove-file" type="button" aria-label="Xóa tệp">×</button></div>
-        <div class="file-meta"><span class="file-size"></span><span class="dot">·</span><span class="file-kind">Sẵn sàng</span></div>
-        <div class="progress"><i></i></div>
+        <div class="file-title-row">
+          <h3 class="file-name"></h3>
+          <span class="status-badge status-queued">QUEUED</span>
+          <span class="badge badge-lossless" hidden>LOSSLESS VALIDATION PASSED</span>
+          <button class="remove-file" type="button" aria-label="Xóa tệp khỏi danh sách">×</button>
+        </div>
+        <div class="file-meta">
+          <span class="file-size">0 B</span>
+          <span class="dot">·</span>
+          <span class="file-format-label">Định dạng: Auto</span>
+          <span class="dot">·</span>
+          <span class="file-mode-label">Chế độ: SAFE</span>
+        </div>
+        <div class="progress" aria-hidden="true"><i></i></div>
+        <div class="findings-box" hidden>
+          <div class="findings-summary"></div>
+          <details class="findings-details">
+            <summary class="details-toggle">Chi tiết kỹ thuật</summary>
+            <ul class="findings-list"></ul>
+          </details>
+        </div>
         <p class="file-detail"></p>
       </div>
       <div class="file-actions">
-        <button class="button button-small inspect-file" type="button">Kiểm tra</button>
-        <button class="button button-small button-dark clean-file" type="button">Làm sạch</button>
-        <button class="button button-small button-download download-file" type="button" hidden>Tải xuống</button>
+        <button class="button button-small inspect-file" type="button" title="Kiểm tra bề mặt metadata">Kiểm tra</button>
+        <button class="button button-small button-dark clean-file" type="button" title="Làm sạch tệp">Làm sạch</button>
+        <button class="button button-small button-download download-file" type="button" hidden title="Tải xuống tệp đã làm sạch">Tải xuống</button>
       </div>
     </article>
   </template>
