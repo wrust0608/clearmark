@@ -1,7 +1,7 @@
 {
   "package": "FINAL_REVIEW_PACKAGE_v2.0.0-RC2.zip",
   "release": "v2.0.0-RC2",
-  "created_at": "2026-09-16T05:34:06.709562+00:00",
+  "created_at": "2026-09-16T05:34:23.128853+00:00",
   "authoritative_golden": {
     "filename": "01_GOLDEN_ORIGINAL_UNTOUCHED.docx",
     "sha256": "c05ca5c1be3b020b75d5763cf22061879a255b3c4f57b0455ae562b54809f58d",
@@ -266,13 +266,13 @@
     {
       "path": "source_review/HEAD_COMMIT.txt",
       "size": 42,
-      "sha256": "1a5459abe36df2e18abad2f2840ecb4c8958ecaf27be5919c71861f39b012b77",
+      "sha256": "8d19094a284d4ca7abc04e1ddf3ca52a5eec44694ff6fe23990d72a900cb3845",
       "purpose": "Local HEAD commit SHA containing complete verified lossless implementation"
     },
     {
       "path": "source_review/final_changes.patch",
-      "size": 665359,
-      "sha256": "e7643c4dd1287c28bc8578f056caea51a2663e5de7b0e4e9cb9db1ff25caefe6",
+      "size": 664384,
+      "sha256": "6219d63bb339e581a011a886afc284e07d8decb232072a5a4c092ff341e5cab2",
       "purpose": "Complete git unified diff of all modifications against base commit"
     }
   ]
