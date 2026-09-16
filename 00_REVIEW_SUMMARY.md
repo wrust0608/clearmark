@@ -1,15 +1,15 @@
-# 00_REVIEW_SUMMARY: LOSSLESS DOCX ENGINE v2.0.0-RC3
+# 00_REVIEW_SUMMARY: LOSSLESS DOCX ENGINE v2.0.0
 
 > **Tài liệu hướng dẫn thẩm định dành cho Independent Reviewer & Auditor**  
-> Bản phát hành: `v2.0.0-RC3`  
-> Trạng thái: **RELEASE CANDIDATE APPROVED (v2.0.0-RC3)**
+> Bản phát hành: `v2.0.0`  
+> Trạng thái: **FINAL RELEASE APPROVED (v2.0.0)**
 
 ---
 
 ## 1. Thông Tin Tổng Quan Dự Án
 
 - **PROJECT**: `watermarks-remover` local fork (Vietnamese Lossless DOCX Subsystem)
-- **LOCAL FORK RELEASE CANDIDATE**: `v2.0.0-RC3` (RELEASE CANDIDATE APPROVED)
+- **LOCAL FORK RELEASE**: `v2.0.0` (FINAL RELEASE APPROVED)
 - **UPSTREAM LATEST RELEASE**: `v0.7.0` (guillaumemeyer/watermarks-remover)
 - **DEFAULT SERVICE PORT**: `8765` (`http://127.0.0.1:8765` / `http://localhost:8765`)
 

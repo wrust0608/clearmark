@@ -558,7 +558,7 @@ graph TD
   - *Kết quả nghiệm thu*:
     - File gốc: `01_GOLDEN_ORIGINAL_UNTOUCHED.docx` (49,959 bytes, SHA-256: `c05ca5c1be3b020b75d5763cf22061879a255b3c4f57b0455ae562b54809f58d`).
     - File clean: `04_CANDIDATE_LOSSLESS_OUTPUT.docx` (49,395 bytes, SHA-256: `7aa5549f6a0e0b78fa39245c0e79503b2cc9defd6cffbfa5c8a833072d430297`).
-    - *(Lưu ý: Giá trị 45,633 bytes / f7d770df... là candidate trung gian RC1 — đã được thay thế hoàn toàn bởi RC2/RC3 bảo tồn raw OPC ZIP stream)*.
+    - *(Lưu ý: Giá trị 45,633 bytes / f7d770df... là candidate trung gian RC1 — đã được thay thế hoàn toàn bởi bản phát hành chính thức v2.0.0 bảo tồn raw OPC ZIP stream)*.
     - Visible text exact: `True` (100.000% trùng khớp).
     - Invariants: Paragraphs 204->204, Runs 288->288, Page Breaks 5->5, Pages 19->19, Tables 1->1 (Rows: 7->7, Cells: 49->49).
     - Non-target parts: 13/13 OOXML parts identical SHA-256 (kể cả `word/document.xml`).

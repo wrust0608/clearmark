@@ -1,8 +1,8 @@
-# RELEASE NOTES: LOSSLESS WATERMARK REMOVAL v2.0.0-RC3
+# RELEASE NOTES: LOSSLESS WATERMARK REMOVAL v2.0.0
 
 > **Subsystem**: Lossless DOCX Subsystem & Document Fidelity Engine  
-> **Trạng thái**: RELEASE CANDIDATE APPROVED (v2.0.0-RC3)  
-> **Local fork release candidate**: `v2.0.0-RC3`  
+> **Trạng thái**: FINAL RELEASE APPROVED (v2.0.0)  
+> **Local fork release**: `v2.0.0`  
 > **Upstream latest release**: `v0.7.0`  
 > **Authoritative True Golden Baseline**: `01_GOLDEN_ORIGINAL_UNTOUCHED.docx`  
 > **Valid Candidate Output**: `04_CANDIDATE_LOSSLESS_OUTPUT.docx`  
@@ -10,7 +10,7 @@
 
 ---
 
-## 1. Mục tiêu Bản Phát hành v2.0.0-RC3
+## 1. Mục tiêu Bản Phát hành v2.0.0
 
 Bản phát hành v2.0.0 giải quyết dứt điểm sự cố suy giảm chất lượng tài liệu (word gluing / run explosion / paraphrasing) trong các phiên bản trước đây bằng cách thay thế toàn bộ pipeline xử lý DOCX cũ bằng kiến trúc **Lossless DOCX Subsystem**.
 

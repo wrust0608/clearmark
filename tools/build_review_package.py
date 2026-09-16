@@ -1,6 +1,6 @@
 """tools/build_review_package.py
 
-Automated Builder and Verifier for FINAL_REVIEW_PACKAGE_v2.0.0-RC3.zip
+Automated Builder and Verifier for FINAL_RELEASE_PACKAGE_v2.0.0.zip
 Adheres strictly to the specification in Section 13 and Section 14:
 - Staging directory structure
 - Metadata manifest with path, size, sha256, purpose, and explicit manifest_exclusions
@@ -23,14 +23,14 @@ import zipfile
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 STAGING_DIR = REPO_ROOT / "artifacts" / "staging_review_package"
-FINAL_ZIP_PATH = REPO_ROOT / "FINAL_REVIEW_PACKAGE_v2.0.0-RC3.zip"
+FINAL_ZIP_PATH = REPO_ROOT / "FINAL_RELEASE_PACKAGE_v2.0.0.zip"
 
 BASE_COMMIT = "41ef353afd8ff354905c25abb803ae964d06d3d9"
 
 FILE_MAPPINGS = [
     # Documentation
     ("00_REVIEW_SUMMARY.md", "00_REVIEW_SUMMARY.md", "Executive summary and review roadmap for independent auditors"),
-    ("RELEASE_NOTES.md", "01_RELEASE_NOTES.md", "Canonical v2.0.0-RC3 release notes with True Golden baseline metrics"),
+    ("RELEASE_NOTES.md", "01_RELEASE_NOTES.md", "Canonical v2.0.0 release notes with True Golden baseline metrics"),
     ("MASTER_IMPLEMENTATION_PLAN.md", "02_MASTER_IMPLEMENTATION_PLAN.md", "Canonical 17-phase architecture and verification plan"),
     ("README.md", "03_README.md", "Authoritative repository documentation"),
     ("docs/reports/MASTER_REVALIDATION_REPORT.md", "reports/MASTER_REVALIDATION_REPORT.md", "Master revalidation report on True Golden and negative witnesses"),
@@ -266,8 +266,8 @@ Total Test Suite: 1359 passed, 0 failed, 152 skipped in 63.76s
     # 4. Write manifests/PACKAGE_MANIFEST.json
     manifest_file = STAGING_DIR / "manifests" / "PACKAGE_MANIFEST.json"
     manifest_data = {
-        "package": "FINAL_REVIEW_PACKAGE_v2.0.0-RC3.zip",
-        "release": "v2.0.0-RC3",
+        "package": "FINAL_RELEASE_PACKAGE_v2.0.0.zip",
+        "release": "v2.0.0",
         "created_at": commit_time,
         "authoritative_golden": {
             "filename": "01_GOLDEN_ORIGINAL_UNTOUCHED.docx",
@@ -285,7 +285,7 @@ Total Test Suite: 1359 passed, 0 failed, 152 skipped in 63.76s
                 "filename": "04_CANDIDATE_LOSSLESS_OUTPUT.docx",
                 "sha256": "f7d770df334380cc03e9a224fe1a499804d5b4868637683cc1afeaf712e67340",
                 "size_bytes": 45633,
-                "reason": "Recompressed member streams superseded by strict raw OPC ZIP preservation in RC2/RC3"
+                "reason": "Recompressed member streams superseded by strict raw OPC ZIP preservation in v2.0.0"
             }
         ],
         "manifest_exclusions": [
@@ -368,7 +368,7 @@ Total Test Suite: 1359 passed, 0 failed, 152 skipped in 63.76s
         print("  ✓ All SHA-256 checksums verified inside ZIP archive.")
 
     print("\n" + "=" * 70)
-    print("FINAL REVIEW PACKAGE SUCCESSFULLY CREATED & VERIFIED")
+    print("FINAL RELEASE PACKAGE SUCCESSFULLY CREATED & VERIFIED")
     print("=" * 70)
     print(f"Path:   {FINAL_ZIP_PATH}")
     print(f"Size:   {zip_size:,} bytes")

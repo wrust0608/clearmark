@@ -168,4 +168,4 @@ Hệ thống ClearMark Lossless DOCX Subsystem đã vượt qua toàn bộ các 
 4. Raw ZIP preservation bảo toàn nguyên vẹn byte-for-byte từng compressed member payload và ZIP metadata.
 5. Toàn bộ mã nguồn và test suite đạt chuẩn xuất xưởng.
 
-**Trạng thái bàn giao chính thức**: **RELEASE CANDIDATE APPROVED (v2.0.0-RC3)**
+**Trạng thái bàn giao chính thức**: **FINAL RELEASE APPROVED (v2.0.0)**
