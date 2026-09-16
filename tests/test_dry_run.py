@@ -164,3 +164,38 @@ def test_dry_run_report_privacy_across_fixtures(tmp_path):
     json_txt = json.dumps(rep_txt.to_dict(), ensure_ascii=False)
 
     assert "SUPER_SECRET_PAYLOAD_STRING" not in json_txt
+
+
+def test_docx_dry_run_plan_matches_actual_binary_mutations(tmp_path):
+    """Section 7: Plan Truthfulness: dry-run planned changed parts == actual binary payload changed parts."""
+    import io
+    import zipfile
+
+    pipeline = Pipeline()
+
+    # 1. Read Golden bytes & obtain dry-run mutation plan
+    _, dry_report = pipeline.clean(GOLDEN_DOCX, dry_run=True, mode=ProcessingMode.SAFE)
+    planned_changed_parts = set(dry_report.mutation_plan.changed_parts)
+
+    # 2. Run real clean on an isolated copy
+    isolated_copy = tmp_path / "golden_copy.docx"
+    isolated_copy.write_bytes(GOLDEN_DOCX.read_bytes())
+    clean_bytes, real_report = pipeline.clean(isolated_copy, dry_run=False, mode=ProcessingMode.SAFE)
+
+    # 3. Compare ZIP members and derive actual changed payload parts
+    golden_bytes = GOLDEN_DOCX.read_bytes()
+    actual_changed_payload_parts = set()
+    with zipfile.ZipFile(io.BytesIO(golden_bytes)) as zg, zipfile.ZipFile(io.BytesIO(clean_bytes)) as zc:
+        assert set(zg.namelist()) == set(zc.namelist()), "ZIP member set must be invariant"
+        for member_name in zg.namelist():
+            payload_before = zg.read(member_name)
+            payload_after = zc.read(member_name)
+            if payload_before != payload_after:
+                actual_changed_payload_parts.add(member_name)
+
+    # 4. Assert planned effective changed parts == actual changed payload parts
+    expected_parts = {"docProps/core.xml", "docProps/app.xml"}
+    assert planned_changed_parts == expected_parts
+    assert actual_changed_payload_parts == expected_parts
+    assert planned_changed_parts == actual_changed_payload_parts
+

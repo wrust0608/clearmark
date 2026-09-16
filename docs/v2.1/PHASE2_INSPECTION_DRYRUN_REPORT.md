@@ -100,10 +100,12 @@ The dedicated Phase 2 test suites demonstrate compliance with all specified inva
   - Clean input with empty plan -> returns `NO_CHANGE_REQUIRED` (`would_change=False`, `changed=False`).
   - Input with proposed mutations -> returns `INSPECTED` (`would_change=True`, `changed=False`).
 
-### 4.3 Mutation-Plan Parity (`tests/test_dry_run.py`)
+### 4.3 Mutation-Plan Parity & Plan Truthfulness (`tests/test_dry_run.py`)
 - For the same input, processing mode, and policy:
-  `dry_run mutation_plan.actions == real clean pre_execution mutation_plan.actions`
-- Verified on DOCX Golden (metadata targets `docProps/core.xml`, `docProps/app.xml`, `customXml/item1.xml`) and synthetic text/container fixtures.
+  `dry_run mutation_plan.mutations == real clean pre_execution mutation_plan.mutations`
+  `dry_run mutation_plan.changed_parts == real clean pre_execution mutation_plan.changed_parts`
+- **Plan Truthfulness Invariant**: `test_docx_dry_run_plan_matches_actual_binary_mutations` proves that the planned effective changed parts in dry run (`{"docProps/core.xml", "docProps/app.xml"}`) identically match the actual binary uncompressed payload changed parts produced by the frozen cleaner.
+- *Audit Note*: The True Golden (`01_GOLDEN_ORIGINAL_UNTOUCHED.docx`) contains no `customXml` parts. Planned metadata mutations target strictly `docProps/core.xml` (`lastModifiedBy`) and `docProps/app.xml` (`Application`), matching the canonical candidate byte-for-byte.
 
 ### 4.4 Processing Mode Propagation
 - `SAFE`, `BALANCED`, and `AGGRESSIVE` are propagated to `report.policy.mode`.
@@ -133,10 +135,11 @@ To maintain strict phase discipline:
 
 - Focused Phase 2 Suites:
   - `tests/test_inspection_first.py`: 7 passed
-  - `tests/test_dry_run.py`: 6 passed
+  - `tests/test_dry_run.py`: 7 passed
   - `tests/test_pipeline_data_model.py`: 9 passed
-  - `tests/test_unified_pipeline.py`: 5 passed
+  - `tests/test_unified_pipeline.py`: 6 passed
 - Full Regression Suite:
-  - Total passed: **1387** (increased from Phase 1's 1374; +13 new Phase 2 invariant tests)
+  - Total passed: **1388** (increased from Phase 1's 1374; +14 new Phase 2 invariant tests)
   - Total skipped: **152**
   - Total failed: **0**
+
