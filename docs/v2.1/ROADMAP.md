@@ -173,9 +173,15 @@ class CleaningReport:
 - **Gate**: Unit tests verifying schema serialization, round-trip, and no text content leaks.
 
 ### Phase 2: Inspection-First Workflow & Dry-Run Engine
-- **Objective**: Expose non-destructive inspection across all formats with accurate provenance terminology.
-- **Files**: `service/scripts/inspector.py`, `service/scripts/inspect_file.py`.
-- **Gate**: Invariant test: inspection never mutates files (byte-level check on source).
+- **Status**: COMPLETED / READY FOR REVIEW
+- **Objective**: Expose non-destructive inspection across all formats with accurate provenance terminology (`DETECTED`, `NOT_DETECTED`, `NOT_CHECKED`, `UNAVAILABLE`, `UNSUPPORTED`), structured `Finding` model, zero-write dry-run guarantee, and deterministic mutation-plan parity.
+- **Files**: `service/scripts/pipeline_types.py`, `service/scripts/pipeline.py`, `tests/test_inspection_first.py`, `tests/test_dry_run.py`.
+- **Gate**: Invariant tests:
+  - `inspect()` is byte-for-byte read-only (SHA256, size, mtime_ns invariant; zero temp/output files created).
+  - `clean(..., dry_run=True)` executes zero disk writes (`would_change: bool` tracked, `output.changed=False`).
+  - Dry-run mutation plan exactly matches pre-execution plan of real clean.
+  - Zero network attempts across all file workflows.
+  - Universal report privacy: no body text in serialized reports.
 
 ### Phase 3: Unified CLI & API Normalization
 - **Objective**: Build `watermarks` CLI and update `server.py` `/inspect`, `/clean`, `/verify`, `/capabilities`.

@@ -18,6 +18,7 @@ from __future__ import annotations
 import hashlib
 import io
 import os
+import shutil
 import sys
 import tempfile
 import time
@@ -30,26 +31,81 @@ from common import (
     MAX_INPUT_BYTES,
     safe_write_bytes,
 )
-from format_dispatch import classify, classify_bytes
-from format_policy import FormatPolicy, FormatPolicyRegistry
-from pipeline_types import (
-    CleaningReport,
-    ErrorCode,
-    FidelityLevel,
-    FileIdentity,
-    InspectionData,
-    MutationRecord,
-    OutputRecord,
-    PipelineStatus,
-    PolicySelection,
-    PrivacySummary,
-    ProcessingMode,
-    ValidationOutcome,
-)
+try:
+    from .format_dispatch import classify, classify_bytes
+    from .format_policy import FormatPolicy, FormatPolicyRegistry
+    from .pipeline_types import (
+        CleaningReport,
+        DetectionStatus,
+        ErrorCode,
+        FidelityLevel,
+        FileIdentity,
+        Finding,
+        InspectionData,
+        MutationRecord,
+        OutputRecord,
+        PipelineStatus,
+        PolicySelection,
+        PrivacySummary,
+        ProcessingMode,
+        ValidationOutcome,
+    )
+except (ImportError, ValueError):
+    from format_dispatch import classify, classify_bytes
+    from format_policy import FormatPolicy, FormatPolicyRegistry
+    from pipeline_types import (
+        CleaningReport,
+        DetectionStatus,
+        ErrorCode,
+        FidelityLevel,
+        FileIdentity,
+        Finding,
+        InspectionData,
+        MutationRecord,
+        OutputRecord,
+        PipelineStatus,
+        PolicySelection,
+        PrivacySummary,
+        ProcessingMode,
+        ValidationOutcome,
+    )
 
 
 def _compute_sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
+
+
+def _docx_plan_to_mutations(plan: Any) -> list[dict[str, Any]]:
+    """Deterministic conversion of DocxMutationPlan into structured mutation dictionaries."""
+    mutations: list[dict[str, Any]] = []
+    for tm in getattr(plan, "text_mutations", []):
+        mutations.append({
+            "kind": "text",
+            "part": tm.part_name,
+            "desc": f"U+{tm.codepoint:04X} {tm.char_name}",
+            "location": f"p{tm.p_idx}:r{tm.r_idx}:t{tm.t_idx}:offset{tm.offset}",
+            "codepoint": f"U+{tm.codepoint:04X}",
+        })
+    for mm in getattr(plan, "metadata_mutations", []):
+        mutations.append({
+            "kind": "metadata",
+            "part": mm.part_name,
+            "desc": mm.label,
+            "tag": mm.tag_name,
+        })
+    for pd in getattr(plan, "part_drops", []):
+        mutations.append({
+            "kind": "part_drop",
+            "part": pd.part_name,
+            "desc": pd.reason,
+        })
+    for med in getattr(plan, "media_mutations", []):
+        mutations.append({
+            "kind": "media",
+            "part": med.part_name,
+            "desc": "embedded media clean",
+        })
+    return mutations
 
 
 class Pipeline:
@@ -89,7 +145,7 @@ class Pipeline:
         filename: Optional[str] = None,
         mode: ProcessingMode = ProcessingMode.SAFE,
     ) -> CleaningReport:
-        """Perform zero-mutation, read-only inspection."""
+        """Perform zero-mutation, strictly read-only inspection (Sections 2, 3, 4, 7, 8, 9)."""
         t0 = time.perf_counter()
         data, name, fmt = self._resolve_input(input_source, filename)
         size = len(data)
@@ -100,11 +156,11 @@ class Pipeline:
             return CleaningReport(
                 status=PipelineStatus.ERROR,
                 input=ident,
-                inspection=InspectionData(),
+                inspection=InspectionData(detection_status=DetectionStatus.UNAVAILABLE),
                 policy=PolicySelection(mode=mode, format_policy=fmt),
                 mutation_plan=MutationRecord(),
                 validation=ValidationOutcome(status="FAIL", warnings=["Input exceeds MAX_INPUT_BYTES limit"]),
-                output=OutputRecord(changed=False, size=size, sha256=sha),
+                output=OutputRecord(changed=False, would_change=False, size=size, sha256=sha),
                 privacy=PrivacySummary(network_used=False),
                 performance_elapsed_ms=(time.perf_counter() - t0) * 1000.0,
                 error_code=ErrorCode.PROCESSING_LIMIT_EXCEEDED,
@@ -113,50 +169,115 @@ class Pipeline:
 
         policy = self.registry.get(fmt)
         if policy is None:
+            unsupported_finding = Finding(
+                detector_id="FormatClassifier",
+                category="format",
+                reason="Unsupported or unrecognized file format",
+                actionability="UNSUPPORTED",
+            )
             return CleaningReport(
                 status=PipelineStatus.UNSUPPORTED,
                 input=ident,
-                inspection=InspectionData(findings=["Unsupported or unrecognized file format"]),
+                inspection=InspectionData(
+                    findings=[unsupported_finding],
+                    detection_status=DetectionStatus.UNSUPPORTED,
+                ),
                 policy=PolicySelection(mode=mode, format_policy=fmt),
                 mutation_plan=MutationRecord(),
                 validation=ValidationOutcome(status="SKIPPED"),
-                output=OutputRecord(changed=False, size=size, sha256=sha),
+                output=OutputRecord(changed=False, would_change=False, size=size, sha256=sha),
                 privacy=PrivacySummary(network_used=False),
                 performance_elapsed_ms=(time.perf_counter() - t0) * 1000.0,
                 error_code=ErrorCode.UNSUPPORTED_FORMAT,
                 error_message=f"Format '{fmt}' is not supported",
             )
 
-        # Format-specific inspection dispatch
-        findings: list[str] = []
+        # Capability-aware detection setup
+        findings: list[Union[Finding, str]] = []
         detectors_run: list[str] = []
+        detectors_unavailable: list[str] = []
+        warnings: list[str] = []
+
+        # Check optional dependencies for this format
+        for dep in policy.optional_dependencies:
+            if shutil.which(dep) is None:
+                detectors_unavailable.append(dep)
+
+        # Mode explanation if BALANCED or AGGRESSIVE has no separate action
+        if mode != ProcessingMode.SAFE:
+            if not policy.destructive_operations:
+                warnings.append(
+                    f"Mode {mode.value} active; format '{fmt}' operates identically to SAFE under current fidelity rules"
+                )
 
         if fmt == "docx":
             try:
                 from docx.detector import DocxDetector
                 from docx.package import DocxPackage
 
+                detectors_run.extend([
+                    "DocxDetector",
+                    "DocxMetadataDetector",
+                    "DocxUnicodeDetector",
+                    "DocxMediaDetector",
+                    "DocxCustomXmlDetector",
+                ])
+
                 pkg = DocxPackage(data)
-                detector = DocxDetector(pkg)
+                detector = DocxDetector(pkg, {"mode": mode.value})
                 plan = detector.build_plan()
-                detectors_run.append("DocxDetector")
+
                 for tm in plan.text_mutations:
-                    findings.append(f"[unicode] {tm.part_name}: U+{tm.codepoint:04X} {tm.char_name}")
+                    findings.append(
+                        Finding(
+                            detector_id="DocxUnicodeDetector",
+                            category="unicode_carrier",
+                            target_part=tm.part_name,
+                            location=f"p{tm.p_idx}:r{tm.r_idx}:t{tm.t_idx}:offset{tm.offset}",
+                            codepoint=f"U+{tm.codepoint:04X}",
+                            reason=tm.char_name,
+                        )
+                    )
                 for mm in plan.metadata_mutations:
-                    findings.append(f"[metadata] {mm.part_name}: {mm.label}")
+                    findings.append(
+                        Finding(
+                            detector_id="DocxMetadataDetector",
+                            category="metadata_provenance",
+                            target_part=mm.part_name,
+                            metadata_key=mm.tag_name,
+                            reason=mm.label,
+                        )
+                    )
                 for pd in plan.part_drops:
-                    findings.append(f"[part_drop] {pd.part_name}: {pd.reason}")
+                    findings.append(
+                        Finding(
+                            detector_id="DocxCustomXmlDetector",
+                            category="part_drop",
+                            target_part=pd.part_name,
+                            reason=pd.reason,
+                        )
+                    )
                 for med in plan.media_mutations:
-                    findings.append(f"[media] {med.part_name}: cleaned media metadata")
+                    findings.append(
+                        Finding(
+                            detector_id="DocxMediaDetector",
+                            category="media_metadata",
+                            target_part=med.part_name,
+                            reason="embedded media metadata",
+                        )
+                    )
             except Exception as e:
                 return CleaningReport(
                     status=PipelineStatus.ERROR,
                     input=ident,
-                    inspection=InspectionData(),
+                    inspection=InspectionData(
+                        detectors_run=detectors_run,
+                        detection_status=DetectionStatus.UNAVAILABLE,
+                    ),
                     policy=PolicySelection(mode=mode, format_policy=fmt),
                     mutation_plan=MutationRecord(),
-                    validation=ValidationOutcome(status="FAIL"),
-                    output=OutputRecord(changed=False, size=size, sha256=sha),
+                    validation=ValidationOutcome(status="FAIL", warnings=[str(e)]),
+                    output=OutputRecord(changed=False, would_change=False, size=size, sha256=sha),
                     privacy=PrivacySummary(network_used=False),
                     performance_elapsed_ms=(time.perf_counter() - t0) * 1000.0,
                     error_code=ErrorCode.INVALID_CONTAINER,
@@ -164,33 +285,153 @@ class Pipeline:
                 )
         elif fmt in ("png", "jpeg", "jpg", "webp", "gif", "bmp", "tiff", "avif", "heic"):
             try:
-                from image_meta import inspect_image_bytes
+                from image_meta import inspect_image
 
                 detectors_run.append("ImageMetaInspector")
-                img_report = inspect_image_bytes(data, name)
+                img_report = inspect_image(Path(name), data=data)
                 for f in getattr(img_report, "findings", []):
-                    findings.append(f"[metadata] {f}")
-            except Exception:
-                detectors_run.append("ImageMetaInspector")
+                    findings.append(
+                        Finding(
+                            detector_id="ImageMetaInspector",
+                            category="metadata",
+                            metadata_key=f,
+                            reason=f,
+                        )
+                    )
+                if getattr(img_report, "has_c2pa", False):
+                    findings.append(
+                        Finding(
+                            detector_id="ImageMetaInspector",
+                            category="c2pa",
+                            reason="C2PA manifest detected",
+                        )
+                    )
+                if getattr(img_report, "has_ai_metadata", False):
+                    findings.append(
+                        Finding(
+                            detector_id="ImageMetaInspector",
+                            category="ai_metadata",
+                            reason="AI generation metadata detected",
+                        )
+                    )
+            except Exception as e:
+                return CleaningReport(
+                    status=PipelineStatus.ERROR,
+                    input=ident,
+                    inspection=InspectionData(
+                        detectors_run=detectors_run,
+                        detection_status=DetectionStatus.UNAVAILABLE,
+                    ),
+                    policy=PolicySelection(mode=mode, format_policy=fmt),
+                    mutation_plan=MutationRecord(),
+                    validation=ValidationOutcome(status="FAIL", warnings=[str(e)]),
+                    output=OutputRecord(changed=False, would_change=False, size=size, sha256=sha),
+                    privacy=PrivacySummary(network_used=False),
+                    performance_elapsed_ms=(time.perf_counter() - t0) * 1000.0,
+                    error_code=ErrorCode.INVALID_CONTAINER,
+                    error_message=f"Corrupted image payload: {e}",
+                )
         elif fmt in ("txt", "md", "html", "latex"):
             try:
                 from text_unicode import inspect_text
 
                 detectors_run.append("UnicodeTextInspector")
                 text_str = data.decode("utf-8", errors="replace")
-                t_report = inspect_text(text_str)
+                t_report = inspect_text(text_str, aggressive=(mode == ProcessingMode.AGGRESSIVE))
                 for hit in getattr(t_report, "hits", []):
-                    findings.append(f"[unicode] {hit}")
-            except Exception:
-                detectors_run.append("UnicodeTextInspector")
+                    cp_int = ord(hit.char) if hasattr(hit, "char") else 0
+                    cp_hex = f"U+{cp_int:04X}"
+                    findings.append(
+                        Finding(
+                            detector_id="UnicodeTextInspector",
+                            category="unicode_carrier",
+                            location=f"offset:{getattr(hit, 'offset', 0)}",
+                            codepoint=cp_hex,
+                            reason=getattr(hit, "name", "invisible_char"),
+                        )
+                    )
+            except Exception as e:
+                return CleaningReport(
+                    status=PipelineStatus.ERROR,
+                    input=ident,
+                    inspection=InspectionData(
+                        detectors_run=detectors_run,
+                        detection_status=DetectionStatus.UNAVAILABLE,
+                    ),
+                    policy=PolicySelection(mode=mode, format_policy=fmt),
+                    mutation_plan=MutationRecord(),
+                    validation=ValidationOutcome(status="FAIL", warnings=[str(e)]),
+                    output=OutputRecord(changed=False, would_change=False, size=size, sha256=sha),
+                    privacy=PrivacySummary(network_used=False),
+                    performance_elapsed_ms=(time.perf_counter() - t0) * 1000.0,
+                    error_code=ErrorCode.INTERNAL_ERROR,
+                    error_message=f"Text inspection failure: {e}",
+                )
+        elif fmt in ("pdf", "odt", "ods", "odp", "epub"):
+            try:
+                from container_meta import inspect_container
+
+                detectors_run.append("ContainerMetaInspector")
+                c_report = inspect_container(Path(name), data=data)
+                for f in getattr(c_report, "findings", []):
+                    findings.append(
+                        Finding(
+                            detector_id="ContainerMetaInspector",
+                            category="container_metadata",
+                            metadata_key=f,
+                            reason=f,
+                        )
+                    )
+                if getattr(c_report, "has_c2pa", False):
+                    findings.append(
+                        Finding(
+                            detector_id="ContainerMetaInspector",
+                            category="c2pa",
+                            reason="C2PA manifest detected",
+                        )
+                    )
+                if getattr(c_report, "has_ai_metadata", False):
+                    findings.append(
+                        Finding(
+                            detector_id="ContainerMetaInspector",
+                            category="ai_metadata",
+                            reason="AI metadata detected",
+                        )
+                    )
+            except Exception as e:
+                return CleaningReport(
+                    status=PipelineStatus.ERROR,
+                    input=ident,
+                    inspection=InspectionData(
+                        detectors_run=detectors_run,
+                        detection_status=DetectionStatus.UNAVAILABLE,
+                    ),
+                    policy=PolicySelection(mode=mode, format_policy=fmt),
+                    mutation_plan=MutationRecord(),
+                    validation=ValidationOutcome(status="FAIL", warnings=[str(e)]),
+                    output=OutputRecord(changed=False, would_change=False, size=size, sha256=sha),
+                    privacy=PrivacySummary(network_used=False),
+                    performance_elapsed_ms=(time.perf_counter() - t0) * 1000.0,
+                    error_code=ErrorCode.INVALID_CONTAINER,
+                    error_message=f"Container inspection failure: {e}",
+                )
         else:
             detectors_run.append("GenericContainerInspector")
+
+        # Determine overall detection status
+        detection_status = DetectionStatus.DETECTED if len(findings) > 0 else DetectionStatus.NOT_DETECTED
 
         elapsed = (time.perf_counter() - t0) * 1000.0
         return CleaningReport(
             status=PipelineStatus.INSPECTED,
             input=ident,
-            inspection=InspectionData(findings=findings, detectors_run=detectors_run),
+            inspection=InspectionData(
+                findings=findings,
+                detectors_run=detectors_run,
+                detectors_unavailable=detectors_unavailable,
+                unsupported_checks=[],
+                detection_status=detection_status,
+            ),
             policy=PolicySelection(
                 mode=mode,
                 format_policy=fmt,
@@ -198,8 +439,8 @@ class Pipeline:
                 remote_processing=False,
             ),
             mutation_plan=MutationRecord(),
-            validation=ValidationOutcome(status="SKIPPED"),
-            output=OutputRecord(changed=False, size=size, sha256=sha),
+            validation=ValidationOutcome(status="SKIPPED", warnings=warnings),
+            output=OutputRecord(changed=False, would_change=False, size=size, sha256=sha),
             privacy=PrivacySummary(network_used=False),
             performance_elapsed_ms=elapsed,
         )
@@ -226,11 +467,21 @@ class Pipeline:
             report = CleaningReport(
                 status=PipelineStatus.UNSUPPORTED,
                 input=ident,
-                inspection=InspectionData(findings=["Unsupported or unrecognized file format"]),
+                inspection=InspectionData(
+                    findings=[
+                        Finding(
+                            detector_id="FormatClassifier",
+                            category="format",
+                            reason="Unsupported or unrecognized file format",
+                            actionability="UNSUPPORTED",
+                        )
+                    ],
+                    detection_status=DetectionStatus.UNSUPPORTED,
+                ),
                 policy=PolicySelection(mode=mode, format_policy=fmt),
                 mutation_plan=MutationRecord(),
                 validation=ValidationOutcome(status="SKIPPED"),
-                output=OutputRecord(changed=False, size=size, sha256=sha),
+                output=OutputRecord(changed=False, would_change=False, size=size, sha256=sha),
                 privacy=PrivacySummary(network_used=False),
                 performance_elapsed_ms=(time.perf_counter() - t0) * 1000.0,
                 error_code=ErrorCode.UNSUPPORTED_FORMAT,
@@ -243,28 +494,41 @@ class Pipeline:
         if insp_report.status in (PipelineStatus.UNSUPPORTED, PipelineStatus.ERROR):
             return data, insp_report
 
-        # 2. Dry run handling
+        # 2. Dry run handling (Sections 5, 6, 12, 13)
         if dry_run:
             mutations: list[dict[str, Any]] = []
             changed_parts: list[str] = []
+            dry_run_warnings: list[str] = ["Dry-run mode: zero modifications committed"]
+
             if fmt == "docx":
                 from docx.detector import DocxDetector
                 from docx.package import DocxPackage
 
                 pkg = DocxPackage(data)
-                plan = DocxDetector(pkg).build_plan()
-                for tm in plan.text_mutations:
-                    mutations.append({"kind": "text", "part": tm.part_name, "desc": f"U+{tm.codepoint:04X} {tm.char_name}"})
-                for mm in plan.metadata_mutations:
-                    mutations.append({"kind": "metadata", "part": mm.part_name, "desc": mm.label})
-                for pd in plan.part_drops:
-                    mutations.append({"kind": "part_drop", "part": pd.part_name, "desc": pd.reason})
-                for med in plan.media_mutations:
-                    mutations.append({"kind": "media", "part": med.part_name, "desc": "embedded media clean"})
+                plan = DocxDetector(pkg, opts).build_plan()
+                mutations = _docx_plan_to_mutations(plan)
                 changed_parts = sorted(plan.changed_parts())
+                plan_is_empty = plan.is_empty()
+            elif fmt in ("png", "jpeg", "jpg", "webp", "gif", "bmp", "tiff", "avif", "heic", "txt", "md", "html", "latex", "pdf", "odt", "ods", "odp", "epub"):
+                # For non-docx formats, check if inspection detected actionable markers
+                plan_is_empty = insp_report.inspection.detection_status == DetectionStatus.NOT_DETECTED
+                if not plan_is_empty:
+                    for f in insp_report.inspection.findings:
+                        desc = f.reason if isinstance(f, Finding) else str(f)
+                        mutations.append({"action": "clean_marker", "desc": desc})
+            else:
+                plan_is_empty = True
+
+            # Differentiate empty plan vs non-empty dry-run (Section 13)
+            if plan_is_empty:
+                dry_status = PipelineStatus.NO_CHANGE_REQUIRED
+                would_change = False
+            else:
+                dry_status = PipelineStatus.INSPECTED
+                would_change = True
 
             report = CleaningReport(
-                status=PipelineStatus.INSPECTED,
+                status=dry_status,
                 input=ident,
                 inspection=insp_report.inspection,
                 policy=PolicySelection(
@@ -273,8 +537,8 @@ class Pipeline:
                     normalize_spaces=False if fmt == "docx" else policy.allow_destructive_normalization,
                 ),
                 mutation_plan=MutationRecord(mutations=mutations, changed_parts=changed_parts),
-                validation=ValidationOutcome(status="SKIPPED", warnings=["Dry-run mode: no modifications committed"]),
-                output=OutputRecord(changed=False, size=size, sha256=sha),
+                validation=ValidationOutcome(status="SKIPPED", warnings=dry_run_warnings),
+                output=OutputRecord(changed=False, would_change=would_change, size=size, sha256=sha),
                 privacy=PrivacySummary(network_used=False),
                 performance_elapsed_ms=(time.perf_counter() - t0) * 1000.0,
             )
@@ -290,8 +554,16 @@ class Pipeline:
 
         if fmt == "docx":
             from docx.cleaner import clean_docx_lossless
+            from docx.detector import DocxDetector
+            from docx.package import DocxPackage
 
             try:
+                # Pre-execution plan invariant: matches dry_run mutation plan exactly (Section 5)
+                pkg = DocxPackage(data)
+                pre_plan = DocxDetector(pkg, opts).build_plan()
+                mutations_applied = _docx_plan_to_mutations(pre_plan)
+                parts_changed = sorted(pre_plan.changed_parts())
+
                 cleaned_bytes, docx_report = clean_docx_lossless(data, options=opts)
                 if docx_report.get("error"):
                     err_msg = docx_report["error"]
@@ -302,15 +574,12 @@ class Pipeline:
                         policy=PolicySelection(mode=mode, format_policy=fmt),
                         mutation_plan=MutationRecord(),
                         validation=ValidationOutcome(status="FAIL", warnings=[err_msg]),
-                        output=OutputRecord(changed=False, size=size, sha256=sha),
+                        output=OutputRecord(changed=False, would_change=False, size=size, sha256=sha),
                         privacy=PrivacySummary(network_used=False),
                         performance_elapsed_ms=(time.perf_counter() - t0) * 1000.0,
                         error_code=ErrorCode.VALIDATION_FAILED,
                         error_message=f"Validation failed: {err_msg}",
                     )
-                for a in docx_report.get("actions", []):
-                    mutations_applied.append({"action": a})
-                parts_changed = docx_report.get("changed_parts", [])
                 val_rep = docx_report.get("validation")
                 if val_rep and hasattr(val_rep, "invariants"):
                     inv = val_rep.invariants
@@ -330,7 +599,7 @@ class Pipeline:
                     policy=PolicySelection(mode=mode, format_policy=fmt),
                     mutation_plan=MutationRecord(),
                     validation=ValidationOutcome(status="FAIL", warnings=[str(e)]),
-                    output=OutputRecord(changed=False, size=size, sha256=sha),
+                    output=OutputRecord(changed=False, would_change=False, size=size, sha256=sha),
                     privacy=PrivacySummary(network_used=False),
                     performance_elapsed_ms=(time.perf_counter() - t0) * 1000.0,
                     error_code=ErrorCode.VALIDATION_FAILED,
@@ -348,6 +617,7 @@ class Pipeline:
         is_changed = out_sha != sha
 
         final_status = PipelineStatus.CLEANED if is_changed else PipelineStatus.NO_CHANGE_REQUIRED
+        would_change = is_changed
 
         # 5. Output Writing (Atomic Replacement / Destination)
         dest_str: Optional[str] = None
@@ -381,6 +651,7 @@ class Pipeline:
             ),
             output=OutputRecord(
                 changed=is_changed,
+                would_change=would_change,
                 size=out_size,
                 sha256=out_sha,
                 output_path=dest_str,
@@ -390,3 +661,4 @@ class Pipeline:
         )
 
         return cleaned_bytes, report
+

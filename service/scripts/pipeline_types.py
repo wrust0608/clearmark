@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
 from enum import Enum
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Union
 
 
 class PipelineStatus(str, Enum):
@@ -24,6 +24,15 @@ class PipelineStatus(str, Enum):
     VALIDATION_FAILED = "VALIDATION_FAILED"
     UNSUPPORTED = "UNSUPPORTED"
     ERROR = "ERROR"
+
+
+class DetectionStatus(str, Enum):
+    """Specific detection status distinguishing detection, absence, unavailable tools, and unsupported formats (Section 3)."""
+    DETECTED = "DETECTED"
+    NOT_DETECTED = "NOT_DETECTED"
+    NOT_CHECKED = "NOT_CHECKED"
+    UNAVAILABLE = "UNAVAILABLE"
+    UNSUPPORTED = "UNSUPPORTED"
 
 
 class ErrorCode(str, Enum):
@@ -52,6 +61,53 @@ class FidelityLevel(str, Enum):
     LEVEL_D = "LEVEL_D"  # Visual rendering regression (pixel-identical rendering)
 
 
+@dataclass
+class Finding:
+    """Structured inspection finding avoiding body text storage (Section 4)."""
+    detector_id: str
+    category: str
+    actionability: str = "SAFE_TO_REMOVE"
+    confidence: float = 1.0
+    location: Optional[str] = None
+    target_part: Optional[str] = None
+    codepoint: Optional[str] = None
+    metadata_key: Optional[str] = None
+    reason: Optional[str] = None
+
+    def to_dict(self) -> dict[str, Any]:
+        d: dict[str, Any] = {
+            "detector_id": self.detector_id,
+            "category": self.category,
+            "actionability": self.actionability,
+            "confidence": self.confidence,
+        }
+        if self.location is not None:
+            d["location"] = self.location
+        if self.target_part is not None:
+            d["target_part"] = self.target_part
+        if self.codepoint is not None:
+            d["codepoint"] = self.codepoint
+        if self.metadata_key is not None:
+            d["metadata_key"] = self.metadata_key
+        if self.reason is not None:
+            d["reason"] = self.reason
+        return d
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> Finding:
+        return cls(
+            detector_id=d.get("detector_id", ""),
+            category=d.get("category", ""),
+            actionability=d.get("actionability", "SAFE_TO_REMOVE"),
+            confidence=float(d.get("confidence", 1.0)),
+            location=d.get("location"),
+            target_part=d.get("target_part"),
+            codepoint=d.get("codepoint"),
+            metadata_key=d.get("metadata_key"),
+            reason=d.get("reason"),
+        )
+
+
 @dataclass(frozen=True)
 class FileIdentity:
     """Input file identity and provenance."""
@@ -63,10 +119,12 @@ class FileIdentity:
 
 @dataclass
 class InspectionData:
-    """Non-destructive inspection findings."""
-    findings: List[str] = field(default_factory=list)
+    """Non-destructive inspection findings (Sections 3, 4, 9)."""
+    findings: List[Union[str, dict[str, Any], Finding]] = field(default_factory=list)
     detectors_run: List[str] = field(default_factory=list)
     detectors_unavailable: List[str] = field(default_factory=list)
+    unsupported_checks: List[str] = field(default_factory=list)
+    detection_status: DetectionStatus = DetectionStatus.NOT_CHECKED
 
 
 @dataclass
@@ -95,8 +153,9 @@ class ValidationOutcome:
 
 @dataclass
 class OutputRecord:
-    """Output file metadata."""
+    """Output file metadata (Sections 12, 13)."""
     changed: bool = False
+    would_change: bool = False
     size: int = 0
     sha256: str = ""
     output_path: Optional[str] = None
@@ -126,6 +185,21 @@ class CleaningReport:
 
     def to_dict(self) -> dict[str, Any]:
         """Convert report to clean JSON-serializable dictionary."""
+        findings_serialized = []
+        for f in self.inspection.findings:
+            if hasattr(f, "to_dict"):
+                findings_serialized.append(f.to_dict())
+            elif isinstance(f, dict):
+                findings_serialized.append(f)
+            else:
+                findings_serialized.append(str(f))
+
+        det_status = (
+            self.inspection.detection_status.value
+            if isinstance(self.inspection.detection_status, DetectionStatus)
+            else str(self.inspection.detection_status)
+        )
+
         return {
             "status": self.status.value if isinstance(self.status, PipelineStatus) else str(self.status),
             "input": {
@@ -135,9 +209,11 @@ class CleaningReport:
                 "sha256": self.input.sha256,
             },
             "inspection": {
-                "findings": list(self.inspection.findings),
+                "findings": findings_serialized,
                 "detectors_run": list(self.inspection.detectors_run),
                 "detectors_unavailable": list(self.inspection.detectors_unavailable),
+                "unsupported_checks": list(self.inspection.unsupported_checks),
+                "detection_status": det_status,
             },
             "policy": {
                 "mode": self.policy.mode.value if isinstance(self.policy.mode, ProcessingMode) else str(self.policy.mode),
@@ -156,6 +232,7 @@ class CleaningReport:
             },
             "output": {
                 "changed": self.output.changed,
+                "would_change": self.output.would_change,
                 "size": self.output.size,
                 "sha256": self.output.sha256,
                 "output_path": self.output.output_path,
@@ -189,6 +266,13 @@ class CleaningReport:
         err_val = d.get("error_code")
         err = ErrorCode(err_val) if err_val in ErrorCode._value2member_map_ else None
 
+        raw_det_status = insp.get("detection_status", "NOT_CHECKED")
+        det_status = (
+            DetectionStatus(raw_det_status)
+            if raw_det_status in DetectionStatus._value2member_map_
+            else DetectionStatus.NOT_CHECKED
+        )
+
         return cls(
             status=PipelineStatus(d.get("status", "ERROR")),
             input=FileIdentity(
@@ -201,6 +285,8 @@ class CleaningReport:
                 findings=inp_findings if (inp_findings := insp.get("findings")) else [],
                 detectors_run=insp.get("detectors_run", []),
                 detectors_unavailable=insp.get("detectors_unavailable", []),
+                unsupported_checks=insp.get("unsupported_checks", []),
+                detection_status=det_status,
             ),
             policy=PolicySelection(
                 mode=mode,
@@ -219,6 +305,7 @@ class CleaningReport:
             ),
             output=OutputRecord(
                 changed=out.get("changed", False),
+                would_change=out.get("would_change", False),
                 size=out.get("size", 0),
                 sha256=out.get("sha256", ""),
                 output_path=out.get("output_path"),

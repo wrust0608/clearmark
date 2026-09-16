@@ -176,3 +176,17 @@ For any valid input file $X$:
 1. $X_{clean} = \text{clean}(X)$
 2. $\text{clean}(X_{clean}) == X_{clean}$
 3. The second execution must explicitly return status `NO_CHANGE_REQUIRED`.
+
+---
+
+## ADR-010: Temporary Format Policy Compatibility Forwarder in pipeline_types.py
+
+### Context
+During Phase 1, `FormatPolicy` and `FormatPolicyRegistry` were consolidated into `service/scripts/format_policy.py` as the authoritative single source of truth. To preserve backward compatibility for callers importing from `pipeline_types` without causing circular imports or code duplication, dynamic `__getattr__` resolution was introduced in `service/scripts/pipeline_types.py`.
+
+### Decision
+1. The dynamic `__getattr__` in `service/scripts/pipeline_types.py` is strictly a **temporary compatibility alias** for `FormatPolicy`, `FormatCapabilities`, and `FormatPolicyRegistry`.
+2. Do **NOT** extend this pattern. No additional service-layer objects or runtime business logic may be exposed through `pipeline_types.__getattr__`.
+3. `service/scripts/pipeline_types.py` must remain strictly data-model focused (dataclasses, enums, report serialization schemas).
+4. This temporary compatibility alias is scheduled for complete deprecation and removal in Phase 3 when CLI and API modules migrate to direct imports from `service/scripts/format_policy.py`.
+

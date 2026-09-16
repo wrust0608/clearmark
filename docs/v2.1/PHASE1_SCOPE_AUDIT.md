@@ -12,7 +12,7 @@
 
 Feature development was immediately halted per instructions. An exhaustive audit of the Phase 1 implementation was conducted to:
 1. Verify the absolute freeze of the v2.0 lossless DOCX subsystem (`service/scripts/docx/`).
-2. Catalog and classify all newly introduced capabilities against the approved 11-phase roadmap.
+2. Catalog and classify all newly introduced capabilities against the approved 15-phase roadmap (Phase 0 through Phase 14).
 3. Eliminate duplicate policy registry implementations and establish `service/scripts/format_policy.py` as the **single source of truth**.
 4. Enforce that `service/scripts/pipeline_types.py` remains strictly data-only (dataclasses, enums, report serialization).
 5. Audit atomic in-place writing, read-only inspection, dry-run mode, report privacy, and idempotence boundaries.
