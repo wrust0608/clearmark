@@ -1,15 +1,15 @@
-# 00_REVIEW_SUMMARY: LOSSLESS DOCX ENGINE v2.0.0-RC2
+# 00_REVIEW_SUMMARY: LOSSLESS DOCX ENGINE v2.0.0-RC3
 
 > **Tài liệu hướng dẫn thẩm định dành cho Independent Reviewer & Auditor**  
-> Bản phát hành: `v2.0.0-RC2`  
-> Trạng thái: **RELEASE CANDIDATE APPROVED**
+> Bản phát hành: `v2.0.0-RC3`  
+> Trạng thái: **RELEASE CANDIDATE APPROVED (v2.0.0-RC3)**
 
 ---
 
 ## 1. Thông Tin Tổng Quan Dự Án
 
 - **PROJECT**: `watermarks-remover` local fork (Vietnamese Lossless DOCX Subsystem)
-- **LOCAL FORK RELEASE CANDIDATE**: `v2.0.0-RC2` (RELEASE CANDIDATE APPROVED)
+- **LOCAL FORK RELEASE CANDIDATE**: `v2.0.0-RC3` (RELEASE CANDIDATE APPROVED)
 - **UPSTREAM LATEST RELEASE**: `v0.7.0` (guillaumemeyer/watermarks-remover)
 - **DEFAULT SERVICE PORT**: `8765` (`http://127.0.0.1:8765` / `http://localhost:8765`)
 
@@ -53,9 +53,22 @@ DETECT
 - **filename**: `04_CANDIDATE_LOSSLESS_OUTPUT.docx`
 - **size**: `49,395 bytes`
 - **sha256**: `7aa5549f6a0e0b78fa39245c0e79503b2cc9defd6cffbfa5c8a833072d430297`
+- *(RC1 historical candidate — superseded: 45,633 bytes, SHA-256: `f7d770df334380cc03e9a224fe1a499804d5b4868637683cc1afeaf712e67340`).*
 
 > [!NOTE]
 > **Lưu ý Tài liệu Thực tế (Real Document Note)**: Trên mẫu chuẩn thực tế `01_GOLDEN_ORIGINAL_UNTOUCHED.docx`, `word/document.xml` là byte-identical trước và sau khi làm sạch. Hai part thay đổi duy nhất là metadata provenance (`docProps/core.xml` xóa `cp:lastModifiedBy` và `docProps/app.xml` xóa `Application`). Do đó, mẫu này minh chứng cho tính toàn vẹn tài liệu và khả năng tẩy sạch metadata. Khả năng gỡ bỏ ký tự Unicode carrier trong phần thân được kiểm chứng độc lập thông qua bộ synthetic/regression fixtures chuyên dụng.
+
+> [!IMPORTANT]
+> **Giới hạn Kỹ thuật & Ranh giới Fail-Closed (Technical Limitations)**:  
+> The strict raw OPC copier currently supports the ZIP forms used by standard Word DOCX fixtures in the validated test matrix, including STORED and DEFLATED entries. Unsupported or unvalidated ZIP features must fail closed, including where applicable:
+> - ZIP64 edge cases
+> - multi-disk archives
+> - unsupported compression algorithms
+> - encrypted ZIP members
+> Do not silently normalize unsupported archive structures.
+>
+> *Strict Raw OPC Invariants (13/13 Non-Target Parts)*:  
+> Uncompressed payload SAME, compressed payload SAME, CRC SAME, compress_type SAME, flag_bits SAME (6 == 6), external_attr SAME (0 == 0), internal_attr SAME (0 == 0), date_time SAME, extra SAME, comment SAME.
 
 ---
 

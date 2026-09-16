@@ -140,11 +140,26 @@ Thực thi test suite hoàn chỉnh bằng `uv run --with pytest pytest`:
 - **failed**: **0**
 - **skipped**: **152** *(các module sidecar/model ngoài)*
 - **xfailed**: **0**
-- **duration**: **61.87s**
+- **duration**: **63.76s**
 
 ---
 
-## 8. Kết luận Nghiệm thu
+## 8. Giới hạn Kỹ thuật & Ranh giới Fail-Closed
+
+The strict raw OPC copier currently supports the ZIP forms used by standard Word DOCX fixtures in the validated test matrix, including STORED and DEFLATED entries. Unsupported or unvalidated ZIP features must fail closed, including where applicable:
+- ZIP64 edge cases
+- multi-disk archives
+- unsupported compression algorithms
+- encrypted ZIP members
+
+Do not silently normalize unsupported archive structures.
+
+*Strict Raw OPC Invariants (13/13 Non-Target Parts)*:  
+Uncompressed payload SAME, compressed payload SAME, CRC SAME, compress_type SAME, flag_bits SAME, external_attr SAME, internal_attr SAME, date_time SAME, extra SAME, comment SAME.
+
+---
+
+## 9. Kết luận Nghiệm thu
 
 Hệ thống ClearMark Lossless DOCX Subsystem đã vượt qua toàn bộ các cổng kiểm định chất lượng:
 1. Golden Baseline được khóa vĩnh viễn theo mã băm SHA-256.
@@ -153,4 +168,4 @@ Hệ thống ClearMark Lossless DOCX Subsystem đã vượt qua toàn bộ các 
 4. Raw ZIP preservation bảo toàn nguyên vẹn byte-for-byte từng compressed member payload và ZIP metadata.
 5. Toàn bộ mã nguồn và test suite đạt chuẩn xuất xưởng.
 
-**Trạng thái bàn giao chính thức**: **RELEASE CANDIDATE APPROVED (v2.0.0-RC2)**
+**Trạng thái bàn giao chính thức**: **RELEASE CANDIDATE APPROVED (v2.0.0-RC3)**

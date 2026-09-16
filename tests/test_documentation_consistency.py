@@ -6,14 +6,14 @@ acceptance values and strictly reference the True Golden Baseline.
 
 Rules enforced:
 1. Forbid unqualified occurrences of stale baseline metrics (70,608 / 70608, 0a251436,
-   '6467 -> 6467', '6,467 -> 6,467') in all current release documents.
+   '6467 -> 6467', '6,467 -> 6,467', 61.87) in all current release documents.
    (Historical regression examples are allowed ONLY inside docs/history/).
 2. Assert that current release documentation explicitly asserts the True Golden metrics:
    - SHA-256: c05ca5c1be3b020b75d5763cf22061879a255b3c4f57b0455ae562b54809f58d
    - Runs: 288 -> 288
    - Manual page breaks: 5 -> 5
    - Pages: 19 -> 19
-   - Test suite: 1348 passed, 152 skipped
+   - Test suite: 1359 passed, 152 skipped in 63.76s
 3. Assert that the default port is consistently 8765.
 4. Assert that the final evidence package in artifacts/final_acceptance/ exists and is complete.
 """
@@ -44,6 +44,7 @@ FORBIDDEN_STALE_PATTERNS = [
     r"70[,\.]?608",
     r"0a251436",
     r"6[,\.]?467\s*(?:->|\\rightarrow)\s*6[,\.]?467",
+    r"61\.87",
 ]
 
 
@@ -108,6 +109,7 @@ class TestDocumentationConsistency:
         assert "19" in text, "Missing rendered page count 19 in RELEASE_NOTES.md"
         assert "1359 passed" in text or "1,359 passed" in text, "Missing 1359 passed in RELEASE_NOTES.md"
         assert "152 skipped" in text, "Missing 152 skipped in RELEASE_NOTES.md"
+        assert "63.76s" in text, "Missing duration 63.76s in RELEASE_NOTES.md"
 
     def test_true_golden_metrics_present_in_master_plan(self):
         """MASTER_IMPLEMENTATION_PLAN.md must contain the True Golden metrics."""
@@ -118,6 +120,7 @@ class TestDocumentationConsistency:
         assert "19 -> 19" in text, "Missing 19 -> 19 pages invariant in MASTER_IMPLEMENTATION_PLAN.md"
         assert "1359 passed" in text or "1,359" in text, "Missing 1359 passed in MASTER_IMPLEMENTATION_PLAN.md"
         assert "152 skipped" in text, "Missing 152 skipped in MASTER_IMPLEMENTATION_PLAN.md"
+        assert "63.76s" in text, "Missing duration 63.76s in MASTER_IMPLEMENTATION_PLAN.md"
 
     def test_port_consistency(self):
         """Default port must be 8765 across the application, docs, and launchers."""

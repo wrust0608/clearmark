@@ -241,6 +241,11 @@ graph TD
     6. `package.py` sao chép đầy đủ `flag_bits`, `comment`, và `extra` của ZipInfo gốc.
   - Toàn bộ 49 test suites (Phase 0 -> Phase 5) đạt 100% PASS.
 - **Status**: **Đã hoàn thành (PASS)**.
+- **Technical Limitations & Fail-Closed Bounds**:
+  > The strict raw OPC copier currently supports the ZIP forms used by standard Word DOCX fixtures in the validated test matrix, including STORED and DEFLATED entries. Unsupported or unvalidated ZIP features must fail closed, including where applicable: ZIP64 edge cases, multi-disk archives, unsupported compression algorithms, encrypted ZIP members. Do not silently normalize unsupported archive structures.
+  >
+  > *Strict Raw OPC Invariants (13/13 Non-Target Parts)*:
+  > For every unchanged member, `DocxPackage` performs verbatim byte-for-byte stream pass-through: uncompressed payload SAME, raw compressed payload SAME, CRC SAME, compress_type SAME, flag_bits SAME (6 == 6), external_attr SAME (0 == 0), internal_attr SAME (0 == 0), date_time SAME, extra SAME, comment SAME.
 - **Risks**: Sai sót trong phân giải đường dẫn tương đối (`../customXml/item1.xml`). Đã được giải quyết bằng `posixpath.normpath`.
 - **Rollback Strategy**: Kiểm tra và hoàn thiện logic resolve path trong `_prune_dangling_relationships`.
 - **Dependencies**: Hoàn thành Phase 4.
@@ -551,8 +556,9 @@ graph TD
     - **Tables: 1 -> 1, Rows: 7 -> 7, Cells: 49 -> 49** (Delta = 0).
     - **Sections: 1 -> 1** (Delta = 0).
   - *Kết quả nghiệm thu*:
-    - File gốc: `01_GOLDEN_ORIGINAL_UNTOUCHED.docx` (49,959 bytes, SHA-256: `c05ca5c1...`).
-    - File clean: `04_CANDIDATE_LOSSLESS_OUTPUT.docx` (45,633 bytes, SHA-256: `f7d770df...`).
+    - File gốc: `01_GOLDEN_ORIGINAL_UNTOUCHED.docx` (49,959 bytes, SHA-256: `c05ca5c1be3b020b75d5763cf22061879a255b3c4f57b0455ae562b54809f58d`).
+    - File clean: `04_CANDIDATE_LOSSLESS_OUTPUT.docx` (49,395 bytes, SHA-256: `7aa5549f6a0e0b78fa39245c0e79503b2cc9defd6cffbfa5c8a833072d430297`).
+    - *(Lưu ý: Giá trị 45,633 bytes / f7d770df... là candidate trung gian RC1 — đã được thay thế hoàn toàn bởi RC2/RC3 bảo tồn raw OPC ZIP stream)*.
     - Visible text exact: `True` (100.000% trùng khớp).
     - Invariants: Paragraphs 204->204, Runs 288->288, Page Breaks 5->5, Pages 19->19, Tables 1->1 (Rows: 7->7, Cells: 49->49).
     - Non-target parts: 13/13 OOXML parts identical SHA-256 (kể cả `word/document.xml`).
@@ -652,7 +658,7 @@ graph TD
     - **failed**: **0**
     - **skipped**: **152** (chỉ gồm các sidecar tùy chọn khi không chạy docker)
     - **xfailed**: **0**
-    - **duration**: **61.87s**
+    - **duration**: **63.76s**
     - *(Trong đó bao gồm tập con 122/122 DOCX subsystem tests đạt 100% PASS)*.
   - Trạng thái nghiệm thu: **ĐÃ HOÀN THÀNH TOÀN BỘ 17 PHASES (PASS 100%)**.
 - **Risks**: Bất nhất tài liệu. (Đã xử lý: kiểm thử hồi quy tài liệu tự động).

@@ -32,8 +32,9 @@ The DOCX subsystem operates under a **Zero-Damage Document Fidelity Guarantee**:
 - **Byte-Safe Raw OPC Preservation**: Raw ZIP pass-through copies local file headers and deflated payloads byte-for-byte for all non-target members, preserving original compression flags (`flag_bits = 6`), external attributes, and raw payload digests.
 - **Fail-Closed Verification**: Built-in 4-layer runtime validator audits package integrity, non-target hash invariance, canonical visible text equality, and structural invariants before output, rolling back seamlessly on any discrepancy. Extended release verification applies 5 quality gates including formatting fingerprints, rendered page count, and visual pixel comparisons.
 - **Local Privacy Guarantee**: DOCX Safe/Lossless cleaning pipeline performs entirely locally and does not make network requests. Optional supported plain-text rewrite backends may access the network only when explicitly enabled by the user.
+- **Technical Limitations & Fail-Closed Bounds**: The strict raw OPC copier currently supports the ZIP forms used by standard Word DOCX fixtures in the validated test matrix, including STORED and DEFLATED entries. Unsupported or unvalidated ZIP features must fail closed, including where applicable: ZIP64 edge cases, multi-disk archives, unsupported compression algorithms, encrypted ZIP members. Do not silently normalize unsupported archive structures.
 
-- **Local fork release candidate**: `v2.0.0-RC2`
+- **Local fork release candidate**: `v2.0.0-RC3`
 - **Upstream latest release**: [v0.7.0](https://github.com/guillaumemeyer/watermarks-remover/releases/tag/v0.7.0)
 
 Skill path: [`skills/remove-ai-marks/`](skills/remove-ai-marks/)  
