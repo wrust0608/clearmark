@@ -196,12 +196,13 @@ class CleaningReport:
   - Single authoritative source of truth for capabilities: `service/scripts/format_policy.py`.
   - Canonical `CleaningReport` schema parity between CLI and HTTP endpoints.
   - Zero network egress and zero document body text leakage.
-  - 100% regression gate passing (1422 passed, 0 failed).
+  - 100% regression gate passing (1431 passed, 152 skipped, 0 failed, 0 warnings in 74.27s).
 
-### Phase 4: Batch Processing Engine
+### Phase 4: Batch Processing Engine (COMPLETED)
 - **Objective**: Multi-file and directory queue processing with failure isolation and collision-safe outputs.
-- **Files**: `service/scripts/batch_processor.py`.
-- **Gate**: Fault isolation test: corrupted files in batch do not prevent valid files from cleaning.
+- **Files**: `service/scripts/batch_processor.py`, `service/scripts/cli.py` (`batch`), `service/scripts/server.py` (`POST /batch`).
+- **Gate**: Fault isolation test: corrupted files in batch do not prevent valid files from cleaning. PASS (verified across unit, CLI, and API test suites). Full regression: 1458 passed, 152 skipped, 0 failed, 0 warnings in 70.32s. Golden DOCX core diff against v2.0.0: EMPTY.
+
 
 ### Phase 5: UI v2.1 Enhancements
 - **Objective**: Lightweight web UI with multi-file cards, progress states, findings view, mode toggle, and download bundle.

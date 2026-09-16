@@ -50,7 +50,9 @@ from pipeline_types import (
 
 class ExitCode(IntEnum):
     SUCCESS = 0
+    BATCH_PARTIAL_SUCCESS = 1
     UNSUPPORTED = 2
+    BATCH_FATAL_SETUP = 2
     VALIDATION_FAILED = 3
     INVALID_INPUT = 4
     DEPENDENCY_MISSING = 5
@@ -440,6 +442,81 @@ def cmd_capabilities(args: argparse.Namespace) -> int:
     return ExitCode.SUCCESS
 
 
+def cmd_batch(args: argparse.Namespace) -> int:
+    try:
+        mode = ProcessingMode(args.mode.upper())
+    except ValueError:
+        return _emit_error(
+            f"Invalid processing mode: {args.mode}. Must be safe, balanced, or aggressive.",
+            ExitCode.INVALID_INPUT,
+            as_json=args.json,
+            error_code="INVALID_MODE",
+        )
+
+    from batch_processor import BatchLimitExceededError, BatchProcessor
+
+    processor = BatchProcessor()
+    try:
+        report = processor.process_paths(
+            inputs=args.inputs,
+            output_dir=args.output_dir,
+            reports_dir=args.reports_dir,
+            mode=mode,
+            dry_run=args.dry_run,
+            recursive=args.recursive,
+            operation="clean",
+        )
+    except BatchLimitExceededError as e:
+        return _emit_error(
+            str(e),
+            ExitCode.UNSUPPORTED,
+            as_json=args.json,
+            error_code="LIMIT_EXCEEDED",
+        )
+    except Exception as e:
+        return _emit_error(
+            f"Batch initialization error: {e}",
+            ExitCode.INVALID_INPUT,
+            as_json=args.json,
+            error_code="INVALID_INPUT",
+        )
+
+    if args.json:
+        _emit_json(report.to_dict())
+    else:
+        # Human-readable summary (Section 18)
+        print("=== ClearMark Batch Summary ===")
+        print(f"Total Inputs:         {report.summary.total}")
+        print(f"Cleaned:              {report.summary.cleaned}")
+        print(f"No Change:            {report.summary.no_change}")
+        if report.summary.inspected:
+            print(f"Inspected:            {report.summary.inspected}")
+        print(f"Unsupported:          {report.summary.unsupported}")
+        print(f"Validation Failed:    {report.summary.validation_failed}")
+        print(f"Errors:               {report.summary.errors}")
+        if report.summary.skipped:
+            print(f"Skipped:              {report.summary.skipped}")
+        print(f"Elapsed Time:         {report.performance_elapsed_ms:.1f} ms")
+        if report.items:
+            print("\n=== Item Results ===")
+            for item in report.items:
+                out_info = f" -> {item.output_path}" if item.output_path else ""
+                err_info = f" ({item.error_code}: {item.error_message_safe})" if item.error_code else ""
+                print(f"[{item.index + 1}/{report.summary.total}] {item.input_path}: {item.status}{out_info}{err_info} ({item.elapsed_ms:.1f} ms)")
+
+    if report.summary.total == 0:
+        return ExitCode.BATCH_FATAL_SETUP
+
+    has_failures = (
+        report.summary.errors > 0
+        or report.summary.validation_failed > 0
+        or report.summary.unsupported > 0
+    )
+    if has_failures:
+        return ExitCode.BATCH_PARTIAL_SUCCESS
+    return ExitCode.SUCCESS
+
+
 class CanonicalArgumentParser(argparse.ArgumentParser):
     def error(self, message: str) -> None:
         self.print_usage(sys.stderr)
@@ -500,6 +577,31 @@ def build_parser() -> argparse.ArgumentParser:
     p_cap = subparsers.add_parser("capabilities", help="Query format capabilities and policies")
     p_cap.add_argument("--json", action="store_true", help="Output format capabilities JSON")
     p_cap.set_defaults(func=cmd_capabilities)
+
+    # 5. batch
+    p_batch = subparsers.add_parser("batch", help="Batch process multiple files or directories")
+    p_batch.add_argument("inputs", nargs="+", type=Path, help="Files or directories to process")
+    p_batch.add_argument("-o", "--output-dir", type=Path, help="Directory to save cleaned outputs")
+    p_batch.add_argument("--reports-dir", type=Path, help="Directory to save per-file JSON reports")
+    p_batch.add_argument(
+        "--mode",
+        choices=("safe", "balanced", "aggressive"),
+        default="safe",
+        help="Processing mode (default: safe)",
+    )
+    p_batch.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Preview planned mutations without modifying inputs or writing outputs",
+    )
+    p_batch.add_argument(
+        "-r",
+        "--recursive",
+        action="store_true",
+        help="Recursively scan directories for input files",
+    )
+    p_batch.add_argument("--json", action="store_true", help="Output machine-readable BatchReport JSON")
+    p_batch.set_defaults(func=cmd_batch)
 
     return parser
 

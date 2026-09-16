@@ -2,7 +2,9 @@
 
 > **Phase**: Phase 3 (Unified CLI & API Normalization)  
 > **Status**: PASS  
-> **Baseline Commit**: `464270f`  
+> **Historical Pre-Phase 3 Baseline**: Commit `464270f` (1388 passed, 152 skipped in 69.88s)  
+> **Final Phase 3 Commit**: `6e5a5be600a69831c094db7a4941f1b4678c0919`  
+> **Canonical Final Full Pytest**: 1431 passed, 152 skipped, 0 failed, 0 warnings in 74.27s  
 > **Frozen Core**: Lossless DOCX Subsystem (`service/scripts/docx/`)  
 > **Golden DOCX SHA256**: `c05ca5c1be3b020b75d5763cf22061879a255b3c4f57b0455ae562b54809f58d`  
 > **Candidate DOCX SHA256**: `7aa5549f6a0e0b78fa39245c0e79503b2cc9defd6cffbfa5c8a833072d430297`  

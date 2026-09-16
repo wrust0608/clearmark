@@ -892,6 +892,39 @@ _OPENAPI_PATHS: dict[str, dict[str, Any]] = {
             },
         }
     },
+    "/batch": {
+        "post": {
+            "summary": f"Process a batch of up to {MAX_BATCH_FILES} files with per-file failure isolation",
+            "requestBody": _schema(
+                required=True,
+                content={
+                    "application/json": _schema(
+                        schema=_schema(
+                            type="object",
+                            required=["files"],
+                            properties={
+                                "files": _schema(type="array", items=_file_request()),
+                                "mode": _schema(type="string", enum=["safe", "balanced", "aggressive"]),
+                                "dry_run": _schema(type="boolean"),
+                                "operation": _schema(type="string", enum=["clean", "inspect"]),
+                            },
+                        )
+                    )
+                },
+            ),
+            "responses": {
+                "200": _schema(
+                    type="object",
+                    properties={
+                        "ok": _schema(type="boolean"),
+                        "batch_id": _schema(type="string"),
+                        "summary": _schema(type="object"),
+                        "items": _schema(type="array", items=_schema(type="object")),
+                    },
+                )
+            },
+        }
+    },
 }
 
 _COMMON_ERRORS = {
@@ -1568,6 +1601,7 @@ class Handler(BaseHTTPRequestHandler):
             "/verify",
             "/detect",
             "/watermark",
+            "/batch",
             "/inspect/batch",
             "/detect/batch",
             "/clean/batch",
@@ -1585,7 +1619,9 @@ class Handler(BaseHTTPRequestHandler):
             )
             return
         try:
-            if path == "/inspect/batch":
+            if path == "/batch":
+                self._handle_batch(body)
+            elif path == "/inspect/batch":
                 self._handle_inspect_batch(body)
             elif path == "/detect/batch":
                 self._handle_detect_batch(body)
@@ -1882,6 +1918,53 @@ class Handler(BaseHTTPRequestHandler):
                 continue
             results.append({"name": name, **payload})
         self._respond(HTTPStatus.OK, {"ok": True, "results": results})
+
+    def _handle_batch(self, body: dict[str, Any]) -> None:
+        if not isinstance(body, dict):
+            self._respond(HTTPStatus.BAD_REQUEST, {"ok": False, "error": "request body must be a JSON object"})
+            return
+        files = body.get("files")
+        if not isinstance(files, list) or len(files) == 0:
+            self._respond(HTTPStatus.BAD_REQUEST, {"ok": False, "error": "'files' array is required and must not be empty"})
+            return
+
+        from batch_processor import (
+            MAX_BATCH_FILES,
+            MAX_BATCH_TOTAL_BYTES,
+            BatchLimitExceededError,
+            BatchProcessor,
+        )
+
+        if len(files) > MAX_BATCH_FILES:
+            self._respond(HTTPStatus.REQUEST_ENTITY_TOO_LARGE, {"ok": False, "error": f"Batch file count ({len(files)}) exceeds maximum allowed ({MAX_BATCH_FILES})"})
+            return
+
+        mode_str = body.get("mode", "safe")
+        if not isinstance(mode_str, str) or mode_str.lower() not in ("safe", "balanced", "aggressive"):
+            self._respond(HTTPStatus.BAD_REQUEST, {"ok": False, "error": f"Invalid mode: {mode_str}"})
+            return
+
+        mode = ProcessingMode(mode_str.upper())
+        dry_run = bool(body.get("dry_run", False))
+        operation = body.get("operation", "clean")
+        if operation not in ("clean", "inspect"):
+            self._respond(HTTPStatus.BAD_REQUEST, {"ok": False, "error": f"Invalid operation: {operation}"})
+            return
+
+        processor = BatchProcessor()
+        try:
+            batch_report = processor.process_items(files, mode=mode, dry_run=dry_run, operation=operation)
+        except BatchLimitExceededError as e:
+            self._respond(HTTPStatus.REQUEST_ENTITY_TOO_LARGE, {"ok": False, "error": str(e)})
+            return
+        except Exception as e:
+            self._respond(HTTPStatus.INTERNAL_SERVER_ERROR, {"ok": False, "error": f"Batch processing failed: {e}"})
+            return
+
+        self._respond(HTTPStatus.OK, {
+            "ok": True,
+            **batch_report.to_dict(include_cleaned_data=True),
+        })
 
     def _extract_text_input(self, body: dict[str, Any]) -> tuple[str, str]:
         """Extract raw text and optional name from a watermark request body."""

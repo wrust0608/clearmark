@@ -228,4 +228,43 @@ v2.0 and earlier relied on fragmented entry points (`clean_file.py`, `inspect_fi
    - Legacy scripts `service/scripts/clean_file.py` and `service/scripts/inspect_file.py` are preserved as compatibility wrappers emitting deprecation notices to stderr.
    - HTTP `/clean` preserves the legacy response envelope (`{"cleaned": base64, "report": {...}}`) containing backward-compatible legacy summary keys alongside the structured canonical `CleaningReport`.
 
+---
 
+## ADR-012: Isolated Batch Processing Engine Architecture
+
+### Context
+Users and programmatic consumers require processing multiple explicit files or entire directory trees safely and deterministically. Prior iterations lacked batch capabilities or ran ad-hoc loops where a single malformed file aborted entire workflows, output files collided or overwrote originals, and state or memory leaked across files.
+
+### Decision
+1. **Batch Processor Abstraction (`service/scripts/batch_processor.py`)**:
+   - `BatchProcessor` orchestrates batch runs using the canonical `Pipeline` (`Pipeline.clean`, `Pipeline.inspect`). Format detection, cleaning, inspection, validation, and policy logic are strictly reused—never duplicated.
+2. **File-Level Failure Isolation**:
+   - Every file is processed within an isolated item boundary with its own fresh `Pipeline` instance.
+   - An error in file $i$ (e.g., malformed container, hostile bytes, unsupported format) is recorded in `BatchItemResult` with status `ERROR`, `INVALID_CONTAINER`, or `UNSUPPORTED`. It **NEVER** halts or aborts execution of files $i+1 \dots N$.
+3. **Partial-Success Semantics**:
+   - A batch containing both successful and failed files completes successfully at the infrastructure level.
+   - Outputs for successful items are committed atomically and remain available; failure of a sibling file never deletes or rolls back successful outputs.
+4. **Deterministic Ordering**:
+   - Explicit CLI file arguments preserve the exact user-specified order.
+   - Directory input discovery (`--recursive` optional) applies a stable, platform-independent lexical sort on normalized relative paths (`str(p.relative_to(root)).replace("\\", "/")`).
+   - `BatchReport.items` order strictly corresponds to execution order.
+5. **Output Directory & Collision Policy**:
+   - Batch output never overwrites input originals.
+   - When `--output-dir` is provided, directory input batches preserve their relative sub-directory tree structure.
+   - Sibling or cross-directory name collisions are resolved deterministically using suffixes: `<stem>.cleaned.<ext>`, `<stem>.cleaned.1.<ext>`, `<stem>.cleaned.2.<ext>`.
+   - Pre-existing files in the output directory are never overwritten.
+   - Failed, unsupported, or dry-run items write **zero** output files to disk; temporary files are removed immediately.
+6. **Batch Exit Code Contract**:
+   - `0`: Complete success (all items resulted in `CLEANED`, `NO_CHANGE_REQUIRED`, or `INSPECTED`).
+   - `1`: Partial success (at least one item failed validation, encountered an error, or was unsupported, but batch completed).
+   - `2`: Fatal batch setup error (e.g., zero valid inputs, invalid CLI arguments, or root-level batch limits exceeded before processing).
+7. **Mathematical Reconciliation & Honest Summary Invariant**:
+   - Every `BatchReport` must satisfy:  
+     `total == cleaned + no_change + inspected + unsupported + validation_failed + errors + skipped`
+   - In dry-run mode, items are classified as `INSPECTED` (`summary.inspected`), and `output.changed == False` while `output.would_change == True`. Previewed changes are never counted as cleaned.
+8. **Sequential Execution & Resource Safety**:
+   - Processing is sequential by default to ensure determinism, failure isolation, and bounded memory consumption.
+   - Root-level limits (`WATERMARKS_MAX_BATCH_FILES`, `WATERMARKS_MAX_BATCH_TOTAL_BYTES`) fail fast before processing to protect host resources.
+9. **Zero-Network & Privacy Invariant**:
+   - Local batch processing performs 0 network calls.
+   - `BatchReport` and per-file JSON reports contain metadata only; document body text dumps are strictly prohibited.
