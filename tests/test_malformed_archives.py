@@ -373,6 +373,190 @@ class TestBinaryStructuralHardening:
 
 
 # ==============================================================================
+# 4B. UNIT TESTS: DATA DESCRIPTORS & PHYSICAL RANGE VALIDATION
+# ==============================================================================
+
+class TestZipDataDescriptorsAndPhysicalRange:
+    """Validate signed (16-byte) and unsigned (12-byte) data descriptors, field validation,
+    local/central flag consistency, descriptor-aware physical range bounds, and fake signature resistance.
+    """
+
+    def test_signed_data_descriptor_valid_accepted(self):
+        uncomp = b"Valid signed descriptor payload"
+        data = build_raw_zip([
+            {"name": "s.txt", "data": uncomp, "comp_method": 0, "flags": 0x0008, "desc_signed": True}
+        ])
+        res = preflight_zip_container(data)
+        assert res.is_safe
+        assert res.total_members == 1
+
+    def test_signed_data_descriptor_crc_mismatch_rejected(self):
+        uncomp = b"Signed descriptor payload"
+        data = build_raw_zip([
+            {"name": "s.txt", "data": uncomp, "comp_method": 0, "flags": 0x0008, "desc_signed": True, "desc_crc": 0xDEADBEEF}
+        ])
+        with pytest.raises(SecurityViolation) as exc_info:
+            preflight_zip_container(data)
+        assert exc_info.value.finding.rule_id == "SEC_DATA_DESCRIPTOR_MISMATCH"
+
+    def test_signed_data_descriptor_compressed_size_mismatch_rejected(self):
+        uncomp = b"Signed descriptor payload"
+        data = build_raw_zip([
+            {"name": "s.txt", "data": uncomp, "comp_method": 0, "flags": 0x0008, "desc_signed": True, "desc_csize": 9999}
+        ])
+        with pytest.raises(SecurityViolation) as exc_info:
+            preflight_zip_container(data)
+        assert exc_info.value.finding.rule_id == "SEC_DATA_DESCRIPTOR_MISMATCH"
+
+    def test_signed_data_descriptor_uncompressed_size_mismatch_rejected(self):
+        uncomp = b"Signed descriptor payload"
+        data = build_raw_zip([
+            {"name": "s.txt", "data": uncomp, "comp_method": 0, "flags": 0x0008, "desc_signed": True, "desc_usize": 9999}
+        ])
+        with pytest.raises(SecurityViolation) as exc_info:
+            preflight_zip_container(data)
+        assert exc_info.value.finding.rule_id == "SEC_DATA_DESCRIPTOR_MISMATCH"
+
+    def test_signed_data_descriptor_overlapping_next_member_rejected(self):
+        # Member 1 has signed descriptor (16 B). Member 2 starts inside Member 1's descriptor span.
+        m1_payload = b"A" * 20
+        # 16-byte signed descriptor with CRC=0x04034B50 (which matches member 2 local signature)
+        m1_desc = struct.pack("<IIII", 0x08074B50, 0x04034B50, 20, 0)
+        m2_rest = struct.pack("<HIIIHH", 0, 0, 0, 0, 6, 0) + b"m2.txt"
+
+        raw_body = (
+            struct.pack("<IHHHHHIIIHH", 0x04034B50, 20, 0x0008, 0, 0, 0, 0, 0, 0, 6, 0)
+            + b"m1.txt"
+            + m1_payload
+            + m1_desc
+            + m2_rest
+        )
+        cd_pos = len(raw_body)
+        cd1 = struct.pack("<IHHHHHHIIIHHHHHII", 0x02014B50, 20, 20, 0x0008, 0, 0, 0, 0x04034B50, 20, 0, 6, 0, 0, 0, 0, 0, 0) + b"m1.txt"
+        cd2 = struct.pack("<IHHHHHHIIIHHHHHII", 0x02014B50, 20, 20, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 0, 60) + b"m2.txt"
+        cd = cd1 + cd2
+        eocd = struct.pack("<IHHHHIIH", 0x06054B50, 0, 0, 2, 2, len(cd), cd_pos, 0)
+        full_zip = raw_body + cd + eocd
+
+        with pytest.raises(SecurityViolation) as exc_info:
+            preflight_zip_container(full_zip)
+        assert exc_info.value.finding.rule_id == "SEC_OVERLAPPING_MEMBERS"
+
+    def test_unsigned_data_descriptor_valid_accepted(self):
+        uncomp = b"Valid unsigned descriptor payload"
+        data = build_raw_zip([
+            {"name": "u.txt", "data": uncomp, "comp_method": 0, "flags": 0x0008, "desc_signed": False}
+        ])
+        res = preflight_zip_container(data)
+        assert res.is_safe
+        assert res.total_members == 1
+
+    def test_unsigned_data_descriptor_crc_mismatch_rejected(self):
+        uncomp = b"Unsigned descriptor payload"
+        data = build_raw_zip([
+            {"name": "u.txt", "data": uncomp, "comp_method": 0, "flags": 0x0008, "desc_signed": False, "desc_crc": 0xCAFEBABE}
+        ])
+        with pytest.raises(SecurityViolation) as exc_info:
+            preflight_zip_container(data)
+        assert exc_info.value.finding.rule_id == "SEC_DATA_DESCRIPTOR_MISMATCH"
+
+    def test_unsigned_data_descriptor_compressed_size_mismatch_rejected(self):
+        uncomp = b"Unsigned descriptor payload"
+        data = build_raw_zip([
+            {"name": "u.txt", "data": uncomp, "comp_method": 0, "flags": 0x0008, "desc_signed": False, "desc_csize": 8888}
+        ])
+        with pytest.raises(SecurityViolation) as exc_info:
+            preflight_zip_container(data)
+        assert exc_info.value.finding.rule_id == "SEC_DATA_DESCRIPTOR_MISMATCH"
+
+    def test_unsigned_data_descriptor_uncompressed_size_mismatch_rejected(self):
+        uncomp = b"Unsigned descriptor payload"
+        data = build_raw_zip([
+            {"name": "u.txt", "data": uncomp, "comp_method": 0, "flags": 0x0008, "desc_signed": False, "desc_usize": 8888}
+        ])
+        with pytest.raises(SecurityViolation) as exc_info:
+            preflight_zip_container(data)
+        assert exc_info.value.finding.rule_id == "SEC_DATA_DESCRIPTOR_MISMATCH"
+
+    def test_unsigned_data_descriptor_overlapping_next_member_rejected(self):
+        # Member 1 has unsigned descriptor (12 B). Member 2 starts inside Member 1's descriptor span.
+        m1_payload = b"A" * 20
+        # 12-byte unsigned descriptor with CRC=0x04034B50
+        m1_desc = struct.pack("<III", 0x04034B50, 20, 0)
+        m2_rest = struct.pack("<HIIIHH", 0, 0, 0, 0, 6, 0) + b"m2.txt"
+
+        raw_body = (
+            struct.pack("<IHHHHHIIIHH", 0x04034B50, 20, 0x0008, 0, 0, 0, 0, 0, 0, 6, 0)
+            + b"m1.txt"
+            + m1_payload
+            + m1_desc
+            + m2_rest
+        )
+        cd_pos = len(raw_body)
+        cd1 = struct.pack("<IHHHHHHIIIHHHHHII", 0x02014B50, 20, 20, 0x0008, 0, 0, 0, 0x04034B50, 20, 0, 6, 0, 0, 0, 0, 0, 0) + b"m1.txt"
+        cd2 = struct.pack("<IHHHHHHIIIHHHHHII", 0x02014B50, 20, 20, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 0, 56) + b"m2.txt"
+        cd = cd1 + cd2
+        eocd = struct.pack("<IHHHHIIH", 0x06054B50, 0, 0, 2, 2, len(cd), cd_pos, 0)
+        full_zip = raw_body + cd + eocd
+
+        with pytest.raises(SecurityViolation) as exc_info:
+            preflight_zip_container(full_zip)
+        assert exc_info.value.finding.rule_id == "SEC_OVERLAPPING_MEMBERS"
+
+    def test_bit3_local_vs_central_flag_mismatch_rejected(self):
+        # Local has bit 3, Central does not
+        d1 = build_raw_zip([{"name": "m.txt", "data": b"test", "comp_method": 0, "loc_flags": 0x0008, "cd_flags": 0x0000}])
+        with pytest.raises(SecurityViolation) as exc1:
+            preflight_zip_container(d1)
+        assert exc1.value.finding.rule_id == "SEC_LOCAL_CENTRAL_MISMATCH"
+
+        # Central has bit 3, Local does not
+        d2 = build_raw_zip([{"name": "m.txt", "data": b"test", "comp_method": 0, "loc_flags": 0x0000, "cd_flags": 0x0008}])
+        with pytest.raises(SecurityViolation) as exc2:
+            preflight_zip_container(d2)
+        assert exc2.value.finding.rule_id == "SEC_LOCAL_CENTRAL_MISMATCH"
+
+    def test_no_bit3_local_vs_central_size_mismatch_rejected(self):
+        # Bit 3 not set: local sizes must match Central Directory
+        d_bad_size = build_raw_zip([{"name": "m.txt", "data": b"test", "comp_method": 0, "loc_csize": 999}])
+        with pytest.raises(SecurityViolation) as exc:
+            preflight_zip_container(d_bad_size)
+        assert exc.value.finding.rule_id == "SEC_LOCAL_CENTRAL_MISMATCH"
+
+    def test_signed_descriptor_containing_fake_local_header_signature_handled_safely(self):
+        # Member 1 contains a signed descriptor whose CRC field is 0x04034B50 ('PK\x03\x04').
+        # Using a payload whose true CRC32 is 0x04034B50 ensures CRC validation succeeds
+        # while bytes in the descriptor literally contain b"PK\x03\x04".
+        # Member 2 is located at its natural non-overlapping offset AFTER the descriptor.
+        # Ensure central-directory driven parsing is not fooled by the fake signature inside the descriptor.
+        uncomp = b"Hello fake signature descriptor\x80V\xf1\xe7"
+        assert zlib.crc32(uncomp) == 0x04034B50
+        desc = struct.pack("<IIII", 0x08074B50, 0x04034B50, len(uncomp), len(uncomp))
+        data = build_raw_zip([
+            {"name": "m1.txt", "data": uncomp, "comp_method": 0, "flags": 0x0008, "crc": 0x04034B50, "desc_bytes": desc},
+            {"name": "m2.txt", "data": b"m2 content", "comp_method": 0},
+        ])
+        res = preflight_zip_container(data)
+        assert res.is_safe
+        assert res.total_members == 2
+
+    def test_unsigned_descriptor_containing_fake_local_header_signature_handled_safely(self):
+        # Member 1 contains an unsigned 12-byte descriptor whose first 4 bytes (CRC) are 0x04034B50 ('PK\x03\x04').
+        # A naive signature scanner would see b"PK\x03\x04" immediately following payload bytes.
+        # Central-directory driven parsing guarantees member boundaries are unambiguous.
+        uncomp = b"Hello fake signature descriptor\x80V\xf1\xe7"
+        assert zlib.crc32(uncomp) == 0x04034B50
+        desc = struct.pack("<III", 0x04034B50, len(uncomp), len(uncomp))
+        data = build_raw_zip([
+            {"name": "m1.txt", "data": uncomp, "comp_method": 0, "flags": 0x0008, "crc": 0x04034B50, "desc_bytes": desc},
+            {"name": "m2.txt", "data": b"m2 content", "comp_method": 0},
+        ])
+        res = preflight_zip_container(data)
+        assert res.is_safe
+        assert res.total_members == 2
+
+
+# ==============================================================================
 # 5. UNIT TESTS: XML SECURITY & ZERO NETWORK (Threats 25-31)
 # ==============================================================================
 

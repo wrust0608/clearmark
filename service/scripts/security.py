@@ -800,9 +800,26 @@ def preflight_zip_container(
             finding = SecurityFinding(
                 rule_id="SEC_LOCAL_CENTRAL_MISMATCH",
                 member_name=clean_name,
-                reason=f"Local header encryption flag mismatch for '{clean_name}'",
+                reason=f"Local header encryption flag (bit 0) mismatch for '{clean_name}'",
             )
             raise SecurityViolation(finding, is_limit=False)
+
+        if (lflags & 0x08) != (m.flags & 0x08):
+            finding = SecurityFinding(
+                rule_id="SEC_LOCAL_CENTRAL_MISMATCH",
+                member_name=clean_name,
+                reason=f"Local header data descriptor flag (bit 3) mismatch for '{clean_name}'",
+            )
+            raise SecurityViolation(finding, is_limit=False)
+
+        if not (lflags & 0x08):
+            if lcrc != m.crc or lcsize != m.compressed_size or lusize != m.uncompressed_size:
+                finding = SecurityFinding(
+                    rule_id="SEC_LOCAL_CENTRAL_MISMATCH",
+                    member_name=clean_name,
+                    reason=f"Local header CRC or size mismatch with Central Directory for '{clean_name}'",
+                )
+                raise SecurityViolation(finding, is_limit=False)
 
         payload_start = lhoff + loc_hdr_len
         payload_end = payload_start + m.compressed_size
@@ -816,16 +833,67 @@ def preflight_zip_container(
 
         desc_len = 0
         if lflags & 0x08:
-            # Data descriptor present
-            cand = data[payload_end : payload_end + 16]
-            desc_len = 16 if cand.startswith(b"PK\x07\x08") else 12
+            # Data descriptor present (non-ZIP64: signed = 16 bytes, unsigned = 12 bytes)
+            if payload_end + 4 > data_len:
+                finding = SecurityFinding(
+                    rule_id="SEC_DATA_DESCRIPTOR_OUT_OF_BOUNDS",
+                    member_name=clean_name,
+                    reason=f"Data descriptor extends beyond archive bounds for '{clean_name}'",
+                )
+                raise SecurityViolation(finding, is_limit=False)
+
+            is_signed = data[payload_end : payload_end + 4] == b"PK\x07\x08"
+            if is_signed:
+                desc_len = 16
+                if payload_end + 16 > data_len:
+                    finding = SecurityFinding(
+                        rule_id="SEC_DATA_DESCRIPTOR_OUT_OF_BOUNDS",
+                        member_name=clean_name,
+                        reason=f"Signed data descriptor extends beyond archive bounds for '{clean_name}'",
+                    )
+                    raise SecurityViolation(finding, is_limit=False)
+                _, d_crc, d_csize, d_usize = struct.unpack("<IIII", data[payload_end : payload_end + 16])
+            else:
+                desc_len = 12
+                if payload_end + 12 > data_len:
+                    finding = SecurityFinding(
+                        rule_id="SEC_DATA_DESCRIPTOR_OUT_OF_BOUNDS",
+                        member_name=clean_name,
+                        reason=f"Unsigned data descriptor extends beyond archive bounds for '{clean_name}'",
+                    )
+                    raise SecurityViolation(finding, is_limit=False)
+                d_crc, d_csize, d_usize = struct.unpack("<III", data[payload_end : payload_end + 12])
+
+            if d_crc != m.crc:
+                finding = SecurityFinding(
+                    rule_id="SEC_DATA_DESCRIPTOR_MISMATCH",
+                    member_name=clean_name,
+                    reason=f"Data descriptor CRC32 (0x{d_crc:08X}) does not match Central Directory (0x{m.crc:08X}) for '{clean_name}'",
+                )
+                raise SecurityViolation(finding, is_limit=False)
+
+            if d_csize != m.compressed_size:
+                finding = SecurityFinding(
+                    rule_id="SEC_DATA_DESCRIPTOR_MISMATCH",
+                    member_name=clean_name,
+                    reason=f"Data descriptor compressed size ({d_csize}) does not match Central Directory ({m.compressed_size}) for '{clean_name}'",
+                )
+                raise SecurityViolation(finding, is_limit=False)
+
+            if d_usize != m.uncompressed_size:
+                finding = SecurityFinding(
+                    rule_id="SEC_DATA_DESCRIPTOR_MISMATCH",
+                    member_name=clean_name,
+                    reason=f"Data descriptor uncompressed size ({d_usize}) does not match Central Directory ({m.uncompressed_size}) for '{clean_name}'",
+                )
+                raise SecurityViolation(finding, is_limit=False)
 
         total_local_end = payload_end + desc_len
         if total_local_end > data_len:
             finding = SecurityFinding(
                 rule_id="SEC_LOCAL_PAYLOAD_OUT_OF_BOUNDS",
                 member_name=clean_name,
-                reason=f"Data descriptor extends beyond archive bounds for '{clean_name}'",
+                reason=f"Member physical range extends beyond archive bounds for '{clean_name}'",
             )
             raise SecurityViolation(finding, is_limit=False)
 

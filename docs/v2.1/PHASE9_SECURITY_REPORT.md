@@ -118,15 +118,26 @@ Streaming XML inspection is implemented via Python stdlib `xml.parsers.expat.Par
 - **Zero Network XXE**: External DTDs, parameter entities, and external general entities (`SYSTEM` / `PUBLIC`) are intercepted and rejected upfront. Test witnesses verified **0 network connection attempts** and **0 socket invocations**.
 
 ### 4.2 Member Byte Range Overlap Validation
-Physical member byte ranges are calculated to account for the full physical footprint:
-$$\text{Range} = [\text{lhoff},\, \text{lhoff} + 30 + \text{name\_len} + \text{extra\_len} + \text{compressed\_size}]$$
-All member spans are sorted by start offset. If $\text{end}_i > \text{start}_{i+1}$, the archive is immediately rejected (`SEC_OVERLAPPING_MEMBERS`), defeating zip-within-zip hiding techniques and local-header overlap confusion attacks.
+Physical member byte ranges are calculated to account for the full physical footprint, including any trailing data descriptor:
+$$\text{physical\_end} = \text{local\_header\_offset} + 30 + \text{local\_name\_length} + \text{local\_extra\_length} + \text{compressed\_size} + \text{descriptor\_length}$$
+where $\text{descriptor\_length}$ is:
+- `0` when General Purpose Bit 3 is not set.
+- `12` for an unsigned data descriptor (CRC32, compressed size, uncompressed size) when Bit 3 is set.
+- `16` for a signed data descriptor (`PK\x07\x08` signature + CRC32, compressed size, uncompressed size) when Bit 3 is set.
 
-### 4.3 Data Descriptor Handling (Bit 3)
+All member spans are sorted by start offset. If $\text{start}_{i+1} < \text{physical\_end}_i$, the archive is immediately rejected (`SEC_OVERLAPPING_MEMBERS`), defeating zip-within-zip hiding techniques, descriptor overlap exploits, and local-header overlap confusion attacks.
+
+### 4.3 Data Descriptor Handling (Bit 3) & Consistency Validation
 When General Purpose Bit 3 is set:
-- Local Header sizes/CRC may be zero or deferred.
-- The Central Directory is treated as authoritative for declared sizes and CRC.
-- If a data descriptor signature (`0x08074B50`) follows the compressed payload, it is safely traversed without treating deferred local header zeroes as fatal mismatches.
+- **Supported Policies**: Both signed (16 bytes, signature `0x08074B50`) and unsigned (12 bytes, without signature) data descriptors are `SUPPORTED_AND_VALIDATED` for non-ZIP64 archives. ZIP64 descriptors remain explicitly unsupported and fail-closed.
+- **Strict Field Validation**: The data descriptor immediately following the compressed payload is parsed and verified against the authoritative Central Directory record:
+  - $\text{descriptor CRC32} == \text{Central Directory CRC32}$
+  - $\text{descriptor compressed size} == \text{Central Directory compressed size}$
+  - $\text{descriptor uncompressed size} == \text{Central Directory uncompressed size}$
+  Any mismatch raises `SEC_DATA_DESCRIPTOR_MISMATCH` (fail-closed).
+- **Flag Consistency**: Bit 3 and Bit 0 (encryption) must be strictly identical between Local File Header flags and Central Directory flags. Mismatches raise `SEC_LOCAL_CENTRAL_MISMATCH`.
+- **Non-Bit-3 Size Consistency**: When Bit 3 is not set, Local File Header CRC32, compressed size, and uncompressed size must match Central Directory values exactly (`SEC_LOCAL_CENTRAL_MISMATCH`).
+- **Signature Disambiguation & Local Header Offset Authority**: Local header boundaries are driven exclusively by Central Directory offsets, never arbitrary signature scans. Descriptors or payloads containing bytes identical to `PK\x03\x04` (`0x04034B50`) cannot masquerade as fake local headers.
 
 ### 4.4 EOCD Comment & Trailing Data Validation
 - The End of Central Directory record is located within the final 65,557 bytes.
@@ -213,26 +224,36 @@ The following table provides machine- and auditor-traceable evidence mapping eve
 
 ## 7. Verification & Regression Provenance
 
-### 7.1 Frozen DOCX Verification
+### 7.1 Commit Provenance
+- **Phase 9 Implementation Commit**: `73a5c24b47842c8e68e1a1fc40622db70eec3c0d`
+- **Contract & Boundary Evidence Closure Commit**: `408b3e606e3949220a8e221c014378ac51a1a4c7`
+- **ZIP-Descriptor & Evidence Closure Commit**: `73783182300e4b4a9e57758b2a1ae4a99a9cf236`
+- **Historical Pre-Phase9 Baseline**: `1615 passed, 152 skipped, 0 failed, 0 warnings, 82.77s`
+
+### 7.2 Frozen DOCX Verification
 - `git diff v2.0.0 -- service/scripts/docx/`: **EMPTY (0 lines diff)**
 - Golden DOCX Hash (`01_GOLDEN_ORIGINAL_UNTOUCHED.docx`):
   `c05ca5c1be3b020b75d5763cf22061879a255b3c4f57b0455ae562b54809f58d` (**MATCH**)
 - Candidate DOCX Hash (`04_CANDIDATE_LOSSLESS_OUTPUT.docx`):
   `7aa5549f6a0e0b78fa39245c0e79503b2cc9defd6cffbfa5c8a833072d430297` (**MATCH**)
 
-### 7.2 Focused Phase 9 Suite
+### 7.3 Focused Phase 9 Suite
 - Command: `uv run --with pytest python -m pytest tests/test_malformed_archives.py -ra`
-- Result: **127 passed, 0 failed** in 1.39s
+- Result: **141 passed, 0 failed** in 1.30s
 
-### 7.3 Format Regressions
+### 7.4 Format Regressions
 - DOCX Body Carrier Suite ([`test_docx_body_carriers.py`](file:///tests/test_docx_body_carriers.py)): **49 passed**
 - XLSX Lossless Suite ([`test_xlsx_lossless.py`](file:///tests/test_xlsx_lossless.py)): **40 passed**
 - PPTX Lossless Suite ([`test_pptx_lossless.py`](file:///tests/test_pptx_lossless.py)): **46 passed**
-- Total Format Regression: **135 passed, 0 failed** in 13.20s
+- Total Format Regression: **135 passed, 0 failed** in 14.18s
 
-### 7.4 Contract Regressions
+### 7.5 Contract Regressions
 - Command: `uv run --with pytest python -m pytest tests/test_cli_v21.py tests/test_api_v21.py tests/test_multi_format_revalidation.py tests/test_batch_processor.py tests/test_inspection_first.py tests/test_dry_run.py tests/test_capabilities_endpoint.py tests/test_ui_contract.py -ra`
-- Result: **86 passed, 0 failed** in 7.71s
+- Result: **86 passed, 0 failed** in 11.32s
+
+### 7.6 Canonical Final Full Suite Regression
+- Command: `uv run --with pytest python -m pytest -ra`
+- Result: **1759 passed, 152 skipped, 0 failed, 0 warnings in 103.82s**
 
 ---
 

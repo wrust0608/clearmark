@@ -54,6 +54,9 @@ def build_raw_zip(
         lhoff_override = e.get("lhoff_override")
         desc_bytes = e.get("desc_bytes", b"")
 
+        loc_flags = e.get("loc_flags", flags)
+        cd_flags = e.get("cd_flags", flags)
+
         # Compress payload
         if comp_method == 0:
             payload = uncomp
@@ -68,6 +71,20 @@ def build_raw_zip(
         csize = len(payload) if csize_override is None else csize_override
         usize = len(uncomp) if usize_override is None else usize_override
 
+        loc_crc = e.get("loc_crc", 0 if (loc_flags & 0x08) and not e.get("keep_loc_crc") else crc)
+        loc_csize = e.get("loc_csize", 0 if (loc_flags & 0x08) and not e.get("keep_loc_sizes") else csize)
+        loc_usize = e.get("loc_usize", 0 if (loc_flags & 0x08) and not e.get("keep_loc_sizes") else usize)
+
+        if not desc_bytes and (loc_flags & 0x08):
+            is_signed = e.get("desc_signed", True)
+            d_crc = e.get("desc_crc", crc)
+            d_csize = e.get("desc_csize", csize)
+            d_usize = e.get("desc_usize", usize)
+            if is_signed:
+                desc_bytes = struct.pack("<IIII", 0x08074B50, d_crc, d_csize, d_usize)
+            else:
+                desc_bytes = struct.pack("<III", d_crc, d_csize, d_usize)
+
         lhoff = pos if lhoff_override is None else lhoff_override
 
         # If testing overlapping members, member 1 and 2 start at overlapping offsets
@@ -81,13 +98,13 @@ def build_raw_zip(
             "<IHHHHHIIIHH",
             0x04034B50,  # signature
             20,          # version needed
-            flags,
+            loc_flags,
             comp_method,
             0x4E21,      # mtime
             0x5821,      # mdate
-            crc,
-            csize,
-            usize,
+            loc_crc,
+            loc_csize,
+            loc_usize,
             len(loc_name_bytes),
             len(loc_extra_bytes),
         )
@@ -104,6 +121,7 @@ def build_raw_zip(
         uncomp = e.get("data", b"")
         comp_method = e.get("comp_method", 8)
         flags = e.get("flags", 0)
+        cd_flags = e.get("cd_flags", flags)
         crc = e.get("crc", zlib.crc32(uncomp) & 0xFFFFFFFF)
         external_attr = e.get("external_attr", 0)
         csize_override = e.get("csize_override")
@@ -129,7 +147,7 @@ def build_raw_zip(
             0x02014B50,  # signature
             20,          # made by
             20,          # ver needed
-            flags,
+            cd_flags,
             comp_method,
             0x4E21,
             0x5821,
