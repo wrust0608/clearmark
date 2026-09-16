@@ -105,19 +105,20 @@ Different document types and threat models require different trade-offs between 
 
 ### Decision
 Three explicit modes are defined:
-1. `SAFE` (Default for all formats, strictly mandatory for structured formats like DOCX/XLSX/PPTX):
+1. `SAFE`:
+   - Mandatory supported baseline for all formats.
+   - Default for all formats.
+   - Default for structured document formats (DOCX, XLSX, PPTX).
    - High-confidence metadata and provenance scrubbing.
    - Invisible Unicode removal with contextual preservation (emoji sequences, bidi controls, Arabic shaping, Devanagari).
    - Zero destructive whitespace normalization (e.g. `normalize_spaces = False` in DOCX).
    - Zero semantic or LLM rewrites.
    - Strict runtime invariant validation.
-2. `BALANCED`:
-   - Extends detection to secondary heuristic markers.
-   - Still strictly maintains semantic and structural document invariants.
-3. `AGGRESSIVE`:
-   - Only permitted where format policy explicitly enables it.
-   - Generates explicit warnings.
-   - Never bypasses structural/fidelity validation on container formats.
+2. `BALANCED` / `AGGRESSIVE`:
+   - Available only where `FormatPolicy` explicitly permits them (`supported_modes`).
+   - Must retain semantic and structural document invariants.
+   - Must never bypass fidelity validation on container or structured document formats.
+   - Unsupported extra behavior must produce an explicit warning rather than silently pretending to perform a stronger clean.
 
 ---
 

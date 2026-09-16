@@ -68,6 +68,7 @@ def test_capabilities_authoritative_source_of_truth(conn):
         "optional_dependencies",
         "network_policy",
         "supported_modes",
+        "verify_capabilities",
     }
 
     for policy in registered_policies:
@@ -78,6 +79,7 @@ def test_capabilities_authoritative_source_of_truth(conn):
         assert entry["extensions"] == list(policy.extensions)
         assert entry["network_policy"] == policy.network_policy
         assert entry["supported_modes"] == ["safe", "balanced", "aggressive"]
+        assert entry["verify_capabilities"] == list(policy.verify_capabilities)
 
 
 def test_capabilities_preserves_legacy_tooling_keys(conn):

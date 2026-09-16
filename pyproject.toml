@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "watermarks-remover"
+version = "2.1.0"
+description = "Universal document, image, and text watermark remover & provenance cleaner"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+watermarks = "service.scripts.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["service*"]

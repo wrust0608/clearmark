@@ -165,6 +165,20 @@ def test_api_verify_fail(conn):
     assert body["status"] == "FAIL"
 
 
+def test_api_verify_unsupported_format(conn):
+    raw_txt = _b64(b"Hello plain text")
+    status, body = _post(
+        conn,
+        "/verify",
+        {"original": raw_txt, "candidate": raw_txt, "name": "document.txt"},
+    )
+    assert status == 415
+    assert body["ok"] is False
+    assert body["status"] == "UNSUPPORTED"
+    assert body["error_code"] == "UNSUPPORTED_VERIFICATION_CAPABILITY"
+    assert "Verification capability is currently supported only for docx" in body["error"]
+
+
 # 5. HTTP /capabilities
 def test_api_capabilities_format_registry_parity(conn):
     status, body = _get(conn, "/capabilities")

@@ -38,6 +38,7 @@
 !/requirements-dev.txt
 !/ruff.toml
 !/SECURITY.md
+!/pyproject.toml
 !/ClearMark.cmd
 !/Open-ClearMark.cmd
 !/Stop-ClearMark.cmd

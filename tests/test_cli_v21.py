@@ -253,6 +253,21 @@ def test_cli_verify_failure_exit_code(tmp_path: Path, capsys):
     assert "FAIL" in out
 
 
+def test_cli_verify_unsupported_format(tmp_path: Path, capsys):
+    orig = tmp_path / "orig.txt"
+    orig.write_text("orig text", encoding="utf-8")
+    cand = tmp_path / "cand.txt"
+    cand.write_text("cand text", encoding="utf-8")
+
+    code, out, err = _run_cli(["verify", str(orig), str(cand), "--json"], capsys)
+    assert code == ExitCode.UNSUPPORTED
+    data = json.loads(out)
+    assert data["ok"] is False
+    assert data["status"] == "UNSUPPORTED"
+    assert data["error_code"] == "UNSUPPORTED_VERIFICATION_CAPABILITY"
+    assert "Verification capability is currently supported only for docx" in data["error_message"]
+
+
 # 8. CLI capabilities command
 def test_cli_capabilities_command(capsys):
     code, out, err = _run_cli(["capabilities", "--json"], capsys)

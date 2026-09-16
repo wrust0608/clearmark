@@ -319,34 +319,49 @@ def cmd_verify(args: argparse.Namespace) -> int:
 
     fmt = orig_path.suffix.lower().lstrip(".")
 
-    if fmt == "docx":
-        from tools.verify_document_fidelity import analyze_docx_fidelity
+    if fmt != "docx":
+        msg = f"Verification capability is currently supported only for docx documents (got: '{fmt}'). Dedicated verifiers for other formats are planned for subsequent phases."
+        if args.json:
+            payload = {
+                "ok": False,
+                "status": "UNSUPPORTED",
+                "format": fmt or "unknown",
+                "error_code": "UNSUPPORTED_VERIFICATION_CAPABILITY",
+                "error_message": msg,
+                "validation": {
+                    "structural_invariants_passed": False,
+                },
+                "invariants": [],
+                "warnings": [f"Verification not supported for format: {fmt}"],
+                "hashes": {
+                    "original": orig_sha,
+                    "candidate": cand_sha,
+                },
+            }
+            _emit_json(payload)
+        else:
+            sys.stderr.write(f"Error: {msg}\n")
+        return ExitCode.UNSUPPORTED
 
-        # Structural verification only; zero LibreOffice visual launch (Section 10)
-        try:
-            fidelity = analyze_docx_fidelity(orig_bytes, cand_bytes, perform_visual=False)
-            is_pass = (fidelity.get("overall") == "PASS")
-            invariants = [
-                f"paragraphs: {fidelity['paragraphs'][0]} -> {fidelity['paragraphs'][1]}",
-                f"runs: {fidelity['runs'][0]} -> {fidelity['runs'][1]}",
-                f"tables: {fidelity['tables'][0]} -> {fidelity['tables'][1]}",
-                f"manual_page_breaks: {fidelity['manual_page_breaks'][0]} -> {fidelity['manual_page_breaks'][1]}",
-                f"visible_text_exact: {fidelity['visible_text_exact']}",
-                f"non_target_parts_identical: {fidelity['non_target_parts_identical']}",
-            ]
-            warnings = []
-        except Exception as e:
-            is_pass = False
-            invariants = []
-            warnings = [f"Fidelity verification error: {e}"]
-    else:
-        # Non-DOCX general verification
-        is_pass = True
+    from tools.verify_document_fidelity import analyze_docx_fidelity
+
+    # Structural verification only; zero LibreOffice visual launch (Section 10)
+    try:
+        fidelity = analyze_docx_fidelity(orig_bytes, cand_bytes, perform_visual=False)
+        is_pass = (fidelity.get("overall") == "PASS")
         invariants = [
-            f"source_size: {len(orig_bytes)}",
-            f"candidate_size: {len(cand_bytes)}",
+            f"paragraphs: {fidelity['paragraphs'][0]} -> {fidelity['paragraphs'][1]}",
+            f"runs: {fidelity['runs'][0]} -> {fidelity['runs'][1]}",
+            f"tables: {fidelity['tables'][0]} -> {fidelity['tables'][1]}",
+            f"manual_page_breaks: {fidelity['manual_page_breaks'][0]} -> {fidelity['manual_page_breaks'][1]}",
+            f"visible_text_exact: {fidelity['visible_text_exact']}",
+            f"non_target_parts_identical: {fidelity['non_target_parts_identical']}",
         ]
         warnings = []
+    except Exception as e:
+        is_pass = False
+        invariants = []
+        warnings = [f"Fidelity verification error: {e}"]
 
     res_status = "PASS" if is_pass else "FAIL"
 
@@ -399,6 +414,7 @@ def cmd_capabilities(args: argparse.Namespace) -> int:
                 "network_policy": p.network_policy,
                 "supported_modes": ["safe", "balanced", "aggressive"],
                 "destructive_operations": list(p.destructive_operations),
+                "verify_capabilities": list(p.verify_capabilities),
             }
         payload = {
             "ok": True,
@@ -413,6 +429,8 @@ def cmd_capabilities(args: argparse.Namespace) -> int:
             fids = ", ".join(f.value for f in p.fidelity_requirements)
             print(f"\nFormat: {p.format_name.upper()} ({exts})")
             print(f"  Fidelity Requirements: {fids}")
+            if p.verify_capabilities:
+                print(f"  Verify Capabilities:   {', '.join(p.verify_capabilities)}")
             print(f"  Inspect Capabilities:  {', '.join(p.inspect_capabilities)}")
             print(f"  Clean Capabilities:    {', '.join(p.clean_capabilities)}")
             print(f"  Network Policy:        {p.network_policy}")

@@ -130,3 +130,46 @@ watermarks capabilities [--json]
    - Verified via monkeypatched socket primitives during inspect and dry-run execution.
 4. **Universal Report Privacy**:
    - Serialized reports contain no visible document text.
+
+---
+
+## 8. Contract Micro-Audit Verification
+
+### Console Entry Point Registration
+- **File**: `pyproject.toml`
+- **Declaration**:
+  ```toml
+  [project.scripts]
+  watermarks = "service.scripts.cli:main"
+  ```
+- **Invocation Distinctions**:
+  - **Production/Installed**: `watermarks <command> [options]` (executable located at `.venv/Scripts/watermarks.exe` or system PATH).
+  - **Development**: `uv run watermarks <command> [options]`.
+- **Packaging Discovery**: Verified via `importlib.metadata.entry_points(group="console_scripts")` in `tests/test_console_entrypoint.py`.
+
+### Real User Invocations & stdout Purity Tested
+All five canonical commands were executed through the actual packaged entrypoint with `--json`:
+1. `watermarks --help`: Exits 0, human-readable help text.
+2. `watermarks inspect 01_GOLDEN_ORIGINAL_UNTOUCHED.docx --json`: Exits 0, single pure JSON object, zero prose.
+3. `watermarks clean 01_GOLDEN_ORIGINAL_UNTOUCHED.docx --dry-run --json`: Exits 0, single pure JSON object, `changed=false`, `would_change=true`.
+4. `watermarks verify 01_GOLDEN_ORIGINAL_UNTOUCHED.docx 04_CANDIDATE_LOSSLESS_OUTPUT.docx --json`: Exits 0, single pure JSON object, `status=PASS`.
+5. `watermarks capabilities --json`: Exits 0, single pure JSON object with format policies and `verify_capabilities`.
+
+### Verification Command Format Scope
+- Verification is currently implemented and supported exclusively for DOCX structural fidelity checks.
+- Non-DOCX inputs to `watermarks verify` return `ExitCode.UNSUPPORTED` (2) with `UNSUPPORTED_VERIFICATION_CAPABILITY`.
+- Non-DOCX inputs to `POST /verify` return `HTTPStatus.UNSUPPORTED_MEDIA_TYPE` (415) with `UNSUPPORTED_VERIFICATION_CAPABILITY`.
+- `FormatPolicyRegistry` truthfully exposes `verify_capabilities`: `("structural_invariants", "raw_opc_invariants", "visible_text_exact")` for DOCX, and empty tuples for other formats until dedicated adapters are built.
+
+### ADR-005 Processing Mode Semantic Contract
+- `SAFE`: Mandatory supported baseline, default for all formats, default for structured document formats.
+- `BALANCED` / `AGGRESSIVE`: Permitted only where `FormatPolicy` explicitly enables them; must never bypass fidelity validation; produces explicit warnings rather than silently pretending stronger cleaning.
+
+### Pytest Warnings Classification
+- The 3 warnings on `pipeline_types.__getattr__` (`FormatPolicyRegistry`, `FormatPolicy`, `FormatCapabilities`) were evaluated:
+  - **Class**: `DeprecationWarning`
+  - **Source**: `service/scripts/pipeline_types.py`
+  - **Test**: `tests/test_pipeline_data_model.py::test_format_policy_single_source_of_truth`
+  - **Classification**: **EXPECTED** (validates ADR-010 deprecation forwarder for external callers).
+  - **Resolution**: Wrapped in explicit `pytest.deprecated_call()` assertions within the test, eliminating unhandled pytest warnings.
+

@@ -186,7 +186,7 @@ class CleaningReport:
 ### Phase 3: Unified CLI & API Normalization
 - **Status**: COMPLETED / READY FOR REVIEW
 - **Objective**: Build `watermarks` canonical CLI, retain legacy CLI backward-compatibility wrappers, and normalize HTTP endpoints (`/inspect`, `/clean`, `/verify`, `/capabilities`).
-- **Files**: `service/scripts/cli.py`, `service/scripts/clean_file.py`, `service/scripts/inspect_file.py`, `service/scripts/server.py`, `service/scripts/pipeline.py`, `tests/test_cli_v21.py`, `tests/test_api_v21.py`, `tests/test_cli_backward_compat.py`, `tests/test_capabilities_endpoint.py`.
+- **Files**: `pyproject.toml`, `service/scripts/cli.py`, `service/scripts/clean_file.py`, `service/scripts/inspect_file.py`, `service/scripts/server.py`, `service/scripts/pipeline.py`, `service/scripts/format_policy.py`, `tests/test_cli_v21.py`, `tests/test_api_v21.py`, `tests/test_cli_backward_compat.py`, `tests/test_capabilities_endpoint.py`, `tests/test_console_entrypoint.py`.
 - **Gate**:
   - Stable exit code contract (0, 2, 3, 4, 5, 6, 10).
   - Pure JSON stdout discipline with zero diagnostic leaks when `--json` is supplied.

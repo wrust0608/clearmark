@@ -271,6 +271,7 @@ class FormatCapabilities:
     clean: tuple[str, ...]
     fidelity_levels: tuple[FidelityLevel, ...]
     optional_dependencies: tuple[str, ...]
+    verify: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -286,6 +287,7 @@ class FormatPolicy:
     network_policy: str = "LOCAL_ONLY"
     default_mode: ProcessingMode = ProcessingMode.SAFE
     allow_destructive_normalization: bool = False
+    verify_capabilities: tuple[str, ...] = ()
 
     @property
     def capabilities(self) -> FormatCapabilities:
@@ -295,6 +297,7 @@ class FormatPolicy:
             clean=self.clean_capabilities,
             fidelity_levels=self.fidelity_requirements,
             optional_dependencies=self.optional_dependencies,
+            verify=self.verify_capabilities,
         )
 
 
@@ -339,6 +342,7 @@ class FormatPolicyRegistry:
                 network_policy="LOCAL_ONLY",
                 default_mode=ProcessingMode.SAFE,
                 allow_destructive_normalization=False,
+                verify_capabilities=("structural_invariants", "raw_opc_invariants", "visible_text_exact"),
             )
         )
 

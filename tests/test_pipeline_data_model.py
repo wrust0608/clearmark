@@ -203,10 +203,13 @@ def test_format_policy_single_source_of_truth():
     )
     from service.scripts import pipeline_types
 
-    # pipeline_types forwards to format_policy without owning a duplicate class
-    assert pipeline_types.FormatPolicyRegistry is FP_Registry
-    assert pipeline_types.FormatPolicy is FP_Policy
-    assert pipeline_types.FormatCapabilities is FormatCapabilities
+    # pipeline_types forwards to format_policy with deprecation warning without owning a duplicate class
+    with pytest.deprecated_call():
+        assert pipeline_types.FormatPolicyRegistry is FP_Registry
+    with pytest.deprecated_call():
+        assert pipeline_types.FormatPolicy is FP_Policy
+    with pytest.deprecated_call():
+        assert pipeline_types.FormatCapabilities is FormatCapabilities
 
     # Authoritative registry instance has format policies
     reg = FP_Registry.get_default()

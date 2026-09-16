@@ -240,6 +240,7 @@ def capabilities() -> dict[str, Any]:
             "network_policy": p.network_policy,
             "supported_modes": ["safe", "balanced", "aggressive"],
             "destructive_operations": list(p.destructive_operations),
+            "verify_capabilities": list(p.verify_capabilities),
         }
 
     return {
@@ -1636,28 +1637,42 @@ class Handler(BaseHTTPRequestHandler):
         orig_sha = hashlib.sha256(orig_bytes).hexdigest()
         cand_sha = hashlib.sha256(cand_bytes).hexdigest()
 
-        if fmt == "docx":
-            from tools.verify_document_fidelity import analyze_docx_fidelity
-            try:
-                fidelity = analyze_docx_fidelity(orig_bytes, cand_bytes, perform_visual=False)
-                is_pass = (fidelity.get("overall") == "PASS")
-                invariants = [
-                    f"paragraphs: {fidelity['paragraphs'][0]} -> {fidelity['paragraphs'][1]}",
-                    f"runs: {fidelity['runs'][0]} -> {fidelity['runs'][1]}",
-                    f"tables: {fidelity['tables'][0]} -> {fidelity['tables'][1]}",
-                    f"manual_page_breaks: {fidelity['manual_page_breaks'][0]} -> {fidelity['manual_page_breaks'][1]}",
-                    f"visible_text_exact: {fidelity['visible_text_exact']}",
-                    f"non_target_parts_identical: {fidelity['non_target_parts_identical']}",
-                ]
-                warnings = []
-            except Exception as e:
-                is_pass = False
-                invariants = []
-                warnings = [f"Fidelity verification error: {e}"]
-        else:
-            is_pass = True
-            invariants = [f"source_size: {len(orig_bytes)}", f"candidate_size: {len(cand_bytes)}"]
+        if fmt != "docx":
+            self._respond(HTTPStatus.UNSUPPORTED_MEDIA_TYPE, {
+                "ok": False,
+                "status": "UNSUPPORTED",
+                "format": fmt,
+                "error_code": "UNSUPPORTED_VERIFICATION_CAPABILITY",
+                "error": f"Verification capability is currently supported only for docx documents (got: '{fmt}'). Dedicated verifiers for other formats are planned for subsequent phases.",
+                "validation": {
+                    "structural_invariants_passed": False,
+                },
+                "invariants": [],
+                "warnings": [f"Verification not supported for format: {fmt}"],
+                "hashes": {
+                    "original": orig_sha,
+                    "candidate": cand_sha,
+                },
+            })
+            return
+
+        from tools.verify_document_fidelity import analyze_docx_fidelity
+        try:
+            fidelity = analyze_docx_fidelity(orig_bytes, cand_bytes, perform_visual=False)
+            is_pass = (fidelity.get("overall") == "PASS")
+            invariants = [
+                f"paragraphs: {fidelity['paragraphs'][0]} -> {fidelity['paragraphs'][1]}",
+                f"runs: {fidelity['runs'][0]} -> {fidelity['runs'][1]}",
+                f"tables: {fidelity['tables'][0]} -> {fidelity['tables'][1]}",
+                f"manual_page_breaks: {fidelity['manual_page_breaks'][0]} -> {fidelity['manual_page_breaks'][1]}",
+                f"visible_text_exact: {fidelity['visible_text_exact']}",
+                f"non_target_parts_identical: {fidelity['non_target_parts_identical']}",
+            ]
             warnings = []
+        except Exception as e:
+            is_pass = False
+            invariants = []
+            warnings = [f"Fidelity verification error: {e}"]
 
         res_status = "PASS" if is_pass else "FAIL"
         resp_code = HTTPStatus.OK if is_pass else HTTPStatus.UNPROCESSABLE_ENTITY
