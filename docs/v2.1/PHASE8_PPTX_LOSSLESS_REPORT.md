@@ -4,8 +4,10 @@
 **Target Format**: PowerPoint OpenXML Presentation (`.pptx`, PresentationML / DrawingML)  
 **Implementation Modules**: `service/scripts/pptx/`  
 **Implementation Commit**: `17bb830e085100416d1ee59dcd266a0456156777`  
-**Focused Test Suite**: `tests/test_pptx_lossless.py` (46 passed in 3.12s)  
-**Full Regression Suite**: 1610 passed, 152 skipped, 0 failed, 0 warnings (81.65s)  
+**Relationship/Security Evidence-Closure Commit**: `edea43543befbf685f91ef69407242d82e0a7bfe`  
+**Focused Test Suite**: `tests/test_pptx_lossless.py` (46 passed in 3.14s)  
+**Canonical Post-Audit Full Regression**: 1615 passed, 152 skipped, 0 failed, 0 warnings (82.77s)  
+**Historical Pre-Audit Regression**: 1610 passed, 152 skipped, 0 failed, 0 warnings (81.65s)  
 
 ---
 
@@ -112,6 +114,20 @@ $$\text{DETECT} \longrightarrow \text{PLAN} \longrightarrow \text{MINIMAL PATCH}
 - **Report Privacy**: `CleaningReport.to_dict()` and `PptxMutationPlan.to_dict()` serialize only structural metadata, codepoint hex (`U+200B`), character names, and shape IDs. Zero slide text payloads, notes, or comments leak into reports.
 - **Zero-Network Isolation**: Monkeypatched `socket.socket` to throw `RuntimeError`. Clean and inspection workflows completed with zero network calls.
 
+### 2.12 SECURITY FAIL-CLOSED EVIDENCE
+- **`tests/test_pptx_lossless.py::test_macro_and_signature_fail_closed_package_driven`**:
+  - Hostile macro marker (`ppt/vbaProject.bin`) in package named `sample.pptx`:
+    - `clean_pptx_lossless`: raises `PptxUnsupportedFeatureError` ("Macro-enabled presentation part 'ppt/vbaProject.bin' is not supported for mutation (fail-closed)")
+    - `Pipeline.inspect`: `status = PipelineStatus.ERROR`, `error_code = ErrorCode.INVALID_CONTAINER`
+    - `Pipeline.clean`: `status = PipelineStatus.ERROR`, `error_code = ErrorCode.INVALID_CONTAINER`, `data untouched == True`, zero output emitted
+  - Hostile digital signature marker (`_xmlsignatures/origin.sigs`) in package named `sample.pptx`:
+    - `clean_pptx_lossless`: raises `PptxUnsupportedFeatureError` ("Digitally signed PPTX presentation is unsupported for mutation.")
+    - `Pipeline.inspect`: `status = PipelineStatus.ERROR`, `error_code = ErrorCode.INVALID_CONTAINER`
+    - `Pipeline.clean`: `status = PipelineStatus.ERROR`, `error_code = ErrorCode.INVALID_CONTAINER`, `data untouched == True`, zero output emitted
+- **`tests/test_pptx_lossless.py::test_signed_or_macro_presentation_fail_closed`**:
+  - Injected `ppt/vbaProject.bin` into positive fixture: direct exception raised, fail-closed abort.
+  - Injected `ppt/_xmlsignatures/sig1.xml` into positive fixture: direct exception raised, fail-closed abort.
+
 ---
 
 ## 3. Fixture Corpus & Results Summary
@@ -142,19 +158,23 @@ A deterministic corpus of 17 `.pptx` presentations was generated with fixed ZIP 
 
 ## 4. Verification & Regression Metrics
 
-- **Focused PPTX Test Suite**: `tests/test_pptx_lossless.py` -> **46 passed** in 3.12s
-- **Focused XLSX Regression**: `tests/test_xlsx_lossless.py` -> **39 passed** in 3.07s
-- **DOCX Body Carriers Regression**: `tests/test_docx_body_carriers.py` -> **49 passed** in 6.80s
+- **Focused PPTX Test Suite**: `tests/test_pptx_lossless.py` -> **46 passed** in 3.14s
+- **Focused XLSX Regression**: `tests/test_xlsx_lossless.py` -> **39 passed** in 3.39s
+- **DOCX Body Carriers Regression**: `tests/test_docx_body_carriers.py` -> **49 passed** in 7.43s
+- **Combined XLSX + DOCX Regression**: **88 passed** in 10.25s
+- **Cross-Format Contract Regression**: `tests/test_multi_format_revalidation.py`, `tests/test_api_v21.py`, `tests/test_cli_v21.py`, `tests/test_capabilities_endpoint.py` -> **36 passed** in 3.51s
 - **DOCX Frozen Core Diff**: `git diff v2.0.0 -- service/scripts/docx/` -> **EMPTY** (0 modifications)
 - **Golden & Candidate DOCX Hashes**:
   - Golden: `c05ca5c1be3b020b75d5763cf22061879a255b3c4f57b0455ae562b54809f58d` (VERIFIED)
   - Candidate: `7aa5549f6a0e0b78fa39245c0e79503b2cc9defd6cffbfa5c8a833072d430297` (VERIFIED)
-- **Full Pytest Regression Suite**:
-  - **1610 passed**
+- **Canonical Post-Audit Full Pytest Regression Suite**:
+  - **1615 passed**
   - **152 skipped**
   - **0 failed**
   - **0 warnings**
-  - Duration: **81.65s**
+  - Duration: **82.77s**
+- **Historical Pre-Audit Regression Suite**:
+  - **1610 passed**, 152 skipped, 0 failed, 0 warnings in 81.65s (Difference: +5 tests from Phase 8 micro-audit test suite expansion)
 
 ---
 
