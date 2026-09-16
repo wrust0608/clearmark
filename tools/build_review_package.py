@@ -104,6 +104,21 @@ def get_git_head() -> str:
         return "HEAD_UNKNOWN"
 
 
+def get_git_commit_time() -> str:
+    try:
+        res = subprocess.run(
+            ["git", "log", "-1", "--format=%cI"],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            check=True,
+        )
+        return res.stdout.strip()
+    except Exception:
+        return "2026-09-16T12:00:00+00:00"
+
+
 def get_git_patch(base: str) -> str:
     try:
         res = subprocess.run(
@@ -190,7 +205,7 @@ def main() -> int:
     manifest_data = {
         "package": "FINAL_REVIEW_PACKAGE_v2.0.0-RC2.zip",
         "release": "v2.0.0-RC2",
-        "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "created_at": get_git_commit_time(),
         "authoritative_golden": {
             "filename": "01_GOLDEN_ORIGINAL_UNTOUCHED.docx",
             "sha256": "c05ca5c1be3b020b75d5763cf22061879a255b3c4f57b0455ae562b54809f58d",
