@@ -44,6 +44,7 @@ except (ImportError, ValueError):
 
 MAX_BATCH_FILES = int(os.environ.get("WATERMARKS_MAX_BATCH_FILES", "100"))
 MAX_BATCH_TOTAL_BYTES = int(os.environ.get("WATERMARKS_MAX_BATCH_TOTAL_BYTES", str(200 * 1024 * 1024)))  # 200 MB
+MAX_BATCH_INLINE_OUTPUT_BYTES = int(os.environ.get("WATERMARKS_MAX_BATCH_INLINE_OUTPUT_BYTES", str(32 * 1024 * 1024)))  # 32 MB
 MAX_INPUT_BYTES = int(os.environ.get("WATERMARKS_MAX_FILE_BYTES", str(32 * 1024 * 1024)))  # 32 MB
 
 
@@ -61,14 +62,19 @@ class BatchItemResult:
     format: str = "unknown"
     status: str = "INSPECTED"
     output_path: Optional[str] = None
-    cleaned_bytes: Optional[bytes] = None
+    cleaned_bytes: Optional[bytes] = None  # Transient runtime state only
     report: Optional[dict[str, Any]] = None
     error_code: Optional[str] = None
     error_message_safe: Optional[str] = None
     elapsed_ms: float = 0.0
 
-    def to_dict(self, include_cleaned_data: bool = False) -> dict[str, Any]:
-        d: dict[str, Any] = {
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to canonical metadata-only dictionary.
+
+        Invariant: cleaned_bytes is transient runtime state only and is strictly
+        excluded from the canonical report model.
+        """
+        return {
             "index": self.index,
             "input_path": self.input_path,
             "input_sha256": self.input_sha256,
@@ -80,9 +86,6 @@ class BatchItemResult:
             "elapsed_ms": round(self.elapsed_ms, 2),
             "report": self.report,
         }
-        if include_cleaned_data and self.cleaned_bytes is not None:
-            d["cleaned"] = base64.b64encode(self.cleaned_bytes).decode("ascii")
-        return d
 
 
 @dataclass
@@ -139,7 +142,8 @@ class BatchReport:
     schema_version: str = "2.1.0"
     operation: str = "clean"
 
-    def to_dict(self, include_cleaned_data: bool = False) -> dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to canonical metadata-only dictionary."""
         return {
             "schema_version": self.schema_version,
             "batch_id": self.batch_id,
@@ -150,7 +154,7 @@ class BatchReport:
             "finished_at": self.finished_at,
             "input_count": self.input_count,
             "summary": self.summary.to_dict(),
-            "items": [item.to_dict(include_cleaned_data=include_cleaned_data) for item in self.items],
+            "items": [item.to_dict() for item in self.items],
             "privacy": self.privacy,
             "performance": {
                 "elapsed_ms": round(self.performance_elapsed_ms, 2),
@@ -250,6 +254,7 @@ class BatchProcessor:
         pipeline: Optional[Pipeline] = None,
         max_batch_files: Optional[int] = None,
         max_batch_bytes: Optional[int] = None,
+        max_batch_inline_output_bytes: Optional[int] = None,
     ) -> None:
         self.pipeline = pipeline or Pipeline()
         self.max_batch_files = (
@@ -261,6 +266,11 @@ class BatchProcessor:
             max_batch_bytes
             if max_batch_bytes is not None
             else int(os.environ.get("WATERMARKS_MAX_BATCH_TOTAL_BYTES", str(200 * 1024 * 1024)))
+        )
+        self.max_batch_inline_output_bytes = (
+            max_batch_inline_output_bytes
+            if max_batch_inline_output_bytes is not None
+            else int(os.environ.get("WATERMARKS_MAX_BATCH_INLINE_OUTPUT_BYTES", str(32 * 1024 * 1024)))
         )
 
     def process_paths(

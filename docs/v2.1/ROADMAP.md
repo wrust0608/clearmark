@@ -201,7 +201,8 @@ class CleaningReport:
 ### Phase 4: Batch Processing Engine (COMPLETED)
 - **Objective**: Multi-file and directory queue processing with failure isolation and collision-safe outputs.
 - **Files**: `service/scripts/batch_processor.py`, `service/scripts/cli.py` (`batch`), `service/scripts/server.py` (`POST /batch`).
-- **Gate**: Fault isolation test: corrupted files in batch do not prevent valid files from cleaning. PASS (verified across unit, CLI, and API test suites). Full regression: 1458 passed, 152 skipped, 0 failed, 0 warnings in 70.32s. Golden DOCX core diff against v2.0.0: EMPTY.
+- **Gate**: Fault isolation test: corrupted files in batch do not prevent valid files from cleaning. PASS (verified across unit, CLI, and API test suites). Full regression: 1463 passed, 152 skipped, 0 failed, 0 warnings in 84.19s. Golden DOCX core diff against v2.0.0: EMPTY. Metadata-only report model and explicit HTTP transport envelope verified with inline response bounds.
+
 
 
 ### Phase 5: UI v2.1 Enhancements

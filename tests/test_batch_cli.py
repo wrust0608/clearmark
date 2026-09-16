@@ -185,3 +185,26 @@ def test_cli_batch_real_console_entrypoint(tmp_path: Path):
     assert data["schema_version"] == "2.1.0"
     assert data["summary"]["cleaned"] == 1
     assert Path(data["items"][0]["output_path"]).exists()
+
+
+# 7. CLI Batch --json Output Excludes Cleaned Payloads
+def test_cli_batch_json_excludes_cleaned_bytes(tmp_path: Path, capsys):
+    doc = tmp_path / "sample.docx"
+    doc.write_bytes(GOLDEN_DOCX.read_bytes())
+    out_dir = tmp_path / "out"
+
+    code, out, err = _run_cli(
+        ["batch", str(doc), "-o", str(out_dir), "--json"],
+        capsys,
+    )
+
+    assert code == ExitCode.SUCCESS
+    data = json.loads(out)
+    item = data["items"][0]
+    assert item["status"] == "CLEANED"
+    assert "cleaned" not in item
+    assert "cleaned_bytes" not in item
+    assert "content_base64" not in item
+    # Ensure stdout is compact metadata, not bloated by file data
+    assert len(out.encode("utf-8")) < 10000
+

@@ -268,3 +268,13 @@ Users and programmatic consumers require processing multiple explicit files or e
 9. **Zero-Network & Privacy Invariant**:
    - Local batch processing performs 0 network calls.
    - `BatchReport` and per-file JSON reports contain metadata only; document body text dumps are strictly prohibited.
+10. **Strict Metadata-Only Report Model & Transport Envelope Separation**:
+   - `BatchReport` and `BatchItemResult` serialize strictly metadata, hashes, timings, format, status, and safe error codes.
+   - Cleaned file payloads and base64 strings are **never** part of canonical `BatchReport`.
+   - HTTP `POST /batch` delivers cleaned files via an explicit transport envelope: `{"ok": true, "report": BatchReport, "outputs_included": bool, "output_delivery": str, "outputs": [...]}`.
+   - CLI `watermarks batch ... --json` and `--reports-dir` emit metadata-only JSON.
+11. **HTTP Inline Response Bounds vs. Input Acceptance**:
+   - Input batch acceptance limit (`WATERMARKS_MAX_BATCH_TOTAL_BYTES`, default 200 MiB) is strictly distinct from the inline output response limit (`WATERMARKS_MAX_BATCH_INLINE_OUTPUT_BYTES`, default 32 MiB).
+   - To prevent severe memory amplification (~6x overhead: decoded inputs + cleaned outputs + base64 strings + JSON string copies > 1.2 GiB RAM on a 200 MiB batch), cumulative cleaned output size is evaluated *before* calling `base64.b64encode`.
+   - If cumulative cleaned output exceeds `WATERMARKS_MAX_BATCH_INLINE_OUTPUT_BYTES`, base64 encoding is skipped entirely and the response returns `outputs_included: false`, `output_delivery: "not_available_inline"` alongside the complete canonical `BatchReport`.
+

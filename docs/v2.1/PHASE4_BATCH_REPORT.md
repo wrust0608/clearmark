@@ -3,7 +3,7 @@
 > **Phase**: Phase 4 (Batch Processing Engine)  
 > **Status**: PASS  
 > **Canonical Pre-Phase 4 Baseline**: Commit `6e5a5be600a69831c094db7a4941f1b4678c0919` (1431 passed, 152 skipped, 0 failed, 0 warnings in 74.27s)  
-> **Canonical Final Full Pytest**: 1458 passed, 152 skipped, 0 failed, 0 warnings in 70.32s  
+> **Canonical Final Full Pytest**: 1463 passed, 152 skipped, 0 failed, 0 warnings in 84.19s  
 > **Frozen Core**: Lossless DOCX Subsystem (`service/scripts/docx/`)  
 > **Golden DOCX SHA256**: `c05ca5c1be3b020b75d5763cf22061879a255b3c4f57b0455ae562b54809f58d`  
 > **Candidate DOCX SHA256**: `7aa5549f6a0e0b78fa39245c0e79503b2cc9defd6cffbfa5c8a833072d430297`  
@@ -13,15 +13,18 @@
 ## 1. Executive Summary
 
 Phase 4 introduces a resilient, isolated batch processing engine for ClearMark v2.1:
-1. **Batch Processor Abstraction (`service/scripts/batch_processor.py`)**: Centralized `BatchProcessor` that orchestrates multiple explicit files or directory trees while strictly reusing the canonical `Pipeline` (`Pipeline.clean`, `Pipeline.inspect`). Zero duplication of format adapters, inspection, policy, or validation.
+1. **Batch Processor Abstraction (`service/scripts/batch_processor.py`)**: Centralized `BatchProcessor` orchestrating multiple explicit files or directory trees while strictly reusing the canonical `Pipeline` (`Pipeline.clean`, `Pipeline.inspect`). Zero duplication of format adapters, inspection, policy, or validation.
 2. **File-Level Failure Isolation**: One corrupt, malformed, or unsupported file never aborts or poisons sibling files in the batch. Each file runs within an isolated boundary with fresh state.
 3. **Deterministic Ordering**: Explicit arguments preserve exact user order. Directory discovery applies stable lexical sorting on normalized relative paths. `BatchReport.items` strictly mirrors execution order.
 4. **Collision-Safe Outputs & Original Overwrite Protection**: Batch processing never overwrites input originals. Directory structures are preserved under `--output-dir`. Output collisions are deterministically suffixed (`.cleaned.ext`, `.cleaned.1.ext`). Pre-existing outputs are preserved.
-5. **Mathematical Reconciliation Invariant**: `sum(terminal categories) == total` is enforced across all runs.
-6. **Zero-Output Invariant for Failed/Dry-Run Items**: Failed, unsupported, or dry-run files write zero files to the output directory.
-7. **Canonical CLI Command (`watermarks batch`)**: Full CLI command supporting `-o/--output-dir`, `--reports-dir`, `--mode`, `--dry-run`, `-r/--recursive`, and `--json`.
-8. **Synchronous HTTP API (`POST /batch`)**: In-memory batch processing endpoint returning full `BatchReport` with optional inline cleaned payloads, protected by strict batch count and payload size limits.
-9. **Zero-Network & Privacy Invariant**: 0 network egress during local batch processing. Document body text is strictly excluded from `BatchReport` and per-file JSON reports.
+5. **Strict Metadata-Only Report Model**: `BatchReport` and `BatchItemResult` serialize strictly metadata, hashes, timings, format, status, and safe error codes. Cleaned file bytes/base64 are **never** part of the canonical `BatchReport` schema.
+6. **Explicit HTTP Transport Envelope**: `POST /batch` separates canonical metadata report from file delivery payload:
+   `{"ok": true, "report": {...}, "outputs_included": bool, "output_delivery": str, "outputs": [...]}`.
+7. **Response Memory Safety & Inline Limits**: Defined `WATERMARKS_MAX_BATCH_INLINE_OUTPUT_BYTES` (default: 32 MiB), strictly distinct from `WATERMARKS_MAX_BATCH_TOTAL_BYTES` (default: 200 MiB). Raw output size is evaluated *before* base64 encoding to prevent 6x+ memory amplification.
+8. **Mathematical Reconciliation Invariant**: `sum(terminal categories) == total` is strictly enforced across all runs.
+9. **Zero-Output Invariant for Failed/Dry-Run Items**: Failed, unsupported, or dry-run files write zero files to the output directory and yield zero entries in HTTP `outputs`.
+10. **Canonical CLI Command (`watermarks batch`)**: Full CLI command supporting `-o/--output-dir`, `--reports-dir`, `--mode`, `--dry-run`, `-r/--recursive`, and `--json` (metadata-only on `stdout`).
+11. **Zero-Network & Privacy Invariant**: 0 network egress during local batch processing. Canonical reports contain metadata only; document body text dumps are strictly forbidden.
 
 ---
 
@@ -64,7 +67,7 @@ Phase 4 introduces a resilient, isolated batch processing engine for ClearMark v
 
 ## 3. Data Models (`service/scripts/batch_processor.py`)
 
-### `BatchItemResult`
+### `BatchItemResult` (Metadata-Only Model)
 ```python
 @dataclass
 class BatchItemResult:
@@ -74,11 +77,28 @@ class BatchItemResult:
     format: str = "unknown"
     status: str = "INSPECTED"  # CLEANED, NO_CHANGE_REQUIRED, ERROR, etc.
     output_path: Optional[str] = None
-    cleaned_bytes: Optional[bytes] = None
+    cleaned_bytes: Optional[bytes] = None  # Transient runtime state only
     report: Optional[dict[str, Any]] = None  # Canonical CleaningReport
     error_code: Optional[str] = None
     error_message_safe: Optional[str] = None
     elapsed_ms: float = 0.0
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to canonical metadata-only dictionary.
+        Invariant: cleaned_bytes is transient runtime state only and is strictly
+        excluded from the canonical report model."""
+        return {
+            "index": self.index,
+            "input_path": self.input_path,
+            "input_sha256": self.input_sha256,
+            "format": self.format,
+            "status": self.status,
+            "output_path": self.output_path,
+            "error_code": self.error_code,
+            "error_message_safe": self.error_message_safe,
+            "elapsed_ms": round(self.elapsed_ms, 2),
+            "report": self.report,
+        }
 ```
 
 ### `BatchSummary`
@@ -100,7 +120,7 @@ class BatchSummary:
                 self.errors + self.skipped) == self.total
 ```
 
-### `BatchReport`
+### `BatchReport` (Metadata-Only Model)
 ```python
 @dataclass
 class BatchReport:
@@ -116,6 +136,22 @@ class BatchReport:
     performance_elapsed_ms: float
     schema_version: str = "2.1.0"
     operation: str = "clean"
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "schema_version": self.schema_version,
+            "batch_id": self.batch_id,
+            "operation": self.operation,
+            "mode": self.mode,
+            "dry_run": self.dry_run,
+            "started_at": self.started_at,
+            "finished_at": self.finished_at,
+            "input_count": self.input_count,
+            "summary": self.summary.to_dict(),
+            "items": [item.to_dict() for item in self.items],
+            "privacy": self.privacy,
+            "performance": {"elapsed_ms": round(self.performance_elapsed_ms, 2)},
+        }
 ```
 
 ---
@@ -130,11 +166,11 @@ watermarks batch <inputs...> [OPTIONS]
 ### Options
 - `<inputs...>`: One or more explicit file paths or directory paths.
 - `-o, --output-dir <dir>`: Directory where cleaned files are saved.
-- `--reports-dir <dir>`: Directory where individual per-file reports (`0001-<name>.json`) and `batch_report.json` are written.
+- `--reports-dir <dir>`: Directory where individual per-file reports (`0001-<name>.json`) and `batch_report.json` are written. Both contain metadata only (never binary payloads).
 - `--mode {safe,balanced,aggressive}`: Batch-wide processing mode (default: `safe`).
 - `--dry-run`: Preview planned changes; zero output files written.
 - `-r, --recursive`: Recursively scan directories for input files.
-- `--json`: Emit strictly pure `BatchReport` JSON to `stdout`. Diagnostics and progress go to `stderr`.
+- `--json`: Emit strictly pure `BatchReport` JSON to `stdout`. Diagnostics and progress go to `stderr`. Cleaned file bytes are absent from `--json` output.
 
 ### Batch Exit Code Contract
 
@@ -160,68 +196,97 @@ watermarks batch <inputs...> [OPTIONS]
 }
 ```
 
-### Response Payload
-Returns the complete `BatchReport` structure with status `200 OK`:
+### Response Transport Envelope
+The HTTP response strictly separates the canonical metadata report from the file payload delivery:
 ```json
 {
-  "schema_version": "2.1.0",
-  "batch_id": "...",
-  "operation": "clean",
-  "mode": "safe",
-  "dry_run": false,
-  "started_at": "...",
-  "finished_at": "...",
-  "input_count": 2,
-  "summary": {
-    "total": 2,
-    "cleaned": 1,
-    "no_change": 1,
-    "inspected": 0,
-    "unsupported": 0,
-    "validation_failed": 0,
-    "errors": 0,
-    "skipped": 0
+  "ok": true,
+  "report": {
+    "schema_version": "2.1.0",
+    "batch_id": "...",
+    "operation": "clean",
+    "mode": "safe",
+    "dry_run": false,
+    "started_at": "...",
+    "finished_at": "...",
+    "input_count": 2,
+    "summary": {
+      "total": 2,
+      "cleaned": 1,
+      "no_change": 1,
+      "inspected": 0,
+      "unsupported": 0,
+      "validation_failed": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "items": [
+      {
+        "index": 0,
+        "input_path": "document.docx",
+        "format": "docx",
+        "status": "CLEANED",
+        "report": { ... }
+      },
+      {
+        "index": 1,
+        "input_path": "notes.txt",
+        "format": "txt",
+        "status": "NO_CHANGE_REQUIRED",
+        "report": { ... }
+      }
+    ],
+    "privacy": { "network_used": false, "external_services": [] },
+    "performance": { "elapsed_ms": 45.2 }
   },
-  "items": [
+  "outputs_included": true,
+  "output_delivery": "inline",
+  "outputs": [
     {
       "index": 0,
-      "input_path": "document.docx",
-      "format": "docx",
-      "status": "CLEANED",
-      "cleaned": "<base64>",
-      "report": { ... }
-    },
-    {
-      "index": 1,
-      "input_path": "notes.txt",
-      "format": "txt",
-      "status": "NO_CHANGE_REQUIRED",
-      "report": { ... }
+      "name": "document.docx",
+      "sha256": "...",
+      "content_base64": "<base64>"
     }
-  ],
-  "privacy": { "network_used": false, "external_services": [] },
-  "performance": { "elapsed_ms": 45.2 }
+  ]
 }
 ```
 
-### Safety & Limit Enforcement
-- Returns `400 Bad Request` if `files` array is missing or empty.
-- Returns `413 Payload Too Large` if item count exceeds `WATERMARKS_MAX_BATCH_FILES` (default 100) or cumulative payload exceeds `WATERMARKS_MAX_BATCH_TOTAL_BYTES` (default 200MB).
+### Safety & Memory Bounds
+1. **Distinct Limits**:
+   - `WATERMARKS_MAX_BATCH_FILES`: Maximum item count allowed in a single batch (default: 100).
+   - `WATERMARKS_MAX_BATCH_TOTAL_BYTES`: Maximum cumulative input size accepted (default: 200 MiB).
+   - `WATERMARKS_MAX_BATCH_INLINE_OUTPUT_BYTES`: Maximum cumulative cleaned output bytes allowed to be serialized inline in an HTTP response (default: 32 MiB).
+2. **Memory Amplification Protection**:
+   - For 200 MiB of raw input, inlining up to 200 MiB would require: 200 MiB raw inputs + 200 MiB cleaned outputs + 267 MiB base64 strings + 267+ MiB serialized response JSON = **> 1.2 GiB resident RAM** (~6x amplification).
+   - By capping inline delivery at `WATERMARKS_MAX_BATCH_INLINE_OUTPUT_BYTES` (32 MiB), the response base64 size is bounded to $\approx 42.7\text{ MiB}$ and response serialization to $\approx 45\text{ MiB}$.
+3. **Check Before Base64 Encoding**:
+   - Total raw output size is checked across cleaned items **before** calling `base64.b64encode`.
+   - If total raw cleaned bytes exceed `WATERMARKS_MAX_BATCH_INLINE_OUTPUT_BYTES`:
+     - Base64 encoding is **skipped entirely**; zero base64 memory amplification occurs.
+     - `outputs_included = false`
+     - `output_delivery = "not_available_inline"`
+     - `outputs_omitted_reason` explains the limit threshold.
+     - `outputs = []`
+     - Canonical metadata report is returned completely intact.
+4. **Dry-Run & Failure Output Elimination**:
+   - When `dry_run: true`, `outputs_included = false`, `output_delivery = "dry_run"`, and `outputs = []`.
+   - Items with status `ERROR`, `UNSUPPORTED`, `VALIDATION_FAILED`, or `NO_CHANGE_REQUIRED` yield **zero** entries in `outputs`.
 
 ---
 
 ## 6. Verification & Test Metrics
 
 ### Test Suite Execution
-- `tests/test_batch_processor.py`: 14 tests covering fault isolation, deterministic ordering, collision safety, duplicate inputs, existing output protection, dry-run zero-write, state isolation, per-file reports, max files limit, max bytes limit, symlink protection, traversal containment, report privacy, and zero network.
-- `tests/test_batch_cli.py`: 6 tests covering JSON purity, human output formatting, partial success exit code 1, limit exceeded exit code 2, recursive directory processing, and real console entrypoint execution (`uv run watermarks batch ...`).
-- `tests/test_batch_api.py`: 7 tests covering real clean, dry run, fault isolation over HTTP, request validation (400), batch limits (413), zero network egress, and report privacy.
+- `tests/test_batch_processor.py`: 16 tests covering fault isolation, deterministic ordering, collision safety, duplicate inputs, existing output protection, dry-run zero-write, state isolation, per-file reports, max files limit, max bytes limit, symlink protection, traversal containment, report privacy, canonical report payload exclusion, and reports-dir payload exclusion.
+- `tests/test_batch_cli.py`: 7 tests covering JSON purity, human output formatting, partial success exit code 1, limit exceeded exit code 2, recursive directory processing, real console entrypoint execution (`uv run watermarks batch ...`), and CLI JSON payload exclusion.
+- `tests/test_batch_api.py`: 9 tests covering real clean with explicit transport envelope, dry run zero payloads, fault isolation over HTTP, request validation (400), root batch limits (413), inline output limit enforcement (32 MiB threshold), limit checked before base64 encoding (zero memory amplification), zero network egress, and report privacy.
 
 ### Canonical Pytest Full Regression
 ```
-1458 passed, 152 skipped, 0 failed, 0 warnings in 70.32s
+1463 passed, 152 skipped, 0 failed, 0 warnings in 84.19s
 ```
-- Net increase: +27 tests over pre-Phase 4 baseline (1431 -> 1458).
+- Net increase: +32 tests over pre-Phase 4 baseline (1431 -> 1463).
 - Skipped: 152 (identical to Phase 3 baseline).
 - Warnings: 0.
 - Failures: 0.

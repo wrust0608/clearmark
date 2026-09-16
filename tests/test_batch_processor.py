@@ -358,3 +358,49 @@ def test_batch_directory_traversal_safety(tmp_path: Path):
         out_p = Path(report.items[0].output_path).resolve()
         assert out_dir.resolve() in out_p.parents
 
+
+# 15. Canonical BatchReport Strictly Excludes Cleaned Payloads
+def test_batch_report_excludes_cleaned_payload(tmp_path: Path):
+    doc = tmp_path / "sample.docx"
+    doc.write_bytes(GOLDEN_DOCX.read_bytes())
+
+    processor = BatchProcessor()
+    report = processor.process_paths(inputs=[doc])
+
+    assert report.summary.cleaned == 1
+    # Transient item has cleaned_bytes in memory
+    assert report.items[0].cleaned_bytes is not None
+
+    # Canonical report dictionary MUST NOT contain cleaned_bytes or base64
+    rep_dict = report.to_dict()
+    item_dict = rep_dict["items"][0]
+    assert "cleaned" not in item_dict
+    assert "cleaned_bytes" not in item_dict
+    assert "content_base64" not in item_dict
+
+    # Serialized JSON size must be compact metadata only
+    json_bytes = json.dumps(rep_dict).encode("utf-8")
+    assert len(json_bytes) < 10000  # Metadata report is small, not embedding 50KB+ DOCX payload
+
+
+# 16. Reports Directory Files Exclude Cleaned Payloads
+def test_batch_reports_dir_excludes_cleaned_payload(tmp_path: Path):
+    doc = tmp_path / "sample.docx"
+    doc.write_bytes(GOLDEN_DOCX.read_bytes())
+    rep_dir = tmp_path / "reports_out"
+
+    processor = BatchProcessor()
+    processor.process_paths(inputs=[doc], reports_dir=rep_dir)
+
+    batch_json = rep_dir / "batch_report.json"
+    assert batch_json.exists()
+    batch_raw = batch_json.read_text(encoding="utf-8")
+    assert "cleaned_bytes" not in batch_raw
+    assert "content_base64" not in batch_raw
+
+    item_json = rep_dir / "0001-sample.json"
+    assert item_json.exists()
+    item_raw = item_json.read_text(encoding="utf-8")
+    assert "cleaned_bytes" not in item_raw
+    assert "content_base64" not in item_raw
+

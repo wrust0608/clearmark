@@ -917,9 +917,10 @@ _OPENAPI_PATHS: dict[str, dict[str, Any]] = {
                     type="object",
                     properties={
                         "ok": _schema(type="boolean"),
-                        "batch_id": _schema(type="string"),
-                        "summary": _schema(type="object"),
-                        "items": _schema(type="array", items=_schema(type="object")),
+                        "report": _schema(type="object"),
+                        "outputs_included": _schema(type="boolean"),
+                        "output_delivery": _schema(type="string"),
+                        "outputs": _schema(type="array", items=_schema(type="object")),
                     },
                 )
             },
@@ -1930,6 +1931,7 @@ class Handler(BaseHTTPRequestHandler):
 
         from batch_processor import (
             MAX_BATCH_FILES,
+            MAX_BATCH_INLINE_OUTPUT_BYTES,
             MAX_BATCH_TOTAL_BYTES,
             BatchLimitExceededError,
             BatchProcessor,
@@ -1961,10 +1963,57 @@ class Handler(BaseHTTPRequestHandler):
             self._respond(HTTPStatus.INTERNAL_SERVER_ERROR, {"ok": False, "error": f"Batch processing failed: {e}"})
             return
 
-        self._respond(HTTPStatus.OK, {
+        # Explicit transport envelope separating canonical metadata report from file payload transport
+        outputs_limit_bytes = int(os.environ.get("WATERMARKS_MAX_BATCH_INLINE_OUTPUT_BYTES", str(MAX_BATCH_INLINE_OUTPUT_BYTES)))
+        outputs: list[dict[str, Any]] = []
+        outputs_included = False
+        output_delivery = "none"
+
+        if dry_run or operation == "inspect":
+            output_delivery = "dry_run" if dry_run else "inspect"
+            outputs_included = False
+        else:
+            # Calculate raw cleaned output size before any expensive base64 encoding
+            cleaned_items = [
+                item for item in batch_report.items
+                if item.status == "CLEANED" and item.cleaned_bytes is not None
+            ]
+            total_raw_output_bytes = sum(len(item.cleaned_bytes) for item in cleaned_items)
+
+            if total_raw_output_bytes > outputs_limit_bytes:
+                # Do NOT encode base64 or build oversized payload
+                outputs_included = False
+                output_delivery = "not_available_inline"
+            else:
+                for item in cleaned_items:
+                    sha256 = (
+                        item.report["output"]["sha256"]
+                        if item.report and "output" in item.report and "sha256" in item.report["output"]
+                        else hashlib.sha256(item.cleaned_bytes).hexdigest()
+                    )
+                    outputs.append({
+                        "index": item.index,
+                        "name": item.input_path,
+                        "sha256": sha256,
+                        "content_base64": base64.b64encode(item.cleaned_bytes).decode("ascii"),
+                    })
+                outputs_included = True
+                output_delivery = "inline"
+
+        resp_envelope: dict[str, Any] = {
             "ok": True,
-            **batch_report.to_dict(include_cleaned_data=True),
-        })
+            "report": batch_report.to_dict(),
+            "outputs_included": outputs_included,
+            "output_delivery": output_delivery,
+            "outputs": outputs,
+        }
+        if output_delivery == "not_available_inline":
+            resp_envelope["outputs_limit_bytes"] = outputs_limit_bytes
+            resp_envelope["outputs_omitted_reason"] = (
+                f"Total cleaned output ({total_raw_output_bytes} bytes) exceeds inline response limit ({outputs_limit_bytes} bytes)"
+            )
+
+        self._respond(HTTPStatus.OK, resp_envelope)
 
     def _extract_text_input(self, body: dict[str, Any]) -> tuple[str, str]:
         """Extract raw text and optional name from a watermark request body."""
