@@ -151,7 +151,37 @@ def test_api_verify_pass(conn):
     assert len(body["invariants"]) >= 5
 
 
+def _make_fidelity_invalid_docx_bytes(src_bytes: bytes) -> bytes:
+    import io
+    import zipfile
+    bio_in = io.BytesIO(src_bytes)
+    bio_out = io.BytesIO()
+    with zipfile.ZipFile(bio_in, "r") as zin, zipfile.ZipFile(bio_out, "w") as zout:
+        for item in zin.infolist():
+            d = zin.read(item.filename)
+            if item.filename == "word/document.xml":
+                d = d.replace(b"</w:body>", b"<w:p><w:r><w:t>Injected</w:t></w:r></w:p></w:body>")
+            zout.writestr(item, d)
+    return bio_out.getvalue()
+
+
 def test_api_verify_fail(conn):
+    # Candidate is structurally valid but fails fidelity invariants -> HTTP 422
+    orig_b64 = _b64(GOLDEN_DOCX.read_bytes())
+    invalid_b64 = _b64(_make_fidelity_invalid_docx_bytes(GOLDEN_DOCX.read_bytes()))
+
+    status, body = _post(
+        conn,
+        "/verify",
+        {"original": orig_b64, "candidate": invalid_b64, "name": "doc.docx"},
+    )
+    assert status == 422
+    assert body["ok"] is False
+    assert body["status"] == "FAIL"
+
+
+def test_api_verify_malformed_candidate_rejected(conn):
+    # Candidate is malformed container -> HTTP 400
     orig_b64 = _b64(GOLDEN_DOCX.read_bytes())
     corrupt_b64 = _b64(b"PK\x03\x04corrupted file payload")
 
@@ -160,9 +190,10 @@ def test_api_verify_fail(conn):
         "/verify",
         {"original": orig_b64, "candidate": corrupt_b64, "name": "doc.docx"},
     )
-    assert status == 422
+    assert status == 400
     assert body["ok"] is False
-    assert body["status"] == "FAIL"
+    assert body["status"] == "ERROR"
+    assert body["error_code"] == "INVALID_CONTAINER"
 
 
 def test_api_verify_unsupported_format(conn):

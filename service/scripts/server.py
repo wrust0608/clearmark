@@ -1710,13 +1710,14 @@ class Handler(BaseHTTPRequestHandler):
                 try:
                     require_safe_zip_container(b)
                 except SecurityViolation as sv:
-                    st = HTTPStatus.REQUEST_ENTITY_TOO_LARGE if sv.is_limit else HTTPStatus.UNPROCESSABLE_ENTITY
+                    st = HTTPStatus.REQUEST_ENTITY_TOO_LARGE if sv.is_limit else HTTPStatus.BAD_REQUEST
                     self._respond(st, {
                         "ok": False,
-                        "status": "FAIL",
+                        "status": "ERROR",
                         "format": orig_fmt or cand_fmt or "unknown",
                         "error_code": "PROCESSING_LIMIT_EXCEEDED" if sv.is_limit else "INVALID_CONTAINER",
                         "error_message": f"Verification {label} file failed security preflight: {sv.finding.reason}",
+                        "rule_id": sv.finding.rule_id,
                         "validation": {"structural_invariants_passed": False},
                         "invariants": [],
                         "warnings": [sv.finding.reason],

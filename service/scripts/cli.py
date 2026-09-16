@@ -379,19 +379,17 @@ def cmd_verify(args: argparse.Namespace) -> int:
             try:
                 require_safe_zip_container(b)
             except SecurityViolation as sv:
-                if label == "original":
-                    exit_code = ExitCode.LIMIT_EXCEEDED if sv.is_limit else ExitCode.INVALID_INPUT
-                else:
-                    exit_code = ExitCode.VALIDATION_FAILED
+                exit_code = ExitCode.LIMIT_EXCEEDED if sv.is_limit else ExitCode.INVALID_INPUT
                 err_code_str = "PROCESSING_LIMIT_EXCEEDED" if sv.is_limit else "INVALID_CONTAINER"
                 msg = f"Verification {label} file failed security preflight: {sv.finding.reason}"
                 if args.json:
                     payload = {
                         "ok": False,
-                        "status": "FAIL",
+                        "status": "ERROR",
                         "format": fmt or "unknown",
                         "error_code": err_code_str,
                         "error_message": msg,
+                        "rule_id": sv.finding.rule_id,
                         "validation": {
                             "structural_invariants_passed": False,
                         },
@@ -404,7 +402,7 @@ def cmd_verify(args: argparse.Namespace) -> int:
                     }
                     _emit_json(payload)
                 else:
-                    print("STATUS: FAIL")
+                    print("STATUS: ERROR")
                     sys.stderr.write(f"Error: {msg}\n")
                 return exit_code
 

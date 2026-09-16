@@ -729,7 +729,7 @@ def test_http_verify_mismatched_formats_rejected():
         thread.join(timeout=5)
 
 
-# 33. HTTP Verify: Corrupted Candidate Fails
+# 33. HTTP Verify: Corrupted Candidate Fails Preflight (400) & Semantic Invariant Fails (422)
 def test_http_verify_corrupted_xlsx_candidate_fails():
     import server
     import http.client
@@ -743,6 +743,50 @@ def test_http_verify_corrupted_xlsx_candidate_fails():
     try:
         orig_bytes = (FIXTURES_DIR / "carrier_shared_string.xlsx").read_bytes()
         cand_bytes = b"PK\x03\x04corrupted candidate payload"
+
+        payload = {
+            "original": base64.b64encode(orig_bytes).decode("ascii"),
+            "candidate": base64.b64encode(cand_bytes).decode("ascii"),
+            "name": "sheet.xlsx",
+        }
+        conn.request("POST", "/verify", body=json.dumps(payload), headers={"Content-Type": "application/json"})
+        resp = conn.getresponse()
+        data = json.loads(resp.read().decode("utf-8"))
+
+        assert resp.status == 400
+        assert data["ok"] is False
+        assert data["status"] == "ERROR"
+        assert data["error_code"] == "INVALID_CONTAINER"
+    finally:
+        conn.close()
+        srv.shutdown()
+        srv.server_close()
+        thread.join(timeout=5)
+
+
+def test_http_verify_fidelity_invalid_xlsx_candidate_fails():
+    import io
+    import zipfile
+    import server
+    import http.client
+    import threading
+
+    srv = server.ThreadingHTTPServer(("127.0.0.1", 0), server.Handler)
+    thread = threading.Thread(target=srv.serve_forever, daemon=True)
+    thread.start()
+
+    conn = http.client.HTTPConnection("127.0.0.1", srv.server_address[1])
+    try:
+        orig_bytes = (FIXTURES_DIR / "carrier_shared_string.xlsx").read_bytes()
+        bio_in = io.BytesIO(orig_bytes)
+        bio_out = io.BytesIO()
+        with zipfile.ZipFile(bio_in, "r") as zin, zipfile.ZipFile(bio_out, "w") as zout:
+            for item in zin.infolist():
+                d = zin.read(item.filename)
+                if item.filename == "xl/sharedStrings.xml":
+                    d = d.replace(b"</sst>", b"<si><t>injected</t></si></sst>")
+                zout.writestr(item, d)
+        cand_bytes = bio_out.getvalue()
 
         payload = {
             "original": base64.b64encode(orig_bytes).decode("ascii"),

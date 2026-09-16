@@ -31,6 +31,7 @@ def build_raw_zip(
     total_entries_override: Optional[int] = None,
     zip64_locator: bool = False,
     overlap_second_member: bool = False,
+    trailing_bytes: bytes = b"",
 ) -> bytes:
     """Construct deterministic raw ZIP byte streams with full field control."""
     local_records: List[bytes] = []
@@ -41,6 +42,8 @@ def build_raw_zip(
     for idx, e in enumerate(entries):
         name_bytes = e.get("name_bytes") or e["name"].encode("utf-8")
         loc_name_bytes = e.get("local_name_bytes", name_bytes)
+        extra_bytes = e.get("extra_bytes", b"")
+        loc_extra_bytes = e.get("loc_extra_bytes", extra_bytes)
         uncomp = e.get("data", b"")
         comp_method = e.get("comp_method", 8)  # default DEFLATE
         flags = e.get("flags", 0)
@@ -49,6 +52,7 @@ def build_raw_zip(
         csize_override = e.get("csize_override")
         usize_override = e.get("usize_override")
         lhoff_override = e.get("lhoff_override")
+        desc_bytes = e.get("desc_bytes", b"")
 
         # Compress payload
         if comp_method == 0:
@@ -85,9 +89,9 @@ def build_raw_zip(
             csize,
             usize,
             len(loc_name_bytes),
-            0,           # extra len
+            len(loc_extra_bytes),
         )
-        local_rec = loc_hdr + loc_name_bytes + payload
+        local_rec = loc_hdr + loc_name_bytes + loc_extra_bytes + payload + desc_bytes
         local_records.append(local_rec)
         pos += len(local_rec)
 
@@ -95,6 +99,8 @@ def build_raw_zip(
     cd_start = pos if cd_offset_override is None else cd_offset_override
     for idx, e in enumerate(entries):
         name_bytes = e.get("name_bytes") or e["name"].encode("utf-8")
+        extra_bytes = e.get("extra_bytes", b"")
+        cd_extra_bytes = e.get("cd_extra_bytes", extra_bytes)
         uncomp = e.get("data", b"")
         comp_method = e.get("comp_method", 8)
         flags = e.get("flags", 0)
@@ -131,14 +137,14 @@ def build_raw_zip(
             csize,
             usize,
             len(name_bytes),
-            0,           # extra len
+            len(cd_extra_bytes),
             0,           # comment len
             0,           # disk num
             0,           # int attr
             external_attr,
             lhoff,
         )
-        cd_rec = cd_hdr + name_bytes
+        cd_rec = cd_hdr + name_bytes + cd_extra_bytes
         cd_records.append(cd_rec)
         pos += len(cd_rec)
 
@@ -170,7 +176,7 @@ def build_raw_zip(
         len(eocd_comment),
     ) + eocd_comment
 
-    return b"".join(local_records) + raw_cd + zip64_bytes + eocd
+    return b"".join(local_records) + raw_cd + zip64_bytes + eocd + trailing_bytes
 
 
 def make_minimal_docx(custom_parts: Dict[str, bytes] | None = None) -> bytes:

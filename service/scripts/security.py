@@ -29,6 +29,42 @@ import xml.etree.ElementTree as ET
 # 1. SECURITY LIMITS DATA MODEL
 # ==============================================================================
 
+def _env_int(key: str, default: int, min_val: int = 1) -> int:
+    """Safely parse integer environment variables; fallback to default on invalid or out-of-range value."""
+    val = os.environ.get(key)
+    if val is None:
+        return default
+    try:
+        parsed = int(val)
+        return parsed if parsed >= min_val else default
+    except (ValueError, TypeError):
+        return default
+
+
+def _env_float(key: str, default: float, min_val: float = 0.0) -> float:
+    """Safely parse float environment variables; fallback to default on invalid or out-of-range value."""
+    val = os.environ.get(key)
+    if val is None:
+        return default
+    try:
+        parsed = float(val)
+        return parsed if parsed >= min_val else default
+    except (ValueError, TypeError):
+        return default
+
+
+def _has_zip64_extra(extra_bytes: bytes) -> bool:
+    """Detect ZIP64 extended information extra field (header ID 0x0001) in an extra field block."""
+    pos = 0
+    extra_len = len(extra_bytes)
+    while pos + 4 <= extra_len:
+        header_id, data_size = struct.unpack("<HH", extra_bytes[pos : pos + 4])
+        if header_id == 0x0001:
+            return True
+        pos += 4 + data_size
+    return False
+
+
 @dataclass(frozen=True)
 class SecurityLimits:
     """Configurable security resource limits for containers and XML parsers.
@@ -36,41 +72,45 @@ class SecurityLimits:
     Values have safe defaults established by measuring valid corpora across DOCX,
     XLSX, and PPTX with documented margins. All limits support environment variable
     overrides following the WATERMARKS_SECURITY_* convention, and programmatic injection.
+    Malformed or out-of-range environment values safely fall back to authoritative defaults.
     """
     max_member_count: int = field(
-        default_factory=lambda: int(os.environ.get("WATERMARKS_SECURITY_MAX_MEMBER_COUNT", "10000"))
+        default_factory=lambda: _env_int("WATERMARKS_SECURITY_MAX_MEMBER_COUNT", 10000, 1)
     )
     max_member_uncompressed_bytes: int = field(
-        default_factory=lambda: int(
-            os.environ.get("WATERMARKS_SECURITY_MAX_MEMBER_UNCOMPRESSED_BYTES", str(64 * 1024 * 1024))
+        default_factory=lambda: _env_int(
+            "WATERMARKS_SECURITY_MAX_MEMBER_UNCOMPRESSED_BYTES", 64 * 1024 * 1024, 1
         )
     )
     max_total_uncompressed_bytes: int = field(
-        default_factory=lambda: int(
-            os.environ.get("WATERMARKS_SECURITY_MAX_TOTAL_UNCOMPRESSED_BYTES", str(128 * 1024 * 1024))
+        default_factory=lambda: _env_int(
+            "WATERMARKS_SECURITY_MAX_TOTAL_UNCOMPRESSED_BYTES", 128 * 1024 * 1024, 1
         )
     )
     max_compression_ratio: float = field(
-        default_factory=lambda: float(os.environ.get("WATERMARKS_SECURITY_MAX_COMPRESSION_RATIO", "100.0"))
+        default_factory=lambda: _env_float("WATERMARKS_SECURITY_MAX_COMPRESSION_RATIO", 100.0, 1.0)
+    )
+    min_compressed_bytes_for_ratio: int = field(
+        default_factory=lambda: _env_int("WATERMARKS_SECURITY_MIN_COMPRESSED_BYTES_FOR_RATIO", 1024, 0)
     )
     max_member_name_bytes: int = field(
-        default_factory=lambda: int(os.environ.get("WATERMARKS_SECURITY_MAX_MEMBER_NAME_BYTES", "1024"))
+        default_factory=lambda: _env_int("WATERMARKS_SECURITY_MAX_MEMBER_NAME_BYTES", 1024, 1)
     )
     max_xml_part_bytes: int = field(
-        default_factory=lambda: int(
-            os.environ.get("WATERMARKS_SECURITY_MAX_XML_PART_BYTES", str(32 * 1024 * 1024))
+        default_factory=lambda: _env_int(
+            "WATERMARKS_SECURITY_MAX_XML_PART_BYTES", 32 * 1024 * 1024, 1
         )
     )
     max_total_xml_bytes: int = field(
-        default_factory=lambda: int(
-            os.environ.get("WATERMARKS_SECURITY_MAX_TOTAL_XML_BYTES", str(128 * 1024 * 1024))
+        default_factory=lambda: _env_int(
+            "WATERMARKS_SECURITY_MAX_TOTAL_XML_BYTES", 128 * 1024 * 1024, 1
         )
     )
     max_xml_depth: int = field(
-        default_factory=lambda: int(os.environ.get("WATERMARKS_SECURITY_MAX_XML_DEPTH", "100"))
+        default_factory=lambda: _env_int("WATERMARKS_SECURITY_MAX_XML_DEPTH", 100, 1)
     )
     max_xml_elements: int = field(
-        default_factory=lambda: int(os.environ.get("WATERMARKS_SECURITY_MAX_XML_ELEMENTS", "500000"))
+        default_factory=lambda: _env_int("WATERMARKS_SECURITY_MAX_XML_ELEMENTS", 500000, 1)
     )
     chunk_size: int = 64 * 1024  # 64 KiB chunk size for streaming decompression
 
@@ -199,12 +239,16 @@ def preflight_xml_data(
         )
 
     # 1. Encoding-aware upfront DOCTYPE / ENTITY detection
-    # Handle UTF-16 LE / BE BOM or declared encodings before string search
+    # Handle UTF-16 LE / BE BOM, UTF-8 BOM, ISO-8859-1, or declared encodings before string search
     text: str
     if data.startswith(b"\xff\xfe") or data[:4] == b"<\x00?\x00":
         text = data.decode("utf-16-le", errors="replace")
     elif data.startswith(b"\xfe\xff") or data[:4] == b"\x00<\x00?":
         text = data.decode("utf-16-be", errors="replace")
+    elif data.startswith(b"\xef\xbb\xbf"):
+        text = data.decode("utf-8-sig", errors="replace")
+    elif b"encoding=" in data[:128].lower() and (b"iso-8859-1" in data[:128].lower() or b"latin" in data[:128].lower()):
+        text = data.decode("iso-8859-1", errors="replace")
     else:
         text = data.decode("utf-8", errors="replace")
 
@@ -501,6 +545,14 @@ def preflight_zip_container(
             )
             raise SecurityViolation(finding, is_limit=False)
 
+        cd_extra_bytes = data[cd_pos + 46 + nlen : cd_pos + 46 + nlen + elen]
+        if _has_zip64_extra(cd_extra_bytes):
+            finding = SecurityFinding(
+                rule_id="SEC_ZIP64_UNSUPPORTED",
+                reason="ZIP64 extra field (0x0001) in Central Directory fail-closed",
+            )
+            raise SecurityViolation(finding, is_limit=False)
+
         raw_name = data[cd_pos + 46 : cd_pos + 46 + nlen]
         if len(raw_name) > limits.max_member_name_bytes:
             finding = SecurityFinding(
@@ -636,7 +688,7 @@ def preflight_zip_container(
             raise SecurityViolation(finding, is_limit=True)
 
         # Compression Ratio Check on Declared Metadata
-        if csize > 0 and usize > 64 * 1024:
+        if csize >= limits.min_compressed_bytes_for_ratio:
             ratio = usize / csize
             if ratio > limits.max_compression_ratio:
                 finding = SecurityFinding(
@@ -715,6 +767,15 @@ def preflight_zip_container(
                 rule_id="SEC_BAD_LOCAL_HEADER_BOUNDS",
                 member_name=clean_name,
                 reason=f"Local header extends beyond archive bounds for '{clean_name}'",
+            )
+            raise SecurityViolation(finding, is_limit=False)
+
+        loc_extra_bytes = data[lhoff + 30 + lnlen : lhoff + 30 + lnlen + lelen]
+        if _has_zip64_extra(loc_extra_bytes):
+            finding = SecurityFinding(
+                rule_id="SEC_ZIP64_UNSUPPORTED",
+                member_name=clean_name,
+                reason=f"ZIP64 extra field (0x0001) in Local Header for '{clean_name}' fail-closed",
             )
             raise SecurityViolation(finding, is_limit=False)
 
@@ -881,8 +942,9 @@ def preflight_zip_container(
                             raise SecurityViolation(finding, is_limit=True)
 
                         # Runtime ratio check during streaming
-                        if offset > 0 and member_uncompressed_bytes > 64 * 1024:
-                            ratio = member_uncompressed_bytes / offset
+                        effective_comp = max(m.compressed_size, limits.min_compressed_bytes_for_ratio)
+                        if member_uncompressed_bytes > 0:
+                            ratio = member_uncompressed_bytes / effective_comp
                             if ratio > limits.max_compression_ratio:
                                 finding = SecurityFinding(
                                     rule_id="SEC_COMPRESSION_RATIO_LIMIT",
@@ -918,6 +980,19 @@ def preflight_zip_container(
                             observed_value=real_total_uncompressed,
                             configured_limit=limits.max_total_uncompressed_bytes,
                             reason=f"Total actual uncompressed bytes exceeded limit {limits.max_total_uncompressed_bytes}",
+                        )
+                        raise SecurityViolation(finding, is_limit=True)
+
+                effective_comp = max(m.compressed_size, limits.min_compressed_bytes_for_ratio)
+                if member_uncompressed_bytes > 0:
+                    ratio = member_uncompressed_bytes / effective_comp
+                    if ratio > limits.max_compression_ratio:
+                        finding = SecurityFinding(
+                            rule_id="SEC_COMPRESSION_RATIO_LIMIT",
+                            member_name=clean_name,
+                            observed_value=round(ratio, 2),
+                            configured_limit=limits.max_compression_ratio,
+                            reason=f"Decompressed compression ratio ({ratio:.1f}) exceeded limit {limits.max_compression_ratio} in '{clean_name}'",
                         )
                         raise SecurityViolation(finding, is_limit=True)
 

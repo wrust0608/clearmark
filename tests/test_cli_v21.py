@@ -243,14 +243,37 @@ def test_cli_verify_golden_vs_candidate(capsys):
     assert len(data["invariants"]) >= 5
 
 
-def test_cli_verify_failure_exit_code(tmp_path: Path, capsys):
-    corrupt_candidate = tmp_path / "corrupt.docx"
-    # Overwrite candidate with partial/corrupted content
-    corrupt_candidate.write_bytes(b"PK\x03\x04corrupted zip payload")
+def _make_fidelity_invalid_docx(src: Path, dst: Path) -> None:
+    import zipfile
+    with zipfile.ZipFile(src, "r") as zin, zipfile.ZipFile(dst, "w") as zout:
+        for item in zin.infolist():
+            d = zin.read(item.filename)
+            if item.filename == "word/document.xml":
+                d = d.replace(b"</w:body>", b"<w:p><w:r><w:t>Injected</w:t></w:r></w:p></w:body>")
+            zout.writestr(item, d)
 
-    code, out, err = _run_cli(["verify", str(GOLDEN_DOCX), str(corrupt_candidate)], capsys)
+
+def test_cli_verify_failure_exit_code(tmp_path: Path, capsys):
+    # Candidate is structurally valid DOCX but fails fidelity invariants -> Exit 3
+    invalid_candidate = tmp_path / "fidelity_invalid.docx"
+    _make_fidelity_invalid_docx(GOLDEN_DOCX, invalid_candidate)
+
+    code, out, err = _run_cli(["verify", str(GOLDEN_DOCX), str(invalid_candidate)], capsys)
     assert code == ExitCode.VALIDATION_FAILED
     assert "FAIL" in out
+
+
+def test_cli_verify_malformed_candidate_exit_code(tmp_path: Path, capsys):
+    # Candidate is malformed container -> Exit 4 (INVALID_INPUT)
+    corrupt_candidate = tmp_path / "corrupt.docx"
+    corrupt_candidate.write_bytes(b"PK\x03\x04corrupted zip payload")
+
+    code, out, err = _run_cli(["verify", str(GOLDEN_DOCX), str(corrupt_candidate), "--json"], capsys)
+    assert code == ExitCode.INVALID_INPUT
+    data = json.loads(out)
+    assert data["ok"] is False
+    assert data["status"] == "ERROR"
+    assert data["error_code"] == "INVALID_CONTAINER"
 
 
 def test_cli_verify_unsupported_format(tmp_path: Path, capsys):

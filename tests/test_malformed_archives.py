@@ -97,6 +97,12 @@ class TestZipPathSafety:
             preflight_zip_container(data)
         assert exc_info.value.finding.rule_id == "SEC_ZIPSLIP_UNC"
 
+    def test_zipslip_unc_backslash_path_rejected(self):
+        data = build_raw_zip([{"name": "\\\\server\\share\\evil.xml", "data": b"<root/>"}])
+        with pytest.raises(SecurityViolation) as exc_info:
+            preflight_zip_container(data)
+        assert exc_info.value.finding.rule_id == "SEC_ZIPSLIP_UNC"
+
     def test_zipslip_nul_byte_injection_rejected(self):
         data = build_raw_zip([{"name": "test.xml\x00.txt", "data": b"<root/>"}])
         with pytest.raises(SecurityViolation) as exc_info:
@@ -158,6 +164,19 @@ class TestArchiveIntegrity:
         data = build_raw_zip([{"name": "file.txt", "data": b"hello", "comp_method": 0}])
         res = preflight_zip_container(data)
         assert res.is_safe
+
+    def test_forged_metadata_decompression_discrepancy_rejected(self):
+        # Stored method where declared size != actual payload length
+        data_stored = build_raw_zip([{"name": "stored.txt", "data": b"A" * 100, "comp_method": 0, "usize_override": 50}])
+        with pytest.raises(SecurityViolation) as exc_info:
+            preflight_zip_container(data_stored)
+        assert exc_info.value.finding.rule_id == "SEC_TRUNCATED_STREAM"
+
+        # Deflated method where declared usize != actual decompressed bytes
+        data_deflated = build_raw_zip([{"name": "deflated.txt", "data": b"A" * 200, "comp_method": 8, "usize_override": 50}])
+        with pytest.raises(SecurityViolation) as exc_info:
+            preflight_zip_container(data_deflated)
+        assert exc_info.value.finding.rule_id in ("SEC_TRUNCATED_STREAM", "SEC_CORRUPTED_STREAM")
 
 
 # ==============================================================================
@@ -303,17 +322,54 @@ class TestBinaryStructuralHardening:
             preflight_zip_container(data)
         assert exc_info.value.finding.rule_id == "SEC_ZIP64_UNSUPPORTED"
 
-    def test_corrupted_crc32_rejected(self):
-        data = build_raw_zip([{"name": "test.xml", "data": b"<test/>", "crc": 0x12345678}])
+    def test_zip64_extra_field_in_cd_rejected(self):
+        cd_extra = struct.pack("<HH", 0x0001, 8) + b"\x00" * 8
+        data = build_raw_zip([{"name": "test.txt", "data": b"hello", "cd_extra_bytes": cd_extra}])
         with pytest.raises(SecurityViolation) as exc_info:
             preflight_zip_container(data)
-        assert exc_info.value.finding.rule_id == "SEC_CRC_MISMATCH"
+        assert exc_info.value.finding.rule_id == "SEC_ZIP64_UNSUPPORTED"
 
-    def test_truncated_compressed_stream_rejected(self):
-        data = build_raw_zip([{"name": "test.xml", "data": b"<data>" + b"Z" * 1000 + b"</data>", "truncate_payload": True}])
+    def test_zip64_extra_field_in_local_header_rejected(self):
+        loc_extra = struct.pack("<HH", 0x0001, 8) + b"\x00" * 8
+        data = build_raw_zip([{"name": "test.txt", "data": b"hello", "loc_extra_bytes": loc_extra}])
         with pytest.raises(SecurityViolation) as exc_info:
             preflight_zip_container(data)
-        assert exc_info.value.finding.rule_id in ("SEC_TRUNCATED_STREAM", "SEC_CORRUPTED_STREAM")
+        assert exc_info.value.finding.rule_id == "SEC_ZIPSLIP_PARENT" or exc_info.value.finding.rule_id == "SEC_ZIP64_UNSUPPORTED"
+        assert exc_info.value.finding.rule_id == "SEC_ZIP64_UNSUPPORTED"
+
+    def test_payload_overlaps_next_local_header_rejected(self):
+        # Member 1 compressed payload extends across member 2's local header offset
+        data = build_raw_zip([
+            {"name": "m1.txt", "data": b"A" * 10, "csize_override": 80, "comp_method": 0},
+            {"name": "m2.txt", "data": b"B" * 20, "comp_method": 0},
+        ])
+        with pytest.raises(SecurityViolation) as exc_info:
+            preflight_zip_container(data)
+        assert exc_info.value.finding.rule_id == "SEC_OVERLAPPING_MEMBERS"
+
+    def test_data_descriptor_bit3_safely_supported(self):
+        # Bit 3 set: sizes in local header set to 0, data descriptor with signature placed after payload
+        uncomp = b"Safe data descriptor payload"
+        crc = zlib.crc32(uncomp) & 0xFFFFFFFF
+        desc = struct.pack("<IIII", 0x08074B50, crc, len(uncomp), len(uncomp))
+        data = build_raw_zip([
+            {
+                "name": "desc.txt",
+                "data": uncomp,
+                "comp_method": 0,
+                "flags": 0x0008,
+                "desc_bytes": desc,
+            }
+        ])
+        res = preflight_zip_container(data)
+        assert res.is_safe
+        assert res.total_members == 1
+
+    def test_eocd_trailing_bytes_rejected(self):
+        data = build_raw_zip([{"name": "test.txt", "data": b"hello"}], trailing_bytes=b"UNAUTHORIZED_TRAILING_OVERLAY")
+        with pytest.raises(SecurityViolation) as exc_info:
+            preflight_zip_container(data)
+        assert exc_info.value.finding.rule_id in ("SEC_TRUNCATED_EOCD", "SEC_MISSING_EOCD")
 
 
 # ==============================================================================
@@ -381,6 +437,25 @@ class TestXmlSecurity:
     def test_xml_utf16_doctype_bypass_prevention(self):
         text = '<?xml version="1.0" encoding="UTF-16"?>\n<!DOCTYPE doc [<!ENTITY test "evil">]>\n<doc/>'
         xml_bytes = text.encode("utf-16-le")
+        with pytest.raises(SecurityViolation) as exc_info:
+            preflight_xml_data(xml_bytes, limits=SecurityLimits())
+        assert exc_info.value.finding.rule_id in ("SEC_XML_DOCTYPE", "SEC_XML_ENTITY")
+
+    def test_xml_utf16_be_doctype_rejected(self):
+        text = '<?xml version="1.0" encoding="UTF-16"?>\n<!DOCTYPE doc [<!ENTITY test "evil">]>\n<doc/>'
+        xml_bytes = text.encode("utf-16-be")
+        with pytest.raises(SecurityViolation) as exc_info:
+            preflight_xml_data(xml_bytes, limits=SecurityLimits())
+        assert exc_info.value.finding.rule_id in ("SEC_XML_DOCTYPE", "SEC_XML_ENTITY")
+
+    def test_xml_utf8_bom_doctype_rejected(self):
+        xml_bytes = b'\xef\xbb\xbf<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE doc [<!ENTITY test "evil">]>\n<doc/>'
+        with pytest.raises(SecurityViolation) as exc_info:
+            preflight_xml_data(xml_bytes, limits=SecurityLimits())
+        assert exc_info.value.finding.rule_id in ("SEC_XML_DOCTYPE", "SEC_XML_ENTITY")
+
+    def test_xml_iso_8859_1_doctype_rejected(self):
+        xml_bytes = b'<?xml version="1.0" encoding="ISO-8859-1"?>\n<!DOCTYPE doc [<!ENTITY test "evil">]>\n<doc/>'
         with pytest.raises(SecurityViolation) as exc_info:
             preflight_xml_data(xml_bytes, limits=SecurityLimits())
         assert exc_info.value.finding.rule_id in ("SEC_XML_DOCTYPE", "SEC_XML_ENTITY")
@@ -504,12 +579,14 @@ class TestVerifySecurityIntegration:
         monkeypatch.setattr(sys, "argv", test_args)
 
         exit_code = cli_main()
-        assert exit_code == ExitCode.VALIDATION_FAILED
+        assert exit_code == ExitCode.INVALID_INPUT
 
         captured = capsys.readouterr()
         data = json.loads(captured.out)
         assert data["ok"] is False
+        assert data["status"] == "ERROR"
         assert data["error_code"] == "INVALID_CONTAINER"
+        assert data["rule_id"] == "SEC_ZIPSLIP_PARENT"
         assert "security preflight" in data["error_message"]
 
     def test_verify_hostile_original_rejected_cli(self, monkeypatch, capsys):
@@ -525,8 +602,87 @@ class TestVerifySecurityIntegration:
         captured = capsys.readouterr()
         data = json.loads(captured.out)
         assert data["ok"] is False
+        assert data["status"] == "ERROR"
         assert data["error_code"] == "INVALID_CONTAINER"
+        assert data["rule_id"] == "SEC_ZIPSLIP_PARENT"
         assert "security preflight" in data["error_message"]
+
+    def test_verify_limit_original_rejected_cli(self, tmp_path, monkeypatch, capsys):
+        golden = Path("01_GOLDEN_ORIGINAL_UNTOUCHED.docx")
+        overlimit_orig = tmp_path / "overlimit_orig.docx"
+        overlimit_orig.write_bytes(FIXTURES_DIR / "representative_deep_xml.pptx").replace() if False else None
+        # Build overlimit docx with deep XML
+        deep_xml = b"<root>" + b"<node>" * 150 + b"leaf" + b"</node>" * 150 + b"</root>"
+        overlimit_orig.write_bytes(make_minimal_docx({"word/document.xml": deep_xml}))
+
+        test_args = ["watermarks", "verify", str(overlimit_orig), str(golden), "--json"]
+        monkeypatch.setattr(sys, "argv", test_args)
+
+        exit_code = cli_main()
+        assert exit_code == ExitCode.LIMIT_EXCEEDED
+
+        captured = capsys.readouterr()
+        data = json.loads(captured.out)
+        assert data["ok"] is False
+        assert data["status"] == "ERROR"
+        assert data["error_code"] == "PROCESSING_LIMIT_EXCEEDED"
+        assert data["rule_id"] == "SEC_XML_DEPTH_LIMIT"
+
+    def test_verify_limit_candidate_rejected_cli(self, tmp_path, monkeypatch, capsys):
+        golden = Path("01_GOLDEN_ORIGINAL_UNTOUCHED.docx")
+        overlimit_cand = tmp_path / "overlimit_cand.docx"
+        deep_xml = b"<root>" + b"<node>" * 150 + b"leaf" + b"</node>" * 150 + b"</root>"
+        overlimit_cand.write_bytes(make_minimal_docx({"word/document.xml": deep_xml}))
+
+        test_args = ["watermarks", "verify", str(golden), str(overlimit_cand), "--json"]
+        monkeypatch.setattr(sys, "argv", test_args)
+
+        exit_code = cli_main()
+        assert exit_code == ExitCode.LIMIT_EXCEEDED
+
+        captured = capsys.readouterr()
+        data = json.loads(captured.out)
+        assert data["ok"] is False
+        assert data["status"] == "ERROR"
+        assert data["error_code"] == "PROCESSING_LIMIT_EXCEEDED"
+        assert data["rule_id"] == "SEC_XML_DEPTH_LIMIT"
+
+    def test_verify_fidelity_invalid_safe_candidate_cli(self, tmp_path, monkeypatch, capsys):
+        golden = Path("01_GOLDEN_ORIGINAL_UNTOUCHED.docx")
+        cand_path = tmp_path / "fidelity_invalid.docx"
+        import zipfile
+        with zipfile.ZipFile(golden, "r") as zin, zipfile.ZipFile(cand_path, "w") as zout:
+            for item in zin.infolist():
+                d = zin.read(item.filename)
+                if item.filename == "word/document.xml":
+                    d = d.replace(b"</w:body>", b"<w:p><w:r><w:t>InjectedPara</w:t></w:r></w:p></w:body>")
+                zout.writestr(item, d)
+
+        test_args = ["watermarks", "verify", str(golden), str(cand_path), "--json"]
+        monkeypatch.setattr(sys, "argv", test_args)
+
+        exit_code = cli_main()
+        assert exit_code == ExitCode.VALIDATION_FAILED
+
+        captured = capsys.readouterr()
+        data = json.loads(captured.out)
+        assert data["ok"] is False
+        assert data["status"] == "FAIL"
+
+    def test_verify_preflight_failure_skips_fidelity_validator(self, monkeypatch):
+        golden = Path("01_GOLDEN_ORIGINAL_UNTOUCHED.docx")
+        hostile_candidate = FIXTURES_DIR / "representative_zipslip.docx"
+
+        fidelity_spy = MagicMock()
+        import tools.verify_document_fidelity
+        monkeypatch.setattr(tools.verify_document_fidelity, "analyze_docx_fidelity", fidelity_spy)
+
+        test_args = ["watermarks", "verify", str(golden), str(hostile_candidate), "--json"]
+        monkeypatch.setattr(sys, "argv", test_args)
+
+        exit_code = cli_main()
+        assert exit_code == ExitCode.INVALID_INPUT
+        assert fidelity_spy.call_count == 0, "Fidelity validator must NOT be invoked when preflight fails!"
 
 
 # ==============================================================================
@@ -703,7 +859,616 @@ class TestHttpApiSecurityIntegration:
                 "format": "docx",
             },
         )
+        assert status == 400
+        assert body["ok"] is False
+        assert body["status"] == "ERROR"
+        assert body["error_code"] == "INVALID_CONTAINER"
+        assert body["rule_id"] == "SEC_ZIPSLIP_PARENT"
+        assert "security preflight" in body["error_message"]
+
+    def test_http_verify_limit_original_rejected(self, server_conn):
+        import base64
+        deep_xml = b"<root>" + b"<node>" * 150 + b"leaf" + b"</node>" * 150 + b"</root>"
+        overlimit_orig = make_minimal_docx({"word/document.xml": deep_xml})
+        golden = Path("01_GOLDEN_ORIGINAL_UNTOUCHED.docx").read_bytes()
+        status, body = _api_post(
+            server_conn,
+            "/verify",
+            {
+                "original": base64.b64encode(overlimit_orig).decode("ascii"),
+                "candidate": base64.b64encode(golden).decode("ascii"),
+                "format": "docx",
+            },
+        )
+        assert status == 413
+        assert body["ok"] is False
+        assert body["status"] == "ERROR"
+        assert body["error_code"] == "PROCESSING_LIMIT_EXCEEDED"
+        assert body["rule_id"] == "SEC_XML_DEPTH_LIMIT"
+
+    def test_http_verify_limit_candidate_rejected(self, server_conn):
+        import base64
+        deep_xml = b"<root>" + b"<node>" * 150 + b"leaf" + b"</node>" * 150 + b"</root>"
+        overlimit_cand = make_minimal_docx({"word/document.xml": deep_xml})
+        golden = Path("01_GOLDEN_ORIGINAL_UNTOUCHED.docx").read_bytes()
+        status, body = _api_post(
+            server_conn,
+            "/verify",
+            {
+                "original": base64.b64encode(golden).decode("ascii"),
+                "candidate": base64.b64encode(overlimit_cand).decode("ascii"),
+                "format": "docx",
+            },
+        )
+        assert status == 413
+        assert body["ok"] is False
+        assert body["status"] == "ERROR"
+        assert body["error_code"] == "PROCESSING_LIMIT_EXCEEDED"
+        assert body["rule_id"] == "SEC_XML_DEPTH_LIMIT"
+
+    def test_http_verify_fidelity_invalid_safe_candidate(self, server_conn):
+        import base64
+        import io, zipfile
+        golden = Path("01_GOLDEN_ORIGINAL_UNTOUCHED.docx").read_bytes()
+        bio_in = io.BytesIO(golden)
+        bio_out = io.BytesIO()
+        with zipfile.ZipFile(bio_in, "r") as zin, zipfile.ZipFile(bio_out, "w") as zout:
+            for item in zin.infolist():
+                d = zin.read(item.filename)
+                if item.filename == "word/document.xml":
+                    d = d.replace(b"</w:body>", b"<w:p><w:r><w:t>InjectedPara</w:t></w:r></w:p></w:body>")
+                zout.writestr(item, d)
+        cand_bytes = bio_out.getvalue()
+
+        status, body = _api_post(
+            server_conn,
+            "/verify",
+            {
+                "original": base64.b64encode(golden).decode("ascii"),
+                "candidate": base64.b64encode(cand_bytes).decode("ascii"),
+                "format": "docx",
+            },
+        )
         assert status == 422
         assert body["ok"] is False
         assert body["status"] == "FAIL"
-        assert "security preflight" in body["error_message"]
+
+
+# ==============================================================================
+# 12. BOUNDARY TESTS (Section 9: Below Limit, At Limit, Above Limit)
+# ==============================================================================
+
+class TestBoundaryConditions:
+    """Validate numerical boundary conditions for all 7 numeric SecurityLimits:
+    <= limit accepted, > limit rejected.
+    """
+
+    def test_member_count_exact_boundaries(self):
+        limits = SecurityLimits(max_member_count=3)
+        # Below: 2 members
+        d_below = build_raw_zip([{"name": f"f{i}.txt", "data": b"x"} for i in range(2)])
+        assert preflight_zip_container(d_below, limits=limits).is_safe
+
+        # At: 3 members
+        d_at = build_raw_zip([{"name": f"f{i}.txt", "data": b"x"} for i in range(3)])
+        assert preflight_zip_container(d_at, limits=limits).is_safe
+
+        # Above: 4 members
+        d_above = build_raw_zip([{"name": f"f{i}.txt", "data": b"x"} for i in range(4)])
+        with pytest.raises(SecurityViolation) as exc_info:
+            preflight_zip_container(d_above, limits=limits)
+        assert exc_info.value.finding.rule_id == "SEC_MEMBER_COUNT_LIMIT"
+        assert exc_info.value.is_limit
+
+    def test_member_uncompressed_bytes_exact_boundaries(self):
+        limits = SecurityLimits(max_member_uncompressed_bytes=100)
+        # Below: 99 B
+        d_below = build_raw_zip([{"name": "m.txt", "data": b"A" * 99, "comp_method": 0}])
+        assert preflight_zip_container(d_below, limits=limits).is_safe
+
+        # At: 100 B
+        d_at = build_raw_zip([{"name": "m.txt", "data": b"A" * 100, "comp_method": 0}])
+        assert preflight_zip_container(d_at, limits=limits).is_safe
+
+        # Above: 101 B
+        d_above = build_raw_zip([{"name": "m.txt", "data": b"A" * 101, "comp_method": 0}])
+        with pytest.raises(SecurityViolation) as exc_info:
+            preflight_zip_container(d_above, limits=limits)
+        assert exc_info.value.finding.rule_id == "SEC_MEMBER_UNCOMPRESSED_LIMIT"
+        assert exc_info.value.is_limit
+
+    def test_total_uncompressed_bytes_exact_boundaries(self):
+        limits = SecurityLimits(max_total_uncompressed_bytes=200, max_member_uncompressed_bytes=150)
+        # Below: 199 B across 2 members
+        d_below = build_raw_zip([
+            {"name": "m1.txt", "data": b"A" * 100, "comp_method": 0},
+            {"name": "m2.txt", "data": b"B" * 99, "comp_method": 0},
+        ])
+        assert preflight_zip_container(d_below, limits=limits).is_safe
+
+        # At: 200 B across 2 members
+        d_at = build_raw_zip([
+            {"name": "m1.txt", "data": b"A" * 100, "comp_method": 0},
+            {"name": "m2.txt", "data": b"B" * 100, "comp_method": 0},
+        ])
+        assert preflight_zip_container(d_at, limits=limits).is_safe
+
+        # Above: 201 B across 2 members
+        d_above = build_raw_zip([
+            {"name": "m1.txt", "data": b"A" * 100, "comp_method": 0},
+            {"name": "m2.txt", "data": b"B" * 101, "comp_method": 0},
+        ])
+        with pytest.raises(SecurityViolation) as exc_info:
+            preflight_zip_container(d_above, limits=limits)
+        assert exc_info.value.finding.rule_id == "SEC_TOTAL_UNCOMPRESSED_LIMIT"
+        assert exc_info.value.is_limit
+
+    def test_compression_ratio_exact_boundaries(self):
+        # Natural deflated member: usize=150, csize=15, ratio=10.0
+        raw = (b"abcdefghij" * 15)[:150]
+        d = build_raw_zip([{"name": "r.txt", "data": raw}])
+
+        # At limit: max_compression_ratio=10.0, ratio=10.0 <= 10.0 -> accepted
+        limits_at = SecurityLimits(max_compression_ratio=10.0, min_compressed_bytes_for_ratio=15)
+        assert preflight_zip_container(d, limits=limits_at).is_safe
+
+        # Above limit: max_compression_ratio=9.9, ratio=10.0 > 9.9 -> rejected
+        limits_above = SecurityLimits(max_compression_ratio=9.9, min_compressed_bytes_for_ratio=15)
+        with pytest.raises(SecurityViolation) as exc_info:
+            preflight_zip_container(d, limits=limits_above)
+        assert exc_info.value.finding.rule_id == "SEC_COMPRESSION_RATIO_LIMIT"
+
+    def test_xml_part_bytes_exact_boundaries(self):
+        limits = SecurityLimits(max_xml_part_bytes=60)
+        # Below: 59 B
+        xml_below = b"<root>" + b"x" * 45 + b"</root>"  # len 58 <= 60
+        assert preflight_xml_data(xml_below, limits=limits).is_safe
+
+        # At: 60 B
+        xml_at = b"<root>" + b"x" * 47 + b"</root>"  # len 60 <= 60
+        assert preflight_xml_data(xml_at, limits=limits).is_safe
+
+        # Above: 61 B
+        xml_above = b"<root>" + b"x" * 48 + b"</root>"  # len 61 > 60
+        with pytest.raises(SecurityViolation) as exc_info:
+            preflight_xml_data(xml_above, limits=limits)
+        assert exc_info.value.finding.rule_id == "SEC_XML_PART_SIZE_LIMIT"
+        assert exc_info.value.is_limit
+
+    def test_xml_depth_exact_boundaries(self):
+        limits = SecurityLimits(max_xml_depth=3)
+        # Below: depth 2
+        xml_below = b"<a><b>leaf</b></a>"
+        assert preflight_xml_data(xml_below, limits=limits).max_xml_depth_observed == 2
+
+        # At: depth 3
+        xml_at = b"<a><b><c>leaf</c></b></a>"
+        assert preflight_xml_data(xml_at, limits=limits).max_xml_depth_observed == 3
+
+        # Above: depth 4
+        xml_above = b"<a><b><c><d>leaf</d></c></b></a>"
+        with pytest.raises(SecurityViolation) as exc_info:
+            preflight_xml_data(xml_above, limits=limits)
+        assert exc_info.value.finding.rule_id == "SEC_XML_DEPTH_LIMIT"
+        assert exc_info.value.is_limit
+
+    def test_xml_element_count_exact_boundaries(self):
+        limits = SecurityLimits(max_xml_elements=3)
+        # Below: 2 elements (<root>, <e1/>)
+        xml_below = b"<root><e1/></root>"
+        assert preflight_xml_data(xml_below, limits=limits).total_xml_elements_observed == 2
+
+        # At: 3 elements (<root>, <e1/>, <e2/>)
+        xml_at = b"<root><e1/><e2/></root>"
+        assert preflight_xml_data(xml_at, limits=limits).total_xml_elements_observed == 3
+
+        # Above: 4 elements (<root>, <e1/>, <e2/>, <e3/>)
+        xml_above = b"<root><e1/><e2/><e3/></root>"
+        with pytest.raises(SecurityViolation) as exc_info:
+            preflight_xml_data(xml_above, limits=limits)
+        assert exc_info.value.finding.rule_id == "SEC_XML_ELEMENT_COUNT_LIMIT"
+        assert exc_info.value.is_limit
+
+
+# ==============================================================================
+# 13. COMPRESSION RATIO EDGE CASES (Section 10)
+# ==============================================================================
+
+class TestCompressionRatioEdgeCases:
+    """Validate compression ratio calculation edge cases:
+    - compressed_size = 0 (empty vs non-empty)
+    - compressed_size below ratio floor threshold
+    - compressed_size exactly ratio floor threshold
+    - ratio exactly max
+    - ratio just above max
+    - zero division prevention
+    """
+
+    def test_compressed_size_zero_empty_file_accepted(self):
+        # Empty member (0 bytes uncompressed, 0 bytes compressed): valid STORED
+        data = build_raw_zip([{"name": "empty.txt", "data": b"", "comp_method": 0}])
+        res = preflight_zip_container(data)
+        assert res.is_safe
+
+    def test_compressed_size_zero_with_positive_uncompressed_rejected(self):
+        # Forged deflated entry declaring csize=0 with usize=1000: rejected immediately
+        data = build_raw_zip([{"name": "forged.txt", "data": b"A" * 1000, "comp_method": 8, "csize_override": 0}])
+        with pytest.raises(SecurityViolation) as exc_info:
+            preflight_zip_container(data)
+        assert exc_info.value.finding.rule_id == "SEC_COMPRESSION_RATIO_LIMIT"
+
+    def test_compressed_size_below_ratio_floor_threshold(self):
+        # Natural deflated member: usize=150, csize=15
+        raw = (b"abcdefghij" * 15)[:150]
+        d = build_raw_zip([{"name": "r.txt", "data": raw}])
+
+        # min_compressed_bytes_for_ratio = 20 > csize (15)
+        # effective_comp = 20 -> effective_ratio = 150 / 20 = 7.5
+        limits_ok = SecurityLimits(max_compression_ratio=7.5, min_compressed_bytes_for_ratio=20)
+        assert preflight_zip_container(d, limits=limits_ok).is_safe
+
+        limits_bad = SecurityLimits(max_compression_ratio=7.4, min_compressed_bytes_for_ratio=20)
+        with pytest.raises(SecurityViolation) as exc_info:
+            preflight_zip_container(d, limits=limits_bad)
+        assert exc_info.value.finding.rule_id == "SEC_COMPRESSION_RATIO_LIMIT"
+
+    def test_compressed_size_exactly_ratio_floor_threshold(self):
+        # Natural deflated member: usize=150, csize=15
+        raw = (b"abcdefghij" * 15)[:150]
+        d = build_raw_zip([{"name": "r.txt", "data": raw}])
+
+        # min_compressed_bytes_for_ratio = 15 == csize (15)
+        # effective_comp = 15 -> ratio = 150 / 15 = 10.0
+        limits_at = SecurityLimits(max_compression_ratio=10.0, min_compressed_bytes_for_ratio=15)
+        assert preflight_zip_container(d, limits=limits_at).is_safe
+
+        limits_above = SecurityLimits(max_compression_ratio=9.9, min_compressed_bytes_for_ratio=15)
+        with pytest.raises(SecurityViolation) as exc_info:
+            preflight_zip_container(d, limits=limits_above)
+        assert exc_info.value.finding.rule_id == "SEC_COMPRESSION_RATIO_LIMIT"
+
+
+# ==============================================================================
+# 14. ENVIRONMENT OVERRIDES & SAFE FALLBACK (Section 7)
+# ==============================================================================
+
+class TestEnvironmentOverrides:
+    """Validate that environment variable overrides work when valid and fall back safely when invalid."""
+
+    def test_valid_environment_override(self, monkeypatch):
+        monkeypatch.setenv("WATERMARKS_SECURITY_MAX_MEMBER_COUNT", "42")
+        limits = SecurityLimits()
+        assert limits.max_member_count == 42
+
+    def test_malformed_environment_override_falls_back_safely(self, monkeypatch):
+        # Non-numeric string falls back to authoritative default (10000)
+        monkeypatch.setenv("WATERMARKS_SECURITY_MAX_MEMBER_COUNT", "not_a_number")
+        limits = SecurityLimits()
+        assert limits.max_member_count == 10000
+
+    def test_negative_environment_override_falls_back_safely(self, monkeypatch):
+        # Negative value falls back to authoritative default (10000)
+        monkeypatch.setenv("WATERMARKS_SECURITY_MAX_MEMBER_COUNT", "-99")
+        limits = SecurityLimits()
+        assert limits.max_member_count == 10000
+
+    def test_malformed_compression_ratio_falls_back_safely(self, monkeypatch):
+        monkeypatch.setenv("WATERMARKS_SECURITY_MAX_COMPRESSION_RATIO", "invalid_ratio")
+        limits = SecurityLimits()
+        assert limits.max_compression_ratio == 100.0
+
+
+# ==============================================================================
+# 15. CANONICAL THREAT MATRIX TRACEABILITY (THREAT-01 through THREAT-38)
+# ==============================================================================
+
+class TestCanonicalThreatMatrixTraceability:
+    """Unambiguous 1-to-1 executable test evidence for all 38 threats defined in
+    docs/v2.1/PHASE9_SECURITY_THREAT_MATRIX.md.
+    """
+
+    def test_threat_01_zipslip_relative_traversal(self):
+        data = build_raw_zip([{"name": "../traversal.xml", "data": b"<root/>"}])
+        with pytest.raises(SecurityViolation) as exc:
+            preflight_zip_container(data)
+        assert exc.value.finding.rule_id == "SEC_ZIPSLIP_PARENT"
+
+    def test_threat_02_zipslip_absolute_unix_path(self):
+        data = build_raw_zip([{"name": "/etc/shadow", "data": b"<root/>"}])
+        with pytest.raises(SecurityViolation) as exc:
+            preflight_zip_container(data)
+        assert exc.value.finding.rule_id == "SEC_ZIPSLIP_ABSOLUTE"
+
+    def test_threat_03_zipslip_windows_drive(self):
+        data = build_raw_zip([{"name": "D:/system.xml", "data": b"<root/>"}])
+        with pytest.raises(SecurityViolation) as exc:
+            preflight_zip_container(data)
+        assert exc.value.finding.rule_id == "SEC_ZIPSLIP_WINDOWS_DRIVE"
+
+    def test_threat_04_zipslip_backslash(self):
+        data = build_raw_zip([{"name": "path\\to\\file.xml", "data": b"<root/>"}])
+        with pytest.raises(SecurityViolation) as exc:
+            preflight_zip_container(data)
+        assert exc.value.finding.rule_id == "SEC_ZIPSLIP_BACKSLASH"
+
+    def test_threat_05_zipslip_unc_path(self):
+        for unc in ("//server/share/evil.xml", "\\\\server\\share\\evil.xml"):
+            data = build_raw_zip([{"name": unc, "data": b"<root/>"}])
+            with pytest.raises(SecurityViolation) as exc:
+                preflight_zip_container(data)
+            assert exc.value.finding.rule_id == "SEC_ZIPSLIP_UNC"
+
+    def test_threat_06_zipslip_nul_byte(self):
+        data = build_raw_zip([{"name": "doc.xml\x00.exe", "data": b"<root/>"}])
+        with pytest.raises(SecurityViolation) as exc:
+            preflight_zip_container(data)
+        assert exc.value.finding.rule_id == "SEC_ZIPSLIP_NUL_BYTE"
+
+    def test_threat_07_duplicate_members(self):
+        data = build_raw_zip([{"name": "a.xml", "data": b"<a/>"}, {"name": "a.xml", "data": b"<b/>"}])
+        with pytest.raises(SecurityViolation) as exc:
+            preflight_zip_container(data)
+        assert exc.value.finding.rule_id == "SEC_DUPLICATE_MEMBER"
+
+    def test_threat_08_noncanonical_path_collisions(self):
+        for bad_path in ("folder//file.xml", "folder/./file.xml"):
+            data = build_raw_zip([{"name": bad_path, "data": b"<root/>"}])
+            with pytest.raises(SecurityViolation) as exc:
+                preflight_zip_container(data)
+            assert exc.value.finding.rule_id == "SEC_NONCANONICAL_PATH"
+
+    def test_threat_09_zip_symlink_entry(self):
+        attr = (0o120000 | 0o777) << 16
+        data = build_raw_zip([{"name": "link", "data": b"/etc/passwd", "external_attr": attr}])
+        with pytest.raises(SecurityViolation) as exc:
+            preflight_zip_container(data)
+        assert exc.value.finding.rule_id == "SEC_SYMLINK_MEMBER"
+
+    def test_threat_10_encrypted_member(self):
+        data = build_raw_zip([{"name": "secret.xml", "data": b"enc", "flags": 0x0001}])
+        with pytest.raises(SecurityViolation) as exc:
+            preflight_zip_container(data)
+        assert exc.value.finding.rule_id == "SEC_ENCRYPTED_MEMBER"
+
+    def test_threat_11_unsupported_compression(self):
+        data = build_raw_zip([{"name": "bad_comp.xml", "data": b"x", "comp_method": 9}])
+        with pytest.raises(SecurityViolation) as exc:
+            preflight_zip_container(data)
+        assert exc.value.finding.rule_id == "SEC_UNSUPPORTED_COMPRESSION"
+
+    def test_threat_12_archive_member_count_bomb(self):
+        limits = SecurityLimits(max_member_count=5)
+        data = build_raw_zip([{"name": f"f{i}.xml", "data": b"<x/>"} for i in range(6)])
+        with pytest.raises(SecurityViolation) as exc:
+            preflight_zip_container(data, limits=limits)
+        assert exc.value.finding.rule_id == "SEC_MEMBER_COUNT_LIMIT"
+
+    def test_threat_13_single_member_uncompressed_bomb(self):
+        limits = SecurityLimits(max_member_uncompressed_bytes=1000)
+        data = build_raw_zip([{"name": "bomb.txt", "data": b"A" * 1001, "comp_method": 0}])
+        with pytest.raises(SecurityViolation) as exc:
+            preflight_zip_container(data, limits=limits)
+        assert exc.value.finding.rule_id == "SEC_MEMBER_UNCOMPRESSED_LIMIT"
+
+    def test_threat_14_total_uncompressed_bomb(self):
+        limits = SecurityLimits(max_total_uncompressed_bytes=2000, max_member_uncompressed_bytes=1500)
+        data = build_raw_zip([
+            {"name": "b1.txt", "data": b"A" * 1200, "comp_method": 0},
+            {"name": "b2.txt", "data": b"B" * 1200, "comp_method": 0},
+        ])
+        with pytest.raises(SecurityViolation) as exc:
+            preflight_zip_container(data, limits=limits)
+        assert exc.value.finding.rule_id == "SEC_TOTAL_UNCOMPRESSED_LIMIT"
+
+    def test_threat_15_zipbomb_compression_ratio(self):
+        limits = SecurityLimits(max_compression_ratio=25.0)
+        data = build_raw_zip([{"name": "bomb.txt", "data": b"\x00" * (100 * 1024)}])
+        with pytest.raises(SecurityViolation) as exc:
+            preflight_zip_container(data, limits=limits)
+        assert exc.value.finding.rule_id == "SEC_COMPRESSION_RATIO_LIMIT"
+
+    def test_threat_16_forged_metadata_decompression_discrepancy(self):
+        data = build_raw_zip([{"name": "f.txt", "data": b"A" * 100, "comp_method": 0, "usize_override": 50}])
+        with pytest.raises(SecurityViolation) as exc:
+            preflight_zip_container(data)
+        assert exc.value.finding.rule_id == "SEC_TRUNCATED_STREAM"
+
+    def test_threat_17_crc32_and_corrupted_deflate(self):
+        data_bad_crc = build_raw_zip([{"name": "f.xml", "data": b"<x/>", "crc": 0xdeadbeef}])
+        with pytest.raises(SecurityViolation) as exc:
+            preflight_zip_container(data_bad_crc)
+        assert exc.value.finding.rule_id == "SEC_CRC_MISMATCH"
+
+        data_bad_stream = build_raw_zip([{"name": "f.xml", "data": b"<data>" + b"A" * 500 + b"</data>", "truncate_payload": True}])
+        with pytest.raises(SecurityViolation) as exc:
+            preflight_zip_container(data_bad_stream)
+        assert exc.value.finding.rule_id in ("SEC_TRUNCATED_STREAM", "SEC_CORRUPTED_STREAM")
+
+    def test_threat_18_missing_and_truncated_eocd(self):
+        data_no_eocd = build_raw_zip([{"name": "f.txt", "data": b"x"}])[:-25]
+        with pytest.raises(SecurityViolation) as exc:
+            preflight_zip_container(data_no_eocd)
+        assert exc.value.finding.rule_id == "SEC_MISSING_EOCD"
+
+    def test_threat_19_central_directory_out_of_bounds(self):
+        data_bad_cd = build_raw_zip([{"name": "f.txt", "data": b"x"}], cd_offset_override=999999)
+        with pytest.raises(SecurityViolation) as exc:
+            preflight_zip_container(data_bad_cd)
+        assert exc.value.finding.rule_id == "SEC_BAD_CD_OFFSET"
+
+    def test_threat_20_local_file_header_out_of_bounds(self):
+        data_bad_lhoff = build_raw_zip([{"name": "f.txt", "data": b"x", "lhoff_override": 999999}])
+        with pytest.raises(SecurityViolation) as exc:
+            preflight_zip_container(data_bad_lhoff)
+        assert exc.value.finding.rule_id == "SEC_BAD_LOCAL_HEADER_OFFSET"
+
+    def test_threat_21_local_vs_central_mismatch(self):
+        data = build_raw_zip([{"name": "cd_name.xml", "local_name_bytes": b"local_name.xml", "data": b"<x/>"}])
+        with pytest.raises(SecurityViolation) as exc:
+            preflight_zip_container(data)
+        assert exc.value.finding.rule_id == "SEC_LOCAL_CENTRAL_MISMATCH"
+
+    def test_threat_22_overlapping_archive_members(self):
+        data = build_raw_zip([
+            {"name": "m1.txt", "data": b"A" * 10, "csize_override": 80, "comp_method": 0},
+            {"name": "m2.txt", "data": b"B" * 20, "comp_method": 0},
+        ])
+        with pytest.raises(SecurityViolation) as exc:
+            preflight_zip_container(data)
+        assert exc.value.finding.rule_id == "SEC_OVERLAPPING_MEMBERS"
+
+    def test_threat_23_multidisk_zip_unsupported(self):
+        data = build_raw_zip([{"name": "f.txt", "data": b"x"}], disk_num=1)
+        with pytest.raises(SecurityViolation) as exc:
+            preflight_zip_container(data)
+        assert exc.value.finding.rule_id == "SEC_MULTIDISK_ARCHIVE"
+
+    def test_threat_24_zip64_unsupported_fail_closed(self):
+        data_loc = build_raw_zip([{"name": "f.txt", "data": b"x"}], zip64_locator=True)
+        with pytest.raises(SecurityViolation) as exc:
+            preflight_zip_container(data_loc)
+        assert exc.value.finding.rule_id == "SEC_ZIP64_UNSUPPORTED"
+
+        cd_extra = struct.pack("<HH", 0x0001, 8) + b"\x00" * 8
+        data_extra = build_raw_zip([{"name": "f.txt", "data": b"x", "cd_extra_bytes": cd_extra}])
+        with pytest.raises(SecurityViolation) as exc:
+            preflight_zip_container(data_extra)
+        assert exc.value.finding.rule_id == "SEC_ZIP64_UNSUPPORTED"
+
+    def test_threat_25_oversized_xml_part(self):
+        limits = SecurityLimits(max_xml_part_bytes=40)
+        xml_data = b"<root>" + b"x" * 35 + b"</root>"  # len 48 > 40
+        with pytest.raises(SecurityViolation) as exc:
+            preflight_xml_data(xml_data, limits=limits)
+        assert exc.value.finding.rule_id == "SEC_XML_PART_SIZE_LIMIT"
+
+    def test_threat_26_excessive_xml_depth(self):
+        limits = SecurityLimits(max_xml_depth=4)
+        xml_data = b"<a><b><c><d><e>deep</e></d></c></b></a>"
+        with pytest.raises(SecurityViolation) as exc:
+            preflight_xml_data(xml_data, limits=limits)
+        assert exc.value.finding.rule_id == "SEC_XML_DEPTH_LIMIT"
+
+    def test_threat_27_excessive_xml_element_count(self):
+        limits = SecurityLimits(max_xml_elements=3)
+        xml_data = b"<root><a/><b/><c/><d/></root>"
+        with pytest.raises(SecurityViolation) as exc:
+            preflight_xml_data(xml_data, limits=limits)
+        assert exc.value.finding.rule_id == "SEC_XML_ELEMENT_COUNT_LIMIT"
+
+    def test_threat_28_xml_doctype_and_entity(self):
+        doctype_xml = b'<?xml version="1.0"?>\n<!DOCTYPE html SYSTEM "http://evil/x.dtd">\n<root/>'
+        with pytest.raises(SecurityViolation) as exc:
+            preflight_xml_data(doctype_xml, limits=SecurityLimits())
+        assert exc.value.finding.rule_id == "SEC_XML_DOCTYPE"
+
+        entity_xml = b'<?xml version="1.0"?>\n<!DOCTYPE doc [<!ENTITY e "x">]>\n<doc/>'
+        with pytest.raises(SecurityViolation) as exc:
+            preflight_xml_data(entity_xml, limits=SecurityLimits())
+        assert exc.value.finding.rule_id in ("SEC_XML_DOCTYPE", "SEC_XML_ENTITY")
+
+    def test_threat_29_xxe_zero_network(self, monkeypatch):
+        net_calls = 0
+        def no_socket(*args, **kwargs):
+            nonlocal net_calls
+            net_calls += 1
+            raise AssertionError("Network connection forbidden!")
+
+        monkeypatch.setattr(socket, "socket", no_socket)
+        xxe_payload = b'<?xml version="1.0"?>\n<!DOCTYPE r SYSTEM "http://127.0.0.1:9999/x.dtd"><r/>'
+        with pytest.raises(SecurityViolation) as exc:
+            preflight_xml_data(xxe_payload, limits=SecurityLimits())
+        assert exc.value.finding.rule_id in ("SEC_XML_DOCTYPE", "SEC_XML_XXE_SYSTEM")
+        assert net_calls == 0
+
+    def test_threat_30_xml_encoding_bypass(self):
+        # UTF-16 LE, UTF-16 BE, UTF-8 BOM, ISO-8859-1
+        text = '<?xml version="1.0"?>\n<!DOCTYPE html><root/>'
+        with pytest.raises(SecurityViolation) as exc:
+            preflight_xml_data(text.encode("utf-16-le"), limits=SecurityLimits())
+        assert exc.value.finding.rule_id == "SEC_XML_DOCTYPE"
+
+        with pytest.raises(SecurityViolation) as exc:
+            preflight_xml_data(text.encode("utf-16-be"), limits=SecurityLimits())
+        assert exc.value.finding.rule_id == "SEC_XML_DOCTYPE"
+
+        with pytest.raises(SecurityViolation) as exc:
+            preflight_xml_data(b"\xef\xbb\xbf" + text.encode("utf-8"), limits=SecurityLimits())
+        assert exc.value.finding.rule_id == "SEC_XML_DOCTYPE"
+
+        iso_text = '<?xml version="1.0" encoding="ISO-8859-1"?>\n<!DOCTYPE html><root/>'
+        with pytest.raises(SecurityViolation) as exc:
+            preflight_xml_data(iso_text.encode("iso-8859-1"), limits=SecurityLimits())
+        assert exc.value.finding.rule_id == "SEC_XML_DOCTYPE"
+
+    def test_threat_31_malformed_xml_syntax(self):
+        bad_xml = b"<root><unclosed>text</root>"
+        with pytest.raises(SecurityViolation) as exc:
+            preflight_xml_data(bad_xml, limits=SecurityLimits())
+        assert exc.value.finding.rule_id == "SEC_XML_MALFORMED"
+
+    def test_threat_32_hostile_inspect(self):
+        hostile_file = FIXTURES_DIR / "representative_zipslip.docx"
+        rep = Pipeline().inspect(hostile_file)
+        assert rep.status == PipelineStatus.ERROR
+        assert rep.error_code == ErrorCode.INVALID_CONTAINER
+
+    def test_threat_33_hostile_dry_run(self):
+        hostile_file = FIXTURES_DIR / "representative_zipslip.docx"
+        out_bytes, rep = Pipeline().clean(hostile_file, dry_run=True)
+        assert rep.status == PipelineStatus.ERROR
+        assert rep.error_code == ErrorCode.INVALID_CONTAINER
+        assert out_bytes == b""
+
+    def test_threat_34_hostile_verify(self, monkeypatch, capsys):
+        golden = Path("01_GOLDEN_ORIGINAL_UNTOUCHED.docx")
+        hostile = FIXTURES_DIR / "representative_zipslip.docx"
+
+        test_args = ["watermarks", "verify", str(golden), str(hostile), "--json"]
+        monkeypatch.setattr(sys, "argv", test_args)
+        exit_code = cli_main()
+        assert exit_code == ExitCode.INVALID_INPUT
+
+        captured = capsys.readouterr()
+        data = json.loads(captured.out)
+        assert data["ok"] is False
+        assert data["status"] == "ERROR"
+        assert data["error_code"] == "INVALID_CONTAINER"
+        assert data["rule_id"] == "SEC_ZIPSLIP_PARENT"
+
+    def test_threat_35_batch_isolation(self, tmp_path):
+        from batch_processor import BatchProcessor
+        f1 = tmp_path / "v1.docx"
+        f2 = tmp_path / "hostile.docx"
+        shutil.copyfile("01_GOLDEN_ORIGINAL_UNTOUCHED.docx", f1)
+        shutil.copyfile(FIXTURES_DIR / "representative_zipslip.docx", f2)
+
+        bp = BatchProcessor()
+        rep = bp.process_paths([f1, f2], dry_run=True)
+        assert len(rep.items) == 2
+        assert rep.items[0].status in ("INSPECTED", "NO_CHANGE_REQUIRED", "CLEANED")
+        assert rep.items[1].status == "ERROR"
+
+    def test_threat_36_report_privacy(self):
+        secret = "SECRET_USER_CONTENT_36"
+        data = make_minimal_docx({
+            "word/document.xml": f'<?xml version="1.0"?><!DOCTYPE doc><doc>{secret}</doc>'.encode("utf-8")
+        })
+        rep = Pipeline().inspect(data, filename="secret.docx")
+        assert rep.status == PipelineStatus.ERROR
+        assert secret not in json.dumps(rep.to_dict())
+
+    def test_threat_37_log_json_escape_sanitization(self):
+        dirty = "\x1b[31mBAD\x1b[0m\x00\x07name"
+        cleaned = sanitize_report_string(dirty)
+        assert "\x1b" not in cleaned
+        assert "[31m" not in cleaned
+        assert "\\x00" in cleaned or "\\x07" in cleaned
+
+    def test_threat_38_adapter_not_entered(self, monkeypatch):
+        spy = MagicMock()
+        import docx
+        monkeypatch.setattr(docx, "clean_docx_lossless", spy)
+        Pipeline().inspect(FIXTURES_DIR / "representative_zipslip.docx")
+        assert spy.call_count == 0
+
