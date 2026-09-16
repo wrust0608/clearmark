@@ -91,7 +91,14 @@ def sha256_file(path: Path) -> str:
 
 def get_git_head() -> str:
     try:
-        res = subprocess.run(["git", "rev-parse", "HEAD"], cwd=REPO_ROOT, capture_output=True, text=True, check=True)
+        res = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            check=True,
+        )
         return res.stdout.strip()
     except Exception:
         return "HEAD_UNKNOWN"
@@ -99,7 +106,15 @@ def get_git_head() -> str:
 
 def get_git_patch(base: str) -> str:
     try:
-        res = subprocess.run(["git", "diff", base, "HEAD"], cwd=REPO_ROOT, capture_output=True, text=True, check=True)
+        res = subprocess.run(
+            ["git", "diff", base, "HEAD"],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=True,
+        )
         return res.stdout
     except Exception as exc:
         return f"# Error generating patch: {exc}\n"
