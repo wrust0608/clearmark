@@ -3,6 +3,7 @@
 **Phase Status**: **PASS**  
 **Canonical Phase 6 Commit**: `b03204d0540b910d0f94bc9dccc6491488c67d03`  
 **Phase 7 Implementation Commit**: `e88e005cb636be893d34a36ad6e500f53ac1ee8b`  
+**Phase 7 Safety-Closure Commit**: `626b1d5a1589dbe180cbc8b74804179800ceee11`  
 **Phase 7 Safety-Closure Status**: **COMPLETE**  
 **DOCX Frozen Core**: `service/scripts/docx/` (**STRICTLY UNMODIFIED — 0 DIFF AGAINST v2.0.0**)  
 **Corpus Provenance**: `tests/fixtures/xlsx_lossless/build_fixtures.py`  
@@ -194,7 +195,12 @@ Evidence is categorized across 9 distinct technical levels:
   34. LibreOffice headless render parity
 
 ### Full Workspace Regression
-- **Full Suite**: 1557 passed, 152 skipped, 0 failed, 0 warnings (baseline prior to Phase 7 safety closure)
+- **Historical Pre-Safety-Closure Baseline**: 1557 passed, 152 skipped, 0 failed, 0 warnings in 97.52s
+- **Canonical Post-Safety-Closure Regression**: 1569 passed, 152 skipped, 0 failed, 0 warnings in 97.39s
+- **Focused XLSX Test Suite**: 39 passed, 0 failed in 4.14s
+- **Cross-Format Regression Suite**: 85 passed, 0 failed in 11.31s
 - **DOCX Body Carriers Regression**: 49 passed, 0 failed
-- **DOCX Frozen Diff**: 0 lines changed against v2.0.0
+- **DOCX Frozen Diff**: 0 lines changed against v2.0.0 (`git diff v2.0.0 -- service/scripts/docx/` is strictly EMPTY)
+- **Canonical Golden DOCX SHA-256**: `c05ca5c1be3b020b75d5763cf22061879a255b3c4f57b0455ae562b54809f58d` (VERIFIED)
+- **Canonical Candidate DOCX SHA-256**: `7aa5549f6a0e0b78fa39245c0e79503b2cc9defd6cffbfa5c8a833072d430297` (VERIFIED)
 
