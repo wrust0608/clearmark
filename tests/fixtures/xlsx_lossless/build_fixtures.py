@@ -367,9 +367,9 @@ def build_all_fixtures() -> dict[str, dict]:
     manifest_entries["carrier_mixed"] = {
         "filename": "carrier_mixed.xlsx",
         "category": "positive_carrier",
-        "description": "Carriers across shared strings, inline string, rich text, core.xml, app.xml, customXml, and custom.xml",
+        "description": "Carriers across shared strings, inline string, rich text, core.xml, and app.xml (customXml and custom.xml preserved raw)",
         "tested_codepoints": ["U+200B", "U+E0001"],
-        "expected_mutations": 7,
+        "expected_mutations": 8,
         "sha256": hashlib.sha256(bytes_mixed).hexdigest(),
     }
 
@@ -464,6 +464,80 @@ def build_all_fixtures() -> dict[str, dict]:
         "tested_codepoints": ["U+00E9", "U+0301"],
         "expected_mutations": 0,
         "sha256": hashlib.sha256(bytes_norm).hexdigest(),
+    }
+
+    # 13. Counterexample: Non-watermark Legitimate Custom Document Properties
+    custom_props_xml = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/custom-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes">
+  <property fmtid="{D5CDD505-2E9C-101B-9397-08002B2CF9AE}" pid="2" name="Department"><vt:lpwstr>Finance</vt:lpwstr></property>
+  <property fmtid="{D5CDD505-2E9C-101B-9397-08002B2CF9AE}" pid="3" name="ProjectCode"><vt:lpwstr>ABC-2026</vt:lpwstr></property>
+  <property fmtid="{D5CDD505-2E9C-101B-9397-08002B2CF9AE}" pid="4" name="ReviewRequired"><vt:bool>true</vt:bool></property>
+  <property fmtid="{D5CDD505-2E9C-101B-9397-08002B2CF9AE}" pid="5" name="BudgetYear"><vt:i4>2026</vt:i4></property>
+</Properties>"""
+    parts_custom_props = _base_package_parts(
+        shared_strings=baseline_sst,
+        sheet1_cells_xml=baseline_cells,
+        extra_parts={"docProps/custom.xml": custom_props_xml},
+    )
+    parts_custom_props["[Content_Types].xml"] = parts_custom_props["[Content_Types].xml"].replace(
+        "</Types>",
+        '  <Override PartName="/docProps/custom.xml" ContentType="application/vnd.openxmlformats-officedocument.custom-properties+xml"/>\n</Types>',
+    )
+    parts_custom_props["_rels/.rels"] = parts_custom_props["_rels/.rels"].replace(
+        "</Relationships>",
+        '  <Relationship Id="rId4" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/custom-properties" Target="docProps/custom.xml"/>\n</Relationships>',
+    )
+    bytes_custom_props = _create_zip_package(parts_custom_props)
+    (FIXTURES_DIR / "counterexample_custom_properties.xlsx").write_bytes(bytes_custom_props)
+    manifest_entries["counterexample_custom_properties"] = {
+        "filename": "counterexample_custom_properties.xlsx",
+        "category": "counterexample",
+        "description": "Legitimate custom document properties (Department, ProjectCode, ReviewRequired, BudgetYear); strictly preserved in SAFE mode",
+        "tested_codepoints": [],
+        "expected_mutations": 0,
+        "sha256": hashlib.sha256(bytes_custom_props).hexdigest(),
+    }
+
+    # 14. Counterexample: Non-watermark Legitimate Custom XML Application Data
+    biz_data_xml = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<businessData xmlns="http://schemas.example.com/business/2026">
+    <customerId>CUST-98765</customerId>
+    <workflowState>APPROVED</workflowState>
+</businessData>"""
+    item_props_xml = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<ds:datastoreItem xmlns:ds="http://schemas.openxmlformats.org/officeDocument/2006/customXml" ds:itemID="{B03204D0-540B-910D-0F94-BC9DCCC64914}">
+  <ds:schemaRefs/>
+</ds:datastoreItem>"""
+    item_rels_xml = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/customXmlProps" Target="itemProps1.xml"/>
+</Relationships>"""
+    parts_custom_xml = _base_package_parts(
+        shared_strings=baseline_sst,
+        sheet1_cells_xml=baseline_cells,
+        extra_parts={
+            "customXml/item1.xml": biz_data_xml,
+            "customXml/itemProps1.xml": item_props_xml,
+            "customXml/_rels/item1.xml.rels": item_rels_xml,
+        },
+    )
+    parts_custom_xml["[Content_Types].xml"] = parts_custom_xml["[Content_Types].xml"].replace(
+        "</Types>",
+        '  <Override PartName="/customXml/item1.xml" ContentType="application/xml"/>\n  <Override PartName="/customXml/itemProps1.xml" ContentType="application/vnd.openxmlformats-officedocument.customXmlProperties+xml"/>\n</Types>',
+    )
+    parts_custom_xml["_rels/.rels"] = parts_custom_xml["_rels/.rels"].replace(
+        "</Relationships>",
+        '  <Relationship Id="rId4" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/customXml" Target="customXml/item1.xml"/>\n</Relationships>',
+    )
+    bytes_custom_xml = _create_zip_package(parts_custom_xml)
+    (FIXTURES_DIR / "counterexample_custom_xml.xlsx").write_bytes(bytes_custom_xml)
+    manifest_entries["counterexample_custom_xml"] = {
+        "filename": "counterexample_custom_xml.xlsx",
+        "category": "counterexample",
+        "description": "Legitimate custom XML business data (<businessData>) with itemProps and relationships; strictly preserved in SAFE mode",
+        "tested_codepoints": [],
+        "expected_mutations": 0,
+        "sha256": hashlib.sha256(bytes_custom_xml).hexdigest(),
     }
 
     # Write MANIFEST.json

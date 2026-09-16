@@ -229,15 +229,28 @@ class XlsxDetector:
         return muts
 
     def _scan_dropped_parts(self) -> list[XlsxPartDrop]:
+        """Scan for provenance-specific parts to drop.
+
+        Under the Phase 7 narrow SAFE metadata policy, generic custom XML and custom document
+        properties are PRESERVED_RAW by default. Parts are only dropped when a specific, tested,
+        high-confidence marker is explicitly recognized. Since no such marker rules currently
+        exist for XLSX customXml or custom document properties, all customXml/* and
+        docProps/custom.xml parts are preserved raw in SAFE mode.
+        """
         drops: list[XlsxPartDrop] = []
-        for name in self.package.member_order:
-            if name.startswith("customXml/"):
-                drops.append(XlsxPartDrop(part_name=name, reason=f"drop part {name}"))
-            elif name == "docProps/custom.xml":
-                drops.append(XlsxPartDrop(part_name=name, reason=f"drop part {name}"))
+        if self.mode == "SAFE":
+            return drops
         return drops
 
     def _scan_media_parts(self) -> list[XlsxMediaMutation]:
+        """Scan embedded media parts.
+
+        Under Phase 7 SAFE policy, embedded media (xl/media/*) is PRESERVE_RAW.
+        Embedded image cleaning is treated as an orthogonal concern.
+        """
+        if self.mode == "SAFE":
+            return []
+
         media_muts: list[XlsxMediaMutation] = []
         for name in self.package.member_order:
             if re.search(

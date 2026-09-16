@@ -223,24 +223,19 @@ def test_xlsx_inspect_and_clean():
     assert any("customXml" in f for f in findings)
     assert any("xl/media/image1.png" in f for f in findings)
 
-    # Clean
+    # Clean (Phase 7 SAFE contract: scrubs core/app metadata and Layer A text; preserves customXml, customProps, and media raw)
     cleaned_bytes, actions = clean_xlsx(xlsx_bytes, also_layer_a_text=True)
     assert any("scrub docProps/core.xml field dc:creator" in a for a in actions)
-    assert any("drop part customXml/item1.xml" in a for a in actions)
-    assert any("clean embedded media in xl/media/image1.png" in a for a in actions)
+    assert not any("drop part customXml" in a for a in actions)
+    assert not any("clean embedded media" in a for a in actions)
     assert any("layer A text:" in a for a in actions)
 
-    # Inspect cleaned package
-    has_c2pa_after, has_ai_after, findings_after, _ = inspect_xlsx(cleaned_bytes)
-    assert has_c2pa_after is False
-    assert has_ai_after is False
-    assert not any("customXml" in f for f in findings_after)
-
-    # Validate internal parts
+    # Validate internal parts: custom data & media preserved raw in SAFE mode
     with zipfile.ZipFile(io.BytesIO(cleaned_bytes)) as zf:
         namelist = zf.namelist()
-        assert "customXml/item1.xml" not in namelist
-        assert "docProps/custom.xml" not in namelist
+        assert "customXml/item1.xml" in namelist
+        assert "docProps/custom.xml" in namelist
+        assert "xl/media/image1.png" in namelist
 
         # Validate core.xml preserves dc:title but empties creator/description
         core_xml = zf.read("docProps/core.xml").decode("utf-8")
@@ -259,9 +254,9 @@ def test_xlsx_inspect_and_clean():
         assert "\u200b" not in sst_xml
         assert "<t>QuarterlyReport</t>" in sst_xml
 
-        # Validate rels pruned customXml
+        # Validate rels preserved customXml
         rels_xml = zf.read("_rels/.rels").decode("utf-8")
-        assert "customXml" not in rels_xml
+        assert "customXml" in rels_xml
 
 
 def test_pptx_inspect_and_clean():
@@ -327,11 +322,11 @@ def test_docx_embedded_media_cleaning():
 
 def test_clean_container_and_inspect_container_xlsx_pptx(tmp_path):
     xlsx_path = tmp_path / "budget.xlsx"
-    xlsx_path.write_bytes(_create_synthetic_xlsx())
+    xlsx_path.write_bytes(_create_synthetic_xlsx(with_custom_xml=False, with_c2pa_image=False))
 
     rep = inspect_container(xlsx_path)
     assert rep.format == "xlsx"
-    assert rep.has_c2pa is True
+    assert rep.has_c2pa is False
     assert rep.has_ai_metadata is True
 
     out_path = tmp_path / "budget_clean.xlsx"

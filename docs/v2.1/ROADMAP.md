@@ -218,7 +218,7 @@ class CleaningReport:
 ### Phase 7: XLSX Lossless Adapter (COMPLETED)
 - **Objective**: Implement `service/scripts/xlsx/` following `DETECT -> PLAN -> MINIMAL PATCH -> VALIDATE`.
 - **Files**: `service/scripts/xlsx/*`, `docs/v2.1/PHASE7_XLSX_RULE_MATRIX.md`, `docs/v2.1/PHASE7_XLSX_LOSSLESS_REPORT.md`, `tests/fixtures/xlsx_lossless/build_fixtures.py`, `tests/fixtures/xlsx_lossless/MANIFEST.json`, `tests/test_xlsx_lossless.py`.
-- **Gate**: PASS. Shared strings never re-indexed/deduplicated; rich text runs preserved; formula expressions `<f>`, attributes, and cached values `<v>` 100% invariant; styles preserved byte-identical; strict raw OPC non-target pass-through; empty-plan zero-copy identity; fail-closed validation safety; report privacy; zero network. Focused Phase 7 test suite: 27 passed, 0 failed in 1.91s. DOCX frozen core diff against v2.0.0: EMPTY. Full regression: 1557 passed, 152 skipped, 0 failed, 0 warnings in 97.52s.
+- **Gate**: PASS. Shared strings never re-indexed/deduplicated; rich text runs preserved; formula expressions `<f>`, attributes, and cached values `<v>` 100% invariant; styles preserved byte-identical; strict raw OPC non-target pass-through and binary record identity; legitimate custom properties and custom XML preserved raw by default; media preserved raw; canonical two-file verify contract implemented across CLI and HTTP; empty-plan zero-copy identity; fail-closed validation safety; report privacy; zero network. Focused Phase 7 test suite: 39 passed, 0 failed. 14 deterministic fixtures in corpus. DOCX frozen core diff against v2.0.0: EMPTY. Full regression verified.
 
 ### Phase 8: PPTX Lossless Adapter
 - **Objective**: Implement `service/scripts/pptx/` following `DETECT -> PLAN -> MINIMAL PATCH -> VALIDATE`.

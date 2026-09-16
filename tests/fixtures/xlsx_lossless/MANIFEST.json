@@ -2,7 +2,7 @@
   "corpus_name": "xlsx_lossless",
   "version": "2.1.0",
   "fixed_timestamp": "2026-01-01T00:00:00Z",
-  "fixture_count": 12,
+  "fixture_count": 14,
   "fixtures": {
     "synthetic_baseline": {
       "filename": "synthetic_baseline.xlsx",
@@ -55,12 +55,12 @@
     "carrier_mixed": {
       "filename": "carrier_mixed.xlsx",
       "category": "positive_carrier",
-      "description": "Carriers across shared strings, inline string, rich text, core.xml, app.xml, customXml, and custom.xml",
+      "description": "Carriers across shared strings, inline string, rich text, core.xml, and app.xml (customXml and custom.xml preserved raw)",
       "tested_codepoints": [
         "U+200B",
         "U+E0001"
       ],
-      "expected_mutations": 7,
+      "expected_mutations": 8,
       "sha256": "8b3b319fbc6f5e6d38108c26993d60afdbfed2e4277e67fc484a0da5be88d1a1"
     },
     "carrier_and_legitimate_unicode": {
@@ -124,6 +124,22 @@
       ],
       "expected_mutations": 0,
       "sha256": "9c9246da28f71662fb465d78ba14660248fa802348dfdfba70d11c970388d22b"
+    },
+    "counterexample_custom_properties": {
+      "filename": "counterexample_custom_properties.xlsx",
+      "category": "counterexample",
+      "description": "Legitimate custom document properties (Department, ProjectCode, ReviewRequired, BudgetYear); strictly preserved in SAFE mode",
+      "tested_codepoints": [],
+      "expected_mutations": 0,
+      "sha256": "520cfd58157480407c8f109ba647d6b0618a31e318f4bfa053d0365c2ec2ea65"
+    },
+    "counterexample_custom_xml": {
+      "filename": "counterexample_custom_xml.xlsx",
+      "category": "counterexample",
+      "description": "Legitimate custom XML business data (<businessData>) with itemProps and relationships; strictly preserved in SAFE mode",
+      "tested_codepoints": [],
+      "expected_mutations": 0,
+      "sha256": "dc157b99b5e8bbe9a7fc178944282eec78814defb9faaeb10ff37722f562ce3f"
     }
   }
 }

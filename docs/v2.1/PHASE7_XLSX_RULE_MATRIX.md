@@ -24,8 +24,10 @@ Each part within an XLSX workbook is classified into exactly one of five operati
 | `xl/worksheets/sheet*.xml` (structure & non-target cells) | `PRESERVE_RAW` | Rows, columns, numbers, dates, booleans, errors | Cell references, row numbers, dimensions, merged ranges (`<mergeCells>`), data validations, hyperlinks, page setups remain exact. |
 | `docProps/core.xml` | `CLEAN_METADATA` | Dublin Core & OpenXML Core Properties | Empties provenance tracking fields (`dc:creator`, `cp:lastModifiedBy`, `dc:description`). Preserves `dc:title`, timestamps, and XML structure. Classified as metadata scrubbing, not confirmed AI watermark removal. |
 | `docProps/app.xml` | `CLEAN_METADATA` | Extended Properties | Empties `Application` and `Company`. Preserves `AppVersion`, `TotalTime`, `HeadingPairs`, `TitlesOfParts`. |
-| `docProps/custom.xml` | `CLEAN_METADATA` | Custom Document Properties | Dropped if present, and references pruned from `_rels/.rels` and `[Content_Types].xml`. |
-| `customXml/*` | `CLEAN_METADATA` | Custom XML Data Storage parts | Dropped if present, and dangling relationships pruned from package and workbook relationship parts. |
+| `docProps/custom.xml` (generic custom properties) | `PRESERVE_RAW` | Custom Document Properties | **PRESERVED RAW BY DEFAULT**. Arbitrary user/application properties (e.g. Department, ProjectCode, BudgetYear) are not watermarks and are preserved bit-for-bit. |
+| `docProps/custom.xml` (recognized provenance marker) | `CLEAN_METADATA` | Recognized Provenance Property | Scrubbed/dropped only if an explicit high-confidence provenance marker signature is identified. (No such signatures active in Phase 7 SAFE mode). |
+| `customXml/*` (generic custom XML) | `PRESERVE_RAW` / `NOT_CHECKED` | Custom XML Data Storage parts | **PRESERVED RAW BY DEFAULT**. Arbitrary business data, schema definitions, and custom datastore items are preserved bit-for-bit. |
+| `customXml/*` (recognized provenance marker) | `CLEAN_METADATA` | Provenance Custom XML parts | Only mutated or dropped when a concrete, high-confidence detector identifies a supported provenance signature. |
 | `xl/workbook.xml` | `PRESERVE_RAW` | Workbook Definition | Preserves sheet count, sheet names, sheet IDs, sheet order, relationship IDs, defined names (`<definedNames>`), view settings, and calculation properties. |
 | `xl/styles.xml` | `PRESERVE_RAW` | Spreadsheet Formatting & Styles | **PRESERVED BYTE-IDENTICAL**. Raw SHA256 invariant. Fonts, fills, borders, cellXfs, cellStyleXfs, and number formats are never rebuilt or normalized. |
 | `xl/calcChain.xml` | `PRESERVE_RAW` | Calculation Order Chain | Preserved byte-identical. |
@@ -40,8 +42,8 @@ Each part within an XLSX workbook is classified into exactly one of five operati
 | `xl/threadedComments/*` | `NOT_CHECKED` | Modern Threaded Comments | Not checked for carriers in Phase 7; preserved byte-identical. |
 | `xl/persons/person.xml` | `NOT_CHECKED` | Threaded Comment Person Entities | Not checked for carriers in Phase 7; preserved byte-identical. |
 | `xl/worksheets/sheet*.xml` (`<headerFooter>`) | `NOT_CHECKED` | Worksheet Headers & Footers | Not checked for carriers in Phase 7; preserved byte-identical. |
-| `_rels/.rels`, `xl/_rels/*` | `PRESERVE_RAW` / `CLEAN_METADATA` | Package and Part Relationships | Preserved byte-identical unless a dropped metadata part (`customXml`, `docProps/custom.xml`) requires dangling relationship pruning. |
-| `[Content_Types].xml` | `PRESERVE_RAW` / `CLEAN_METADATA` | Package Content Types | Preserved byte-identical unless dropped metadata parts require override element pruning. |
+| `_rels/.rels`, `xl/_rels/*` | `PRESERVE_RAW` | Package and Part Relationships | Preserved byte-identical by default. Dangling reference pruning occurs only if a recognized provenance part is intentionally dropped. |
+| `[Content_Types].xml` | `PRESERVE_RAW` | Package Content Types | Preserved byte-identical by default. Override pruning occurs only if a recognized provenance part is intentionally dropped. |
 | `xl/vbaProject.bin` | `UNSUPPORTED` | Macro-Enabled Workbook Code | Rejects mutation fail-closed. |
 | `xl/signature/*` | `UNSUPPORTED` | Digital Signatures | Rejects mutation fail-closed to prevent invalidating cryptographic signatures. |
 | Multi-disk ZIP / Encrypted ZIP | `UNSUPPORTED` | Unsupported Packaging Features | Rejects immediately fail-closed. |

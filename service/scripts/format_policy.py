@@ -353,8 +353,8 @@ class FormatPolicyRegistry:
             FormatPolicy(
                 format_name="xlsx",
                 extensions=(".xlsx",),
-                inspect_capabilities=("metadata", "docProps", "customXml", "sharedStrings", "inlineStrings", "media_c2pa"),
-                clean_capabilities=("docProps_scrub", "customXml_drop", "sharedStrings_carrier_remove", "inlineStrings_carrier_remove", "media_meta_strip", "raw_opc_preservation"),
+                inspect_capabilities=("metadata", "docProps", "sharedStrings", "inlineStrings"),
+                clean_capabilities=("docProps_scrub", "sharedStrings_carrier_remove", "inlineStrings_carrier_remove", "raw_opc_preservation"),
                 fidelity_requirements=(FidelityLevel.LEVEL_A, FidelityLevel.LEVEL_B, FidelityLevel.LEVEL_C, FidelityLevel.LEVEL_D),
                 destructive_operations=(),
                 optional_dependencies=(),

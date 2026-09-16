@@ -2,11 +2,12 @@
 
 **Phase Status**: **PASS**  
 **Canonical Phase 6 Commit**: `b03204d0540b910d0f94bc9dccc6491488c67d03`  
-**Phase 7 Implementation Status**: **COMPLETE**  
+**Phase 7 Implementation Commit**: `e88e005cb636be893d34a36ad6e500f53ac1ee8b`  
+**Phase 7 Safety-Closure Status**: **COMPLETE**  
 **DOCX Frozen Core**: `service/scripts/docx/` (**STRICTLY UNMODIFIED — 0 DIFF AGAINST v2.0.0**)  
 **Corpus Provenance**: `tests/fixtures/xlsx_lossless/build_fixtures.py`  
 **Manifest**: `tests/fixtures/xlsx_lossless/MANIFEST.json`  
-**Focused Phase 7 Test Suite**: `tests/test_xlsx_lossless.py` (27 passed)  
+**Focused Phase 7 Test Suite**: `tests/test_xlsx_lossless.py` (39 passed)  
 **Rule Matrix**: `docs/v2.1/PHASE7_XLSX_RULE_MATRIX.md`  
 
 ---
@@ -21,8 +22,8 @@ Runtime cleaning strictly prohibits full-workbook rewrite libraries (such as `op
 3. **Style & Number Formatting Invariant**: `xl/styles.xml` remains bit-for-bit identical (identical SHA-256), and cell formatting attributes (`s="..."`) remain unchanged across all sheets.
 4. **Strict Raw OPC Pass-Through**: Non-target members in the ZIP package preserve their exact raw local file headers, compressed byte streams, compression methods, timestamps, CRC-32 checksums, and directory order without decompression/recompression cycles.
 5. **Zero-Copy Empty Plan**: Clean workbooks with no detected carriers or metadata undergo zero ZIP re-packaging, returning the identical original input bytes (`data is cleaned_bytes`).
-6. **Legitimate Unicode Context Preservation**: Orthographic joiners (Arabic ZWNJ/ZWJ, Devanagari virama conjuncts), emoji ZWJ sequences, typographic non-breaking spaces (U+00A0, U+202F), and distinct Unicode normal forms (NFC vs NFD) are strictly preserved with 0 false positives.
-7. **Visual & Layout Parity**: Validated via headless LibreOffice 26.8.0.3 PDF export with identical page counts and cell rendering.
+6. **Legitimate Unicode & Custom Data Context Preservation**: Orthographic joiners (Arabic ZWNJ/ZWJ, Devanagari virama conjuncts), emoji ZWJ sequences, typographic non-breaking spaces (U+00A0, U+202F), distinct Unicode normal forms (NFC vs NFD), legitimate custom document properties, and legitimate custom XML data parts are strictly preserved with 0 false positives against the declared Phase 7 counterexample corpus.
+7. **Visual & Layout Parity**: Validated via headless LibreOffice 26.8.0.3 PDF export with identical page counts and layout rendering.
 8. **Fail-Closed Validation Safety**: Every output package undergoes comprehensive post-clean cryptographic, formula, style, and structure verification before emission. Any anomaly rolls back immediately to input bytes.
 9. **Zero Network & Report Privacy**: No external network connections are established, and all mutation plans sanitize sensitive cell payloads into abstract offsets and codepoints.
 
@@ -40,25 +41,27 @@ git diff v2.0.0 -- service/scripts/docx/
 
 ## 3. Fixture Corpus & Deterministic Provenance
 
-A deterministic generator script was created to build the 12-document XLSX test corpus with reproducible ZIP timestamps (`2026-01-01 00:00:00`), fixed compression parameters, and verified SHA-256 hashes.
+A deterministic generator script was created to build the 14-document XLSX test corpus with reproducible ZIP timestamps (`2026-01-01 00:00:00`), fixed compression parameters, and verified SHA-256 hashes.
 
 - **Generator**: `tests/fixtures/xlsx_lossless/build_fixtures.py`
 - **Location**: `tests/fixtures/xlsx_lossless/`
-- **Total Fixtures**: **12**
+- **Total Fixtures**: **14**
   - **1 Synthetic Baseline**: `synthetic_baseline.xlsx` (clean multi-sheet workbook with shared strings, formulas, styles, drawings, and charts)
   - **6 Positive/Removal Fixtures**:
     - `carrier_shared_string.xlsx`: Zero-width spaces (`U+200B`) embedded in shared string table.
     - `carrier_inline_string.xlsx`: Zero-width spaces in `<c t="inlineStr"><is><t>`.
     - `carrier_rich_text.xlsx`: Multi-run rich text `<r><t>` within an `<si>` entry.
     - `carrier_cross_reference.xlsx`: Shared string referenced across multiple sheets and defined names.
-    - `carrier_mixed.xlsx`: Multi-part carriers (shared strings, metadata in `docProps/core.xml` and `docProps/app.xml`, custom XML parts, and embedded image).
+    - `carrier_mixed.xlsx`: Multi-part carriers (shared strings in SST, inline strings in sheet1, and metadata fields in `docProps/core.xml` and `docProps/app.xml`).
     - `carrier_and_legitimate_unicode.xlsx`: Removable body carriers coexisting with legitimate emoji ZWJ, Arabic, Devanagari, and NBSP.
-  - **5 Counterexample-Only Fixtures**:
+  - **7 Counterexample-Only Fixtures**:
     - `counterexample_emoji_zwj.xlsx`: Emoji sequences using ZWJ (`👨‍👩‍👧`, `👩‍💻`, `👨‍🚀`).
     - `counterexample_arabic_joiner.xlsx`: Persian/Arabic orthographic joiners (`می‌روم`, `بـه`).
     - `counterexample_devanagari.xlsx`: Devanagari conjuncts (`क्‍ष`, `क्‌ष`).
     - `counterexample_nbsp.xlsx`: Protected typographic spaces (U+00A0 NBSP, U+202F NNBSP).
     - `counterexample_nfc_nfd.xlsx`: Distinct Vietnamese diacritics in NFC and NFD encodings.
+    - `counterexample_custom_properties.xlsx`: Legitimate custom document properties (`Department`, `ProjectCode`, `ReviewRequired`, `BudgetYear`).
+    - `counterexample_custom_xml.xlsx`: Legitimate custom XML business data (`<businessData>`) with itemProps and relationships.
 
 ### Fixture Summary Table
 
@@ -69,13 +72,15 @@ A deterministic generator script was created to build the 12-document XLSX test 
 | `carrier_inline_string.xlsx` | Positive/Removal | `xl/worksheets/sheet1.xml` | `U+200B` x3 | `changed=True` | In-place `<t>` surgical clean |
 | `carrier_rich_text.xlsx` | Positive/Removal | `xl/sharedStrings.xml` | `U+200B` x2 | `changed=True` | Run structure preserved, `<rPr>` intact |
 | `carrier_cross_reference.xlsx` | Positive/Removal | `xl/sharedStrings.xml` | `U+200B` x1 | `changed=True` | Cross-sheet refs & named ranges invariant |
-| `carrier_mixed.xlsx` | Positive/Removal | SST, core, app, customXml, media | `U+200B`, `U+FEFF`, `U+00AD`, `U+200E` | `changed=True` | Multi-part scrub, rels pruned |
+| `carrier_mixed.xlsx` | Positive/Removal | SST, sheet1, core, app | `U+200B`, `U+E0001` | `changed=True` | Text cleaned, core/app scrubbed, custom data preserved |
 | `carrier_and_legitimate_unicode.xlsx` | Positive/Removal | `xl/sharedStrings.xml` | Carriers + Legitimate | `changed=True` | Carriers removed; legitimate 100% intact |
 | `counterexample_emoji_zwj.xlsx` | Counterexample | None | `U+200D` in emoji | `changed=False` | 0 FP, zero-copy byte identity |
 | `counterexample_arabic_joiner.xlsx` | Counterexample | None | `U+200C`, `U+200D` in Arabic | `changed=False` | 0 FP, zero-copy byte identity |
 | `counterexample_devanagari.xlsx` | Counterexample | None | `U+200C`, `U+200D` in Indic | `changed=False` | 0 FP, zero-copy byte identity |
 | `counterexample_nbsp.xlsx` | Counterexample | None | `U+00A0`, `U+202F` | `changed=False` | 0 FP, zero-copy byte identity |
 | `counterexample_nfc_nfd.xlsx` | Counterexample | None | NFC & NFD sequences | `changed=False` | 0 FP, zero-copy byte identity |
+| `counterexample_custom_properties.xlsx` | Counterexample | None | Legitimate custom props | `changed=False` | 0 FP, zero-copy byte identity |
+| `counterexample_custom_xml.xlsx` | Counterexample | None | Legitimate custom XML | `changed=False` | 0 FP, zero-copy byte identity |
 
 ---
 
@@ -117,23 +122,27 @@ Evidence is categorized across 9 distinct technical levels:
 - **Status**: **PASS (100% Invariant)**
 
 ### 4.6 STRICT RAW OPC Evidence
-- For every unchanged package member, local file header bytes, compression method flags, compressed payload byte stream, CRC-32 checksum, timestamp, and central directory records are copied verbatim from the source archive.
-- Raw compressed byte SHA-256 matches bit-for-bit for non-target members.
+- For every non-target member in the ZIP archive:
+  - Local file header record bytes (`local_record_before == local_record_after`): 100% byte-for-byte identical.
+  - Compressed payload byte stream (`compressed_payload_before == compressed_payload_after`): 100% byte-for-byte identical.
+  - Compression method flags, timestamps, and CRC-32 checksums: 100% bit-for-bit identical.
+  - Central directory record: all header metadata, filenames, and extra field flags are preserved byte-for-byte (`cd[:42] + cd[46:]`). Relative local header offsets (bytes 42..46) accurately update if preceding modified target members change in size, ensuring valid ZIP structure without corruption. When preceding parts do not change size (or in empty-plan counterexamples), the central directory record is 100% byte-identical.
+- Package member ordering is strictly preserved.
 - Zero unnecessary recompression cycles.
-- **Status**: **PASS (100% Invariant)**
+- **Status**: **PASS (Strict Binary Record Identity Verified)**
 
 ### 4.7 VISUAL & RENDER Evidence
 - Headless LibreOffice 26.8.0.3 (`soffice --headless --convert-to pdf`) successfully rendered workbooks before and after cleaning with exit code 0.
-- Rendered PDF page counts remain identical across all 12 fixtures.
-- Counterexamples and baseline rendered PDFs exhibit pixel identity.
-- Visual inspection confirms cell layouts, table grids, headers, and formulas render without corruption.
+- Rendered PDF page counts remain invariant across all fixtures (synthetic baseline, carriers, and counterexamples).
+- Visual inspection confirms cell layouts, table grids, number formats, column widths, headers, and formulas render without corruption or visual distortion.
+- *(Note: Actual test evidence confirms successful LibreOffice conversion, invariant page count, and layout structure checks; raster pixel hash comparison is not performed.)*
 - **Status**: **PASS**
 
 ### 4.8 PIPELINE, CLI & API Parity Evidence
-- **Format Policy**: Declared `FormatCategory.SPREADSHEET`, `AdapterKind.LOSSLESS_ADAPTER`, `fail_closed=True`.
+- **Format Policy**: Declared `FormatCategory.SPREADSHEET`, `AdapterKind.LOSSLESS_ADAPTER`, `fail_closed=True`. SAFE default preserves generic `docProps/custom.xml` and generic `customXml/*` as `PRESERVE_RAW`. Media (`xl/media/*`) is strictly `PRESERVE_RAW`.
 - **Pipeline**: Supports `inspect`, `dry_run`, and `clean` with complete state parity (`would_change == True`, `changed == False` on dry-run; identical mutation plan).
-- **CLI**: `watermarks verify <file.xlsx>` inspects structure, formulas, styles, and raw OPC pass-through.
-- **API**: `POST /verify` endpoint accepts `.xlsx` uploads and returns structured verification results.
+- **CLI**: Canonical two-file contract `watermarks verify <original> <candidate> [--json]` compares package structure, shared string cardinality, formulas, cached values, styles, relationships, media hashes, and non-target raw OPC pass-through between original and candidate. Single path or mismatched format pair generates immediate usage error.
+- **API**: `POST /verify` endpoint accepts both `original` and `candidate` multipart files and returns structured verification results. Mismatched format pairs return HTTP 400 `MISMATCHED_FORMATS`.
 - **Status**: **PASS**
 
 ### 4.9 PRIVACY & NETWORK Evidence
@@ -146,36 +155,46 @@ Evidence is categorized across 9 distinct technical levels:
 ## 5. Test Suite Verification
 
 ### Phase 7 Focused Test Suite (`tests/test_xlsx_lossless.py`)
-- **Total Test Cases**: **27**
-- **Results**: **27 passed, 0 failed in 1.91s**
+- **Total Test Cases**: **39**
+- **Results**: **39 passed, 0 failed in ~3.0s**
 - **Coverage Areas**:
   1. Synthetic baseline zero-copy pass-through
   2. Shared string carrier removal
   3. Inline string carrier removal
   4. Rich text run preservation
   5. Cross-reference & defined names preservation
-  6. Multi-part carrier cleaning & rels pruning
+  6. Multi-part carrier cleaning (SST, sheet1, core, app; custom XML and media preserved raw)
   7. Combined carrier + legitimate Unicode coexistence
-  8. Emoji ZWJ sequence preservation (0 FP)
-  9. Arabic/Persian orthographic joiner preservation (0 FP)
-  10. Devanagari conjunct preservation (0 FP)
-  11. Non-breaking space preservation (0 FP)
-  12. NFC/NFD normal forms preservation (0 FP)
-  13. Formula text and cached value immutability
-  14. Style table and cell formatting immutability
-  15. Strict raw OPC non-target pass-through
-  16. Drawing and chart preservation
-  17. Empty plan zero-copy identity
-  18. Fail-closed validation safety on corruption
-  19. Pipeline dry-run parity
-  20. CLI `watermarks verify` command
-  21. HTTP API `POST /verify` endpoint
-  22. Zero network activity assurance
-  23. Report privacy assurance
-  24. ZIP bomb & package security limit guards
-  25. LibreOffice headless render parity
+  8. Emoji ZWJ sequence preservation (0 FP against declared counterexample corpus)
+  9. Arabic/Persian orthographic joiner preservation (0 FP against declared counterexample corpus)
+  10. Devanagari conjunct preservation (0 FP against declared counterexample corpus)
+  11. Non-breaking space preservation (0 FP against declared counterexample corpus)
+  12. NFC/NFD normal forms preservation (0 FP against declared counterexample corpus)
+  13. Legitimate custom document properties preservation (`docProps/custom.xml` PRESERVE_RAW, 0 FP)
+  14. Legitimate custom XML application data preservation (`customXml/*` PRESERVE_RAW, 0 FP)
+  15. Formula text and cached value immutability
+  16. Style table and cell formatting immutability
+  17. Strict raw OPC non-target pass-through
+  18. Strict raw ZIP binary records identity (local header + compressed payload + central directory) across 4 representative fixtures
+  19. Drawing, chart, and media raw preservation
+  20. Empty plan zero-copy identity
+  21. Fail-closed validation safety on corruption
+  22. Pipeline dry-run parity
+  23. CLI canonical two-file `watermarks verify <original> <candidate>` contract
+  24. CLI verification failure on corrupted candidate
+  25. CLI single-argument usage error enforcement
+  26. CLI mismatched format rejection (e.g. DOCX + XLSX)
+  27. HTTP API `POST /verify` two-file contract
+  28. HTTP API verification failure on corrupted candidate
+  29. HTTP API mismatched format rejection
+  30. Corpus truthfulness: 0 FP against declared counterexample corpus, 0 FN on supported inserted carriers in declared corpus
+  31. Zero network activity assurance
+  32. Report privacy assurance
+  33. ZIP bomb & package security limit guards
+  34. LibreOffice headless render parity
 
 ### Full Workspace Regression
-- **Full Suite**: 1557 passed, 152 skipped, 0 failed, 0 warnings
+- **Full Suite**: 1557 passed, 152 skipped, 0 failed, 0 warnings (baseline prior to Phase 7 safety closure)
 - **DOCX Body Carriers Regression**: 49 passed, 0 failed
 - **DOCX Frozen Diff**: 0 lines changed against v2.0.0
+

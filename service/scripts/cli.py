@@ -319,7 +319,34 @@ def cmd_verify(args: argparse.Namespace) -> int:
     orig_sha = hashlib.sha256(orig_bytes).hexdigest()
     cand_sha = hashlib.sha256(cand_bytes).hexdigest()
 
-    fmt = orig_path.suffix.lower().lstrip(".")
+    orig_fmt = orig_path.suffix.lower().lstrip(".")
+    cand_fmt = cand_path.suffix.lower().lstrip(".")
+
+    if orig_fmt != cand_fmt:
+        msg = f"Mismatched verification pair formats: original is '{orig_fmt}', candidate is '{cand_fmt}'"
+        if args.json:
+            payload = {
+                "ok": False,
+                "status": "FAIL",
+                "format": orig_fmt or "unknown",
+                "error_code": "MISMATCHED_FORMATS",
+                "error_message": msg,
+                "validation": {
+                    "structural_invariants_passed": False,
+                },
+                "invariants": [],
+                "warnings": [msg],
+                "hashes": {
+                    "original": orig_sha,
+                    "candidate": cand_sha,
+                },
+            }
+            _emit_json(payload)
+        else:
+            sys.stderr.write(f"Error: {msg}\n")
+        return ExitCode.INVALID_INPUT
+
+    fmt = orig_fmt
 
     if fmt not in ("docx", "xlsx"):
         msg = f"Verification capability is currently supported only for docx and xlsx documents (got: '{fmt}'). Dedicated verifiers for other formats are planned for subsequent phases."

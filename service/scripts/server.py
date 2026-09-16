@@ -1694,14 +1694,34 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         name = body.get("name", "")
-        fmt = Path(name).suffix.lower().lstrip(".") if name else ""
-        if not fmt:
-            from format_dispatch import classify_bytes
-            kind = classify_bytes(orig_bytes, name)
-            fmt = kind if kind != "unknown" else "bin"
+        cand_name = body.get("candidate_name", name)
+        from container_meta import detect_container_format
+        orig_fmt = Path(name).suffix.lower().lstrip(".") if name else ""
+        cand_fmt = Path(cand_name).suffix.lower().lstrip(".") if cand_name else ""
+
+        if not orig_fmt or orig_fmt == "bin":
+            orig_fmt = detect_container_format(Path(name or "dummy.bin"), orig_bytes)
+        if not cand_fmt or cand_fmt == "bin":
+            cand_fmt = detect_container_format(Path(cand_name or "dummy.bin"), cand_bytes)
 
         orig_sha = hashlib.sha256(orig_bytes).hexdigest()
         cand_sha = hashlib.sha256(cand_bytes).hexdigest()
+
+        if orig_fmt != cand_fmt:
+            self._respond(HTTPStatus.BAD_REQUEST, {
+                "ok": False,
+                "status": "FAIL",
+                "format": orig_fmt or "unknown",
+                "error_code": "MISMATCHED_FORMATS",
+                "error": f"Mismatched verification pair formats: original is '{orig_fmt}', candidate is '{cand_fmt}'",
+                "validation": {"structural_invariants_passed": False},
+                "invariants": [],
+                "warnings": [f"Mismatched verification pair formats: original is '{orig_fmt}', candidate is '{cand_fmt}'"],
+                "hashes": {"original": orig_sha, "candidate": cand_sha},
+            })
+            return
+
+        fmt = orig_fmt
 
         if fmt not in ("docx", "xlsx"):
             self._respond(HTTPStatus.UNSUPPORTED_MEDIA_TYPE, {

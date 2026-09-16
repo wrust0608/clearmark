@@ -304,12 +304,10 @@ class Pipeline:
             try:
                 from xlsx import XlsxDetector, XlsxPackage
 
-                detectors_run.extend([
-                    "XlsxDetector",
-                    "XlsxMetadataDetector",
-                    "XlsxUnicodeDetector",
-                    "XlsxMediaDetector",
-                ])
+                detectors = ["XlsxDetector", "XlsxMetadataDetector", "XlsxUnicodeDetector"]
+                if mode != ProcessingMode.SAFE:
+                    detectors.append("XlsxMediaDetector")
+                detectors_run.extend(detectors)
 
                 pkg = XlsxPackage(data)
                 detector = XlsxDetector(pkg, {"mode": mode.value})
