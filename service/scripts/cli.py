@@ -372,6 +372,42 @@ def cmd_verify(args: argparse.Namespace) -> int:
             sys.stderr.write(f"Error: {msg}\n")
         return ExitCode.UNSUPPORTED
 
+    if fmt == "docx" or fmt == "xlsx" or fmt == "pptx":
+        # Phase 9: Preflight both original and candidate before invoking format fidelity validators
+        from security import require_safe_zip_container, SecurityViolation
+        for label, b in (("original", orig_bytes), ("candidate", cand_bytes)):
+            try:
+                require_safe_zip_container(b)
+            except SecurityViolation as sv:
+                if label == "original":
+                    exit_code = ExitCode.LIMIT_EXCEEDED if sv.is_limit else ExitCode.INVALID_INPUT
+                else:
+                    exit_code = ExitCode.VALIDATION_FAILED
+                err_code_str = "PROCESSING_LIMIT_EXCEEDED" if sv.is_limit else "INVALID_CONTAINER"
+                msg = f"Verification {label} file failed security preflight: {sv.finding.reason}"
+                if args.json:
+                    payload = {
+                        "ok": False,
+                        "status": "FAIL",
+                        "format": fmt or "unknown",
+                        "error_code": err_code_str,
+                        "error_message": msg,
+                        "validation": {
+                            "structural_invariants_passed": False,
+                        },
+                        "invariants": [],
+                        "warnings": [msg],
+                        "hashes": {
+                            "original": orig_sha,
+                            "candidate": cand_sha,
+                        },
+                    }
+                    _emit_json(payload)
+                else:
+                    print("STATUS: FAIL")
+                    sys.stderr.write(f"Error: {msg}\n")
+                return exit_code
+
     if fmt == "docx":
         from tools.verify_document_fidelity import analyze_docx_fidelity
 

@@ -1695,17 +1695,39 @@ class Handler(BaseHTTPRequestHandler):
 
         name = body.get("name", "")
         cand_name = body.get("candidate_name", name)
+        req_fmt = body.get("format", "").lower().lstrip(".")
         from container_meta import detect_container_format
-        orig_fmt = Path(name).suffix.lower().lstrip(".") if name else ""
-        cand_fmt = Path(cand_name).suffix.lower().lstrip(".") if cand_name else ""
+        orig_fmt = Path(name).suffix.lower().lstrip(".") if name else req_fmt
+        cand_fmt = Path(cand_name).suffix.lower().lstrip(".") if cand_name else req_fmt
+
+        orig_sha = hashlib.sha256(orig_bytes).hexdigest()
+        cand_sha = hashlib.sha256(cand_bytes).hexdigest()
+
+        # Phase 9: Preflight both original and candidate before invoking format fidelity validators
+        from security import require_safe_zip_container, SecurityViolation
+        for label, b in (("original", orig_bytes), ("candidate", cand_bytes)):
+            if b.startswith(b"PK") or orig_fmt in ("docx", "xlsx", "pptx") or cand_fmt in ("docx", "xlsx", "pptx"):
+                try:
+                    require_safe_zip_container(b)
+                except SecurityViolation as sv:
+                    st = HTTPStatus.REQUEST_ENTITY_TOO_LARGE if sv.is_limit else HTTPStatus.UNPROCESSABLE_ENTITY
+                    self._respond(st, {
+                        "ok": False,
+                        "status": "FAIL",
+                        "format": orig_fmt or cand_fmt or "unknown",
+                        "error_code": "PROCESSING_LIMIT_EXCEEDED" if sv.is_limit else "INVALID_CONTAINER",
+                        "error_message": f"Verification {label} file failed security preflight: {sv.finding.reason}",
+                        "validation": {"structural_invariants_passed": False},
+                        "invariants": [],
+                        "warnings": [sv.finding.reason],
+                        "hashes": {"original": orig_sha, "candidate": cand_sha},
+                    })
+                    return
 
         if not orig_fmt or orig_fmt == "bin":
             orig_fmt = detect_container_format(Path(name or "dummy.bin"), orig_bytes)
         if not cand_fmt or cand_fmt == "bin":
             cand_fmt = detect_container_format(Path(cand_name or "dummy.bin"), cand_bytes)
-
-        orig_sha = hashlib.sha256(orig_bytes).hexdigest()
-        cand_sha = hashlib.sha256(cand_bytes).hexdigest()
 
         if orig_fmt != cand_fmt:
             self._respond(HTTPStatus.BAD_REQUEST, {

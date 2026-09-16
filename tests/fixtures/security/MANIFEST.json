@@ -1,0 +1,184 @@
+{
+  "zipslip_parent.zip": {
+    "threat_id": "THREAT-01",
+    "rule_id": "SEC_ZIPSLIP_PARENT",
+    "description": "ZipSlip relative traversal '../evil.xml'",
+    "size": 129,
+    "sha256": "f634e611ac08958eb9e3f537dc322fb47ef2d9e6edf589676752057a0d98b2b2"
+  },
+  "zipslip_absolute.zip": {
+    "threat_id": "THREAT-02",
+    "rule_id": "SEC_ZIPSLIP_ABSOLUTE",
+    "description": "ZipSlip absolute path '/evil.xml'",
+    "size": 125,
+    "sha256": "6f53ee3ba53584d3a874369f65f2be9065fef97aabd84c6d64377047b60666e6"
+  },
+  "zipslip_windows_drive.zip": {
+    "threat_id": "THREAT-03",
+    "rule_id": "SEC_ZIPSLIP_WINDOWS_DRIVE",
+    "description": "ZipSlip Windows drive 'C:/evil.xml'",
+    "size": 129,
+    "sha256": "c0ea7e3a7c4befa2bae45d395862534b8739cac027fa0525d176e49f0e75d63a"
+  },
+  "zipslip_backslash.zip": {
+    "threat_id": "THREAT-04",
+    "rule_id": "SEC_ZIPSLIP_BACKSLASH",
+    "description": "ZipSlip backslash traversal 'folder\\..\\evil.xml'",
+    "size": 143,
+    "sha256": "e64b55a93d1055d51f75fa01b43b052ec1f0c178d6edd02f3a98a2fdec973607"
+  },
+  "duplicate_member.zip": {
+    "threat_id": "THREAT-07",
+    "rule_id": "SEC_DUPLICATE_MEMBER",
+    "description": "Exact duplicate member name",
+    "size": 290,
+    "sha256": "e7f09b20e383859610a623c17f74a09f463b9ef686ff1a6939f7c17c630b8aa2"
+  },
+  "symlink_entry.zip": {
+    "threat_id": "THREAT-09",
+    "rule_id": "SEC_SYMLINK_MEMBER",
+    "description": "Unix symlink attribute entry",
+    "size": 139,
+    "sha256": "9b80405c2af664a482150c21d3b0a083a0e5cb5effc6d5798bc0be701d1e4b42"
+  },
+  "encrypted_member.zip": {
+    "threat_id": "THREAT-10",
+    "rule_id": "SEC_ENCRYPTED_MEMBER",
+    "description": "Encrypted entry with bit 0 set",
+    "size": 132,
+    "sha256": "4ae0c5ba76782ae87257c04378ca114089f929e4a143bdc1c2721cbcfc31701e"
+  },
+  "unsupported_compression.zip": {
+    "threat_id": "THREAT-11",
+    "rule_id": "SEC_UNSUPPORTED_COMPRESSION",
+    "description": "Unsupported compression method 9",
+    "size": 127,
+    "sha256": "af476f72509503ea7918829b84260177b7ba74a62e070a5dac0690c154ef725b"
+  },
+  "missing_eocd.zip": {
+    "threat_id": "THREAT-18",
+    "rule_id": "SEC_MISSING_EOCD",
+    "description": "Truncated archive lacking EOCD record",
+    "size": 99,
+    "sha256": "a7a5ec2c26ea99b6866f18e6845a7bfae1a3838f6116c54fb29aa59cf70b499c"
+  },
+  "bad_cd_offset.zip": {
+    "threat_id": "THREAT-19",
+    "rule_id": "SEC_BAD_CD_OFFSET",
+    "description": "Central directory offset outside file bounds",
+    "size": 121,
+    "sha256": "8be8f9a24a128d94bf7b1ee297bb708e13f6a6ed34cf5ff7841325e51c8f8245"
+  },
+  "truncated_central_directory.zip": {
+    "threat_id": "THREAT-19",
+    "rule_id": "SEC_TRUNCATED_CD",
+    "description": "Central directory size exceeds archive boundary",
+    "size": 121,
+    "sha256": "6c26990156083f1633e2e3e71e1c58c34af46ae18e4425e255c16ff1a1c155d3"
+  },
+  "bad_local_header_offset.zip": {
+    "threat_id": "THREAT-20",
+    "rule_id": "SEC_BAD_LOCAL_HEADER_OFFSET",
+    "description": "Local header offset points outside archive",
+    "size": 121,
+    "sha256": "4f2107737b1a3e4d79c7863d949fa3a64a8068e3f07bd132c41178c167c31733"
+  },
+  "local_central_filename_mismatch.zip": {
+    "threat_id": "THREAT-21",
+    "rule_id": "SEC_LOCAL_CENTRAL_MISMATCH",
+    "description": "Local header and central directory filenames differ",
+    "size": 123,
+    "sha256": "5e44406fc1a7a9b0ef7eea179047110b63a139b17b8cf954b76bd37c516ce407"
+  },
+  "overlapping_member_ranges.zip": {
+    "threat_id": "THREAT-22",
+    "rule_id": "SEC_OVERLAPPING_MEMBERS",
+    "description": "Two members share overlapping byte slices",
+    "size": 238,
+    "sha256": "9ee4f28bc3f02c5aafdcf4aa4664a709897a9f245f819fae43b475b5945fd6a3"
+  },
+  "multidisk_zip.zip": {
+    "threat_id": "THREAT-23",
+    "rule_id": "SEC_MULTIDISK_ARCHIVE",
+    "description": "EOCD indicates multi-disk archive",
+    "size": 121,
+    "sha256": "d98ac4469d22a8dc4b6485d135ebe0a939d5d1ed5786bb948751873e07824a89"
+  },
+  "zip64_unsupported.zip": {
+    "threat_id": "THREAT-24",
+    "rule_id": "SEC_ZIP64_UNSUPPORTED",
+    "description": "ZIP64 locator record present (fail-closed)",
+    "size": 141,
+    "sha256": "a4e54d821723f9263d25d1c8d2ad2b7a29330a8bf18f592740d5f6bfda482964"
+  },
+  "truncated_deflate_stream.zip": {
+    "threat_id": "THREAT-17",
+    "rule_id": "SEC_CORRUPTED_STREAM",
+    "description": "Truncated deflate stream mid-decompression",
+    "size": 124,
+    "sha256": "fc721b52a0225c39109679a916de22eca0c2d8026dffcda507867ae918cf387f"
+  },
+  "corrupted_crc.zip": {
+    "threat_id": "THREAT-17",
+    "rule_id": "SEC_CRC_MISMATCH",
+    "description": "Declared CRC does not match payload",
+    "size": 123,
+    "sha256": "a68e8c40a225ceae9e83dda39815b6b5f4378ae8dc0d3fbad714ef81eee3f177"
+  },
+  "xml_doctype.docx": {
+    "threat_id": "THREAT-28",
+    "rule_id": "SEC_XML_DOCTYPE",
+    "description": "DOCX containing XML <!DOCTYPE> declaration",
+    "size": 906,
+    "sha256": "8af957cba2cfb40dc8b0eb47d3f3aa05ba6c07a1ae895584ce69414fabb1a296"
+  },
+  "xml_internal_entity.docx": {
+    "threat_id": "THREAT-28",
+    "rule_id": "SEC_XML_ENTITY",
+    "description": "DOCX containing internal XML ENTITY declaration",
+    "size": 909,
+    "sha256": "ece5b7e742f3cf26b562602744b8bcd37376e5ce6701c3dff1898c4307db08c6"
+  },
+  "xml_external_entity.docx": {
+    "threat_id": "THREAT-29",
+    "rule_id": "SEC_XML_XXE_SYSTEM",
+    "description": "DOCX containing external XXE SYSTEM declaration",
+    "size": 926,
+    "sha256": "fb3e28f49a953f90f4d4a7b5dffd9d97cd4469bd99bee05134518b862b06153b"
+  },
+  "xml_utf16_doctype.docx": {
+    "threat_id": "THREAT-30",
+    "rule_id": "SEC_XML_DOCTYPE",
+    "description": "DOCX containing UTF-16-LE encoded DOCTYPE declaration",
+    "size": 974,
+    "sha256": "7f202cad011cf983aa4925b93dcdd999dbcb0e5f962f6c4b0fdef15d893d414e"
+  },
+  "xml_malformed.docx": {
+    "threat_id": "THREAT-31",
+    "rule_id": "SEC_XML_MALFORMED",
+    "description": "DOCX containing unclosed XML tags",
+    "size": 857,
+    "sha256": "84ca64b97a9a1e1445528eae1a02de02843311a0c44aff97d5f709dbac789ab4"
+  },
+  "representative_zipslip.docx": {
+    "threat_id": "THREAT-01",
+    "rule_id": "SEC_ZIPSLIP_PARENT",
+    "description": "Representative DOCX package with ZipSlip path",
+    "size": 1020,
+    "sha256": "ea1f3d2a706c744acde20ce9dca78e002162c82a5c23e48edfeb01e80e274068"
+  },
+  "representative_duplicate.xlsx": {
+    "threat_id": "THREAT-07",
+    "rule_id": "SEC_DUPLICATE_MEMBER",
+    "description": "Representative XLSX package with duplicate worksheet member",
+    "size": 917,
+    "sha256": "929ea156c63b8f6822b8cdffff08157c82351e659fef77798969db57b29ea189"
+  },
+  "representative_deep_xml.pptx": {
+    "threat_id": "THREAT-26",
+    "rule_id": "SEC_XML_DEPTH_LIMIT",
+    "description": "Representative PPTX package with XML nesting depth 150",
+    "size": 813,
+    "sha256": "e77a7fae1be6aff81de5219921b02dd3a5a308bf33bd167279ec0a35aada15b9"
+  }
+}

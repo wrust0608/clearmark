@@ -135,6 +135,11 @@ class Pipeline:
 
         ext = Path(name).suffix.lower().lstrip(".")
         if not ext or ext == "unknown":
+            # Phase 9: Cheap probe first. If data starts with PK, preflight before deep container sniffing
+            if data.startswith(b"PK"):
+                from security import require_safe_zip_container
+                require_safe_zip_container(data)
+
             kind = classify_bytes(data, name)
             from container_meta import detect_container_format
             from image_meta import detect_format as detect_image_format
@@ -164,7 +169,32 @@ class Pipeline:
     ) -> CleaningReport:
         """Perform zero-mutation, strictly read-only inspection (Sections 2, 3, 4, 7, 8, 9)."""
         t0 = time.perf_counter()
-        data, name, fmt = self._resolve_input(input_source, filename)
+        try:
+            data, name, fmt = self._resolve_input(input_source, filename)
+        except Exception as e:
+            from security import SecurityViolation
+            if isinstance(e, SecurityViolation):
+                sv = e
+                size = len(input_source) if isinstance(input_source, bytes) else (
+                    Path(input_source).stat().st_size if isinstance(input_source, (str, Path)) and Path(input_source).is_file() else 0
+                )
+                ident = FileIdentity(filename=filename or "unnamed_input", format="unknown", size=size, sha256="")
+                err_code = ErrorCode.PROCESSING_LIMIT_EXCEEDED if sv.is_limit else ErrorCode.INVALID_CONTAINER
+                return CleaningReport(
+                    status=PipelineStatus.ERROR,
+                    input=ident,
+                    inspection=InspectionData(detection_status=DetectionStatus.UNAVAILABLE),
+                    policy=PolicySelection(mode=mode, format_policy="unknown"),
+                    mutation_plan=MutationRecord(),
+                    validation=ValidationOutcome(status="FAIL", warnings=[sv.finding.reason]),
+                    output=OutputRecord(changed=False, would_change=False, size=size, sha256=""),
+                    privacy=PrivacySummary(network_used=False),
+                    performance_elapsed_ms=(time.perf_counter() - t0) * 1000.0,
+                    error_code=err_code,
+                    error_message=f"Security preflight failed: {sv.finding.reason}",
+                )
+            raise
+
         size = len(data)
         sha = _compute_sha256(data)
         ident = FileIdentity(filename=name, format=fmt or "unknown", size=size, sha256=sha)
@@ -183,6 +213,27 @@ class Pipeline:
                 error_code=ErrorCode.PROCESSING_LIMIT_EXCEEDED,
                 error_message=f"File exceeds maximum size {MAX_INPUT_BYTES} bytes",
             )
+
+        # Phase 9: Container & XML Security Preflight before format dispatch
+        if data.startswith(b"PK") or fmt in ("docx", "xlsx", "pptx", "odt", "epub"):
+            try:
+                from security import require_safe_zip_container, SecurityViolation
+                require_safe_zip_container(data)
+            except SecurityViolation as sv:
+                err_code = ErrorCode.PROCESSING_LIMIT_EXCEEDED if sv.is_limit else ErrorCode.INVALID_CONTAINER
+                return CleaningReport(
+                    status=PipelineStatus.ERROR,
+                    input=ident,
+                    inspection=InspectionData(detection_status=DetectionStatus.UNAVAILABLE),
+                    policy=PolicySelection(mode=mode, format_policy=fmt),
+                    mutation_plan=MutationRecord(),
+                    validation=ValidationOutcome(status="FAIL", warnings=[sv.finding.reason]),
+                    output=OutputRecord(changed=False, would_change=False, size=size, sha256=sha),
+                    privacy=PrivacySummary(network_used=False),
+                    performance_elapsed_ms=(time.perf_counter() - t0) * 1000.0,
+                    error_code=err_code,
+                    error_message=f"Security preflight failed: {sv.finding.reason}",
+                )
 
         policy = self.registry.get(fmt)
         if policy is None:
@@ -621,11 +672,59 @@ class Pipeline:
     ) -> Tuple[bytes, CleaningReport]:
         """Execute deterministic cleaning and validation across any supported format."""
         t0 = time.perf_counter()
-        data, name, fmt = self._resolve_input(input_source, filename)
+        try:
+            data, name, fmt = self._resolve_input(input_source, filename)
+        except Exception as e:
+            from security import SecurityViolation
+            if isinstance(e, SecurityViolation):
+                sv = e
+                size = len(input_source) if isinstance(input_source, bytes) else (
+                    Path(input_source).stat().st_size if isinstance(input_source, (str, Path)) and Path(input_source).is_file() else 0
+                )
+                ident = FileIdentity(filename=filename or "unnamed_input", format="unknown", size=size, sha256="")
+                err_code = ErrorCode.PROCESSING_LIMIT_EXCEEDED if sv.is_limit else ErrorCode.INVALID_CONTAINER
+                report = CleaningReport(
+                    status=PipelineStatus.ERROR,
+                    input=ident,
+                    inspection=InspectionData(detection_status=DetectionStatus.UNAVAILABLE),
+                    policy=PolicySelection(mode=mode, format_policy="unknown"),
+                    mutation_plan=MutationRecord(),
+                    validation=ValidationOutcome(status="FAIL", warnings=[sv.finding.reason]),
+                    output=OutputRecord(changed=False, would_change=False, size=size, sha256=""),
+                    privacy=PrivacySummary(network_used=False),
+                    performance_elapsed_ms=(time.perf_counter() - t0) * 1000.0,
+                    error_code=err_code,
+                    error_message=f"Security preflight failed: {sv.finding.reason}",
+                )
+                return b"", report
+            raise
+
         size = len(data)
         sha = _compute_sha256(data)
         ident = FileIdentity(filename=name, format=fmt or "unknown", size=size, sha256=sha)
         opts = dict(options or {})
+
+        # Phase 9: Container & XML Security Preflight before format dispatch
+        if data.startswith(b"PK") or fmt in ("docx", "xlsx", "pptx", "odt", "epub"):
+            try:
+                from security import require_safe_zip_container, SecurityViolation
+                require_safe_zip_container(data)
+            except SecurityViolation as sv:
+                err_code = ErrorCode.PROCESSING_LIMIT_EXCEEDED if sv.is_limit else ErrorCode.INVALID_CONTAINER
+                report = CleaningReport(
+                    status=PipelineStatus.ERROR,
+                    input=ident,
+                    inspection=InspectionData(detection_status=DetectionStatus.UNAVAILABLE),
+                    policy=PolicySelection(mode=mode, format_policy=fmt),
+                    mutation_plan=MutationRecord(),
+                    validation=ValidationOutcome(status="FAIL", warnings=[sv.finding.reason]),
+                    output=OutputRecord(changed=False, would_change=False, size=size, sha256=sha),
+                    privacy=PrivacySummary(network_used=False),
+                    performance_elapsed_ms=(time.perf_counter() - t0) * 1000.0,
+                    error_code=err_code,
+                    error_message=f"Security preflight failed: {sv.finding.reason}",
+                )
+                return b"", report
 
         policy = self.registry.get(fmt)
         if policy is None:

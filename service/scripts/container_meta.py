@@ -279,6 +279,11 @@ def detect_container_format(path: Path, data: bytes | None = None) -> str:
         if data[:2] == b"PK":
             # zip-based; sniff
             try:
+                from security import require_safe_zip_container, SecurityViolation
+                require_safe_zip_container(data)
+            except SecurityViolation:
+                return "unknown"
+            try:
                 with zipfile.ZipFile(io.BytesIO(data)) as zf:
                     names = set(zf.namelist())
                     if "mimetype" in names:
@@ -2508,6 +2513,8 @@ def clean_docx(
     data: bytes, *, also_layer_a_text: bool = True, normalize_spaces: bool = False
 ) -> tuple[bytes, list[str]]:
     """Lossless DOCX cleaner implementing DETECT -> PLAN -> MINIMAL PATCH -> VALIDATE -> OUTPUT."""
+    from security import require_safe_zip_container
+    require_safe_zip_container(data)
     from docx import clean_docx_lossless
 
     cleaned_bytes, report = clean_docx_lossless(
@@ -2525,6 +2532,8 @@ def clean_xlsx(
     data: bytes, *, also_layer_a_text: bool = True, normalize_spaces: bool = False
 ) -> tuple[bytes, list[str]]:
     """Lossless XLSX cleaner implementing DETECT -> PLAN -> MINIMAL PATCH -> VALIDATE -> OUTPUT."""
+    from security import require_safe_zip_container
+    require_safe_zip_container(data)
     from xlsx import clean_xlsx_lossless
 
     cleaned_bytes, report = clean_xlsx_lossless(
@@ -2542,6 +2551,8 @@ def clean_pptx(
     data: bytes, *, also_layer_a_text: bool = True, normalize_spaces: bool = False
 ) -> tuple[bytes, list[str]]:
     """Lossless PPTX cleaner implementing DETECT -> PLAN -> MINIMAL PATCH -> VALIDATE -> OUTPUT."""
+    from security import require_safe_zip_container
+    require_safe_zip_container(data)
     from pptx import clean_pptx_lossless
 
     cleaned_bytes, report = clean_pptx_lossless(
@@ -4165,6 +4176,9 @@ def inspect_container(
     """
     if data is None:
         data = path.read_bytes()
+    if data[:2] == b"PK":
+        from security import require_safe_zip_container
+        require_safe_zip_container(data)
     fmt = detect_container_format(path, data)
     tools: dict[str, Any] = {}
     details: dict[str, Any] = {}
@@ -4321,6 +4335,9 @@ def clean_container(
     from text_unicode import clean_text  # local import to avoid cycles
 
     data = path.read_bytes()
+    if data[:2] == b"PK" or fmt in ("docx", "xlsx", "pptx", "odt", "epub"):
+        from security import require_safe_zip_container
+        require_safe_zip_container(data)
     fmt = fmt or detect_container_format(path, data)
     actions: list[str] = []
     dest.parent.mkdir(parents=True, exist_ok=True)
