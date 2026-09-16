@@ -348,8 +348,8 @@ def cmd_verify(args: argparse.Namespace) -> int:
 
     fmt = orig_fmt
 
-    if fmt not in ("docx", "xlsx"):
-        msg = f"Verification capability is currently supported only for docx and xlsx documents (got: '{fmt}'). Dedicated verifiers for other formats are planned for subsequent phases."
+    if fmt not in ("docx", "xlsx", "pptx"):
+        msg = f"Verification capability is currently supported only for docx, xlsx, and pptx documents (got: '{fmt}'). Dedicated verifiers for other formats are planned for subsequent phases."
         if args.json:
             payload = {
                 "ok": False,
@@ -392,7 +392,7 @@ def cmd_verify(args: argparse.Namespace) -> int:
             is_pass = False
             invariants = []
             warnings = [f"Fidelity verification error: {e}"]
-    else:  # xlsx
+    elif fmt == "xlsx":
         from xlsx import XlsxPackage, XlsxFidelityValidator
 
         try:
@@ -411,6 +411,25 @@ def cmd_verify(args: argparse.Namespace) -> int:
             is_pass = False
             invariants = []
             warnings = [f"XLSX fidelity verification error: {e}"]
+    else:  # pptx
+        from pptx import PptxPackage, PptxFidelityValidator
+
+        try:
+            b_pkg = PptxPackage(orig_bytes)
+            a_pkg = PptxPackage(cand_bytes)
+            changed = {m for m in b_pkg.member_order if b_pkg.get_hash(m) != a_pkg.get_hash(m)}
+            dropped = set(b_pkg.member_order) - set(a_pkg.member_order)
+            validator = PptxFidelityValidator(b_pkg, a_pkg, changed, dropped)
+            fidelity_report = validator.validate()
+            is_pass = fidelity_report.passed
+            invariants = list(fidelity_report.invariants)
+            warnings = list(fidelity_report.warnings)
+            if not is_pass:
+                warnings.extend(fidelity_report.errors)
+        except Exception as e:
+            is_pass = False
+            invariants = []
+            warnings = [f"PPTX fidelity verification error: {e}"]
 
     res_status = "PASS" if is_pass else "FAIL"
 

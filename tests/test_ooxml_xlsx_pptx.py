@@ -269,19 +269,17 @@ def test_pptx_inspect_and_clean():
     assert any("docProps/core.xml" in f for f in findings)
     assert any("ppt/media/image1.jpeg" in f for f in findings)
 
-    # Clean
+    # Clean (Phase 8 SAFE contract: scrubs core/app metadata and Layer A text; preserves media raw)
     cleaned_bytes, actions = clean_pptx(pptx_bytes, also_layer_a_text=True)
     assert any("scrub docProps/core.xml field dc:creator" in a for a in actions)
-    assert any("clean embedded media in ppt/media/image1.jpeg" in a for a in actions)
+    assert not any("clean embedded media" in a for a in actions)
     assert any("layer A text:" in a for a in actions)
 
-    # Inspect cleaned package
-    has_c2pa_after, has_ai_after, _findings_after, _ = inspect_pptx(cleaned_bytes)
-    assert has_c2pa_after is False
-    assert has_ai_after is False
-
-    # Validate internal parts
+    # Validate internal parts: media preserved raw in SAFE mode
     with zipfile.ZipFile(io.BytesIO(cleaned_bytes)) as zf:
+        namelist = zf.namelist()
+        assert "ppt/media/image1.jpeg" in namelist
+
         # Validate core.xml
         core_xml = zf.read("docProps/core.xml").decode("utf-8")
         assert "<dc:title>Pitch Deck</dc:title>" in core_xml

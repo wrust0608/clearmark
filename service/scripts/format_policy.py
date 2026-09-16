@@ -85,9 +85,10 @@ _POLICIES: dict[str, FormatFidelityPolicy] = {
     "pptx": FormatFidelityPolicy(
         fmt="pptx",
         category=FormatCategory.PRESENTATION,
-        default_normalize_spaces=True,
-        allow_llm_rewrite=False,
+        default_normalize_spaces=False,  # NBSP must be preserved
+        allow_llm_rewrite=False,          # LLM rewrite banned on PPTX
         structural_invariants_required=True,
+        fail_closed=True,
     ),
     # ODF
     "odt": FormatFidelityPolicy(
@@ -365,19 +366,20 @@ class FormatPolicyRegistry:
             )
         )
 
-        # PPTX: Structured OOXML Presentation (Levels A, B, C)
+        # PPTX: Structured OOXML Presentation (Levels A, B, C, D)
         reg.register(
             FormatPolicy(
                 format_name="pptx",
                 extensions=(".pptx",),
-                inspect_capabilities=("metadata", "docProps", "customXml", "slide_text", "media_c2pa"),
-                clean_capabilities=("docProps_scrub", "customXml_drop", "slide_carrier_remove", "media_meta_strip", "raw_opc_preservation"),
-                fidelity_requirements=(FidelityLevel.LEVEL_A, FidelityLevel.LEVEL_B, FidelityLevel.LEVEL_C),
+                inspect_capabilities=("metadata", "docProps", "slide_text", "table_text"),
+                clean_capabilities=("docProps_scrub", "slide_carrier_remove", "table_carrier_remove", "raw_opc_preservation"),
+                fidelity_requirements=(FidelityLevel.LEVEL_A, FidelityLevel.LEVEL_B, FidelityLevel.LEVEL_C, FidelityLevel.LEVEL_D),
                 destructive_operations=(),
                 optional_dependencies=(),
                 network_policy="LOCAL_ONLY",
                 default_mode=ProcessingMode.SAFE,
                 allow_destructive_normalization=False,
+                verify_capabilities=("structural_invariants", "raw_opc_invariants", "shape_tree_exact", "geometry_exact", "run_structure_exact"),
             )
         )
 

@@ -1510,10 +1510,10 @@ def _clean_payload(data: bytes, name: str, options: dict[str, Any]) -> dict[str,
                 }
                 ext = ext_map.get(container_fmt, "")
             effective_fmt = container_fmt or (ext.lstrip(".").lower() if ext else "unknown")
-            norm_spaces_default = False if effective_fmt == "docx" else True
+            norm_spaces_default = False if effective_fmt in ("docx", "xlsx", "pptx") else True
             norm_spaces = bool(options.get("normalize_spaces", norm_spaces_default))
-            if effective_fmt == "docx":
-                norm_spaces = False  # Strictly forbidden for DOCX to protect typography & NBSP
+            if effective_fmt in ("docx", "xlsx", "pptx"):
+                norm_spaces = False  # Strictly forbidden for DOCX/XLSX/PPTX to protect typography & NBSP
 
             dest = _tmp_path(tmpdir, f"out{ext}")
             result = clean_container(
@@ -1723,13 +1723,13 @@ class Handler(BaseHTTPRequestHandler):
 
         fmt = orig_fmt
 
-        if fmt not in ("docx", "xlsx"):
+        if fmt not in ("docx", "xlsx", "pptx"):
             self._respond(HTTPStatus.UNSUPPORTED_MEDIA_TYPE, {
                 "ok": False,
                 "status": "UNSUPPORTED",
                 "format": fmt,
                 "error_code": "UNSUPPORTED_VERIFICATION_CAPABILITY",
-                "error": f"Verification capability is currently supported only for docx and xlsx documents (got: '{fmt}'). Dedicated verifiers for other formats are planned for subsequent phases.",
+                "error": f"Verification capability is currently supported only for docx, xlsx, and pptx documents (got: '{fmt}'). Dedicated verifiers for other formats are planned for subsequent phases.",
                 "validation": {
                     "structural_invariants_passed": False,
                 },
@@ -1760,7 +1760,7 @@ class Handler(BaseHTTPRequestHandler):
                 is_pass = False
                 invariants = []
                 warnings = [f"Fidelity verification error: {e}"]
-        else:  # xlsx
+        elif fmt == "xlsx":
             from xlsx import XlsxPackage, XlsxFidelityValidator
             try:
                 b_pkg = XlsxPackage(orig_bytes)
@@ -1778,6 +1778,24 @@ class Handler(BaseHTTPRequestHandler):
                 is_pass = False
                 invariants = []
                 warnings = [f"XLSX fidelity verification error: {e}"]
+        else:  # pptx
+            from pptx import PptxPackage, PptxFidelityValidator
+            try:
+                b_pkg = PptxPackage(orig_bytes)
+                a_pkg = PptxPackage(cand_bytes)
+                changed = {m for m in b_pkg.member_order if b_pkg.get_hash(m) != a_pkg.get_hash(m)}
+                dropped = set(b_pkg.member_order) - set(a_pkg.member_order)
+                validator = PptxFidelityValidator(b_pkg, a_pkg, changed, dropped)
+                fidelity_report = validator.validate()
+                is_pass = fidelity_report.passed
+                invariants = list(fidelity_report.invariants)
+                warnings = list(fidelity_report.warnings)
+                if not is_pass:
+                    warnings.extend(fidelity_report.errors)
+            except Exception as e:
+                is_pass = False
+                invariants = []
+                warnings = [f"PPTX fidelity verification error: {e}"]
 
         res_status = "PASS" if is_pass else "FAIL"
         resp_code = HTTPStatus.OK if is_pass else HTTPStatus.UNPROCESSABLE_ENTITY

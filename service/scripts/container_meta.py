@@ -258,27 +258,19 @@ class ContainerInspectReport:
 
 
 def detect_container_format(path: Path, data: bytes | None = None) -> str:
-    ext = path.suffix.lower()
-    if ext in (".svg",):
-        return "svg"
-    if ext in (".pdf",):
-        return "pdf"
-    if ext in (".docx",):
-        return "docx"
-    if ext in (".xlsx",):
-        return "xlsx"
-    if ext in (".pptx",):
-        return "pptx"
-    if ext in (".odt",):
-        return "odt"
-    if ext in (".epub",):
-        return "epub"
-    if ext in (".html", ".htm"):
-        return "html"
-    if ext in (".md", ".markdown", ".mdx"):
-        return "markdown"
-    if ext in (".tex", ".ltx"):
-        return "latex"
+    if data is None and path.is_file():
+        try:
+            with path.open("rb") as f:
+                head = f.read(4096)
+                if head[:2] == b"PK":
+                    data = path.read_bytes()
+                elif head[:4] == b"%PDF":
+                    return "pdf"
+                elif head[:100].lstrip().startswith(b"<") and b"svg" in head[:500].lower():
+                    return "svg"
+        except Exception:
+            pass
+
     if data is not None:
         if data[:4] == b"%PDF":
             return "pdf"
@@ -313,8 +305,31 @@ def detect_container_format(path: Path, data: bytes | None = None) -> str:
                         return "odt"
                     if "META-INF/container.xml" in names and any(n.endswith(".opf") for n in names):
                         return "epub"
+                    return "unknown"
             except _ZIP_PARSE_ERRORS:
-                pass
+                return "unknown"
+
+    ext = path.suffix.lower()
+    if ext in (".svg",):
+        return "svg"
+    if ext in (".pdf",):
+        return "pdf"
+    if ext in (".docx",):
+        return "docx"
+    if ext in (".xlsx",):
+        return "xlsx"
+    if ext in (".pptx",):
+        return "pptx"
+    if ext in (".odt",):
+        return "odt"
+    if ext in (".epub",):
+        return "epub"
+    if ext in (".html", ".htm"):
+        return "html"
+    if ext in (".md", ".markdown", ".mdx"):
+        return "markdown"
+    if ext in (".tex", ".ltx"):
+        return "latex"
     return "unknown"
 
 
@@ -2524,14 +2539,20 @@ def clean_xlsx(
 
 
 def clean_pptx(
-    data: bytes, *, also_layer_a_text: bool = True, normalize_spaces: bool = True
+    data: bytes, *, also_layer_a_text: bool = True, normalize_spaces: bool = False
 ) -> tuple[bytes, list[str]]:
-    return _scrub_ooxml_zip(
+    """Lossless PPTX cleaner implementing DETECT -> PLAN -> MINIMAL PATCH -> VALIDATE -> OUTPUT."""
+    from pptx import clean_pptx_lossless
+
+    cleaned_bytes, report = clean_pptx_lossless(
         data,
-        "pptx",
-        also_layer_a_text=also_layer_a_text,
-        normalize_spaces=normalize_spaces,
+        options={
+            "mode": "SAFE",
+            "normalize_spaces": normalize_spaces,
+            "also_layer_a_text": also_layer_a_text,
+        },
     )
+    return cleaned_bytes, report.get("actions", [])
 
 
 def inspect_odt(data: bytes) -> tuple[bool, bool, list[str], dict]:
@@ -4329,7 +4350,7 @@ def clean_container(
         safe_write_bytes(dest, cleaned)
     elif fmt == "pptx":
         cleaned, actions = clean_pptx(
-            data, also_layer_a_text=also_layer_a_text, normalize_spaces=normalize_spaces
+            data, also_layer_a_text=also_layer_a_text, normalize_spaces=False
         )
         safe_write_bytes(dest, cleaned)
     elif fmt == "odt":
