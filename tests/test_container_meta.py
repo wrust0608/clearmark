@@ -620,7 +620,7 @@ def test_docx_docprops_scrub_clears_residual_warning(tmp_path: Path):
 
 def test_docx_layer_a_strips_invisible_body_chars():
     data = _make_docx_with_invisible_body()
-    cleaned, actions = clean_docx(data)
+    cleaned, actions = clean_docx(data, normalize_spaces=True)
     assert any(a.startswith("layer A text: removed=") for a in actions)
     with zipfile.ZipFile(io.BytesIO(cleaned)) as zf:
         doc = zf.read("word/document.xml").decode()
@@ -634,6 +634,18 @@ def test_docx_layer_a_strips_invisible_body_chars():
         assert " FIELD \u200b KEEP " in doc
         # existing xml:space is retained on cleaned runs
         assert '<w:t xml:space="preserve">keepme </w:t>' in doc
+
+
+def test_docx_layer_a_preserves_nbsp_by_default():
+    data = _make_docx_with_invisible_body()
+    cleaned, actions = clean_docx(data)
+    assert any(a.startswith("layer A text: removed=") for a in actions)
+    with zipfile.ZipFile(io.BytesIO(cleaned)) as zf:
+        doc = zf.read("word/document.xml").decode()
+        # ZWSP and word joiner stripped, but NBSP preserved by default for layout fidelity
+        assert "Hello\u200b" not in doc
+        assert "world\u2060" not in doc
+        assert "with\u00a0space" in doc
 
 
 def test_docx_layer_a_can_be_disabled():

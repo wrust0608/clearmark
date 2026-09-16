@@ -1,0 +1,279 @@
+{
+  "package": "FINAL_REVIEW_PACKAGE_v2.0.0-RC2.zip",
+  "release": "v2.0.0-RC2",
+  "created_at": "2026-09-16T05:33:18.308591+00:00",
+  "authoritative_golden": {
+    "filename": "01_GOLDEN_ORIGINAL_UNTOUCHED.docx",
+    "sha256": "c05ca5c1be3b020b75d5763cf22061879a255b3c4f57b0455ae562b54809f58d",
+    "size_bytes": 49959
+  },
+  "valid_candidate": {
+    "filename": "04_CANDIDATE_LOSSLESS_OUTPUT.docx",
+    "sha256": "7aa5549f6a0e0b78fa39245c0e79503b2cc9defd6cffbfa5c8a833072d430297",
+    "size_bytes": 49395
+  },
+  "manifest_exclusions": [
+    {
+      "path": "manifests/PACKAGE_MANIFEST.json",
+      "reason": "self-referential hash impossible"
+    },
+    {
+      "path": "manifests/SHA256SUMS.txt",
+      "reason": "checksum index excludes itself"
+    }
+  ],
+  "files": [
+    {
+      "path": "00_REVIEW_SUMMARY.md",
+      "size": 7342,
+      "sha256": "14ea41bf94d67979348bb9681133cb098f4c6f759a929cf2df7e4a3ba7cf3e2b",
+      "purpose": "Executive summary and review roadmap for independent auditors"
+    },
+    {
+      "path": "01_RELEASE_NOTES.md",
+      "size": 8671,
+      "sha256": "4275ae2379dc43b32d0e23563a9659e15d3e27c55e2160c9df8b2fac569668c3",
+      "purpose": "Canonical v2.0.0-RC2 release notes with True Golden baseline metrics"
+    },
+    {
+      "path": "02_MASTER_IMPLEMENTATION_PLAN.md",
+      "size": 52741,
+      "sha256": "f3b34ddbe747b05d2de5f7e4252c34042d2b777b30fe1c95e8c99fb9b3513eba",
+      "purpose": "Canonical 17-phase architecture and verification plan"
+    },
+    {
+      "path": "03_README.md",
+      "size": 102942,
+      "sha256": "feaf4a06f163fd134bf094a778cfe67d554b8a8d5c7387f81eb3fbed4d401dde",
+      "purpose": "Authoritative repository documentation"
+    },
+    {
+      "path": "reports/MASTER_REVALIDATION_REPORT.md",
+      "size": 9517,
+      "sha256": "357a32d57d24cdc32985bcda2cf2054640c7a54bec37ced0c8ae5f1467d128f8",
+      "purpose": "Master revalidation report on True Golden and negative witnesses"
+    },
+    {
+      "path": "reports/security_audit.md",
+      "size": 4466,
+      "sha256": "69112e4cb259e5a287cd88ef2b5d6e001d0034d9899918e82b733fe7dfc8e9e0",
+      "purpose": "Comprehensive security audit report and zero-egress proofs"
+    },
+    {
+      "path": "reports/architecture_audit.md",
+      "size": 9067,
+      "sha256": "f8cbee04dd3e00bbba5ee6637c25d282d7debe9f4fc3aa89402c6c5d934eeaad",
+      "purpose": "Upstream and lossless subsystem architecture audit"
+    },
+    {
+      "path": "reports/INVALID_BASELINE_REPORT.md",
+      "size": 2138,
+      "sha256": "902f1b5d264768ce486ab30c7838fc2254dc649b57dcb1a2e2a460ed3473dc1e",
+      "purpose": "Quarantined historical report on flawed witness retained for regression context"
+    },
+    {
+      "path": "evidence/golden_documents.json",
+      "size": 1619,
+      "sha256": "6cc388299a7ea83ce4879da5b4f399845227acec547f47339b62c084c0e96d5b",
+      "purpose": "Cryptographic SHA-256 and structural lock registry for baselines"
+    },
+    {
+      "path": "evidence/real_document_fidelity_report_v2.json",
+      "size": 14380,
+      "sha256": "0fe5bec38bb8821076f0d6e625ce34ff663611ee9b6a6d6089f3018a1950a6ba",
+      "purpose": "5-gate real document fidelity audit report"
+    },
+    {
+      "path": "evidence/visual_regression_report.json",
+      "size": 3048,
+      "sha256": "866178e9ba4332c093c267a83eff8e2abe7e7cd0591aacf122daae28387f2db7",
+      "purpose": "Pixel-for-pixel visual similarity comparison across 19/19 pages"
+    },
+    {
+      "path": "evidence/non_target_part_hashes.json",
+      "size": 8962,
+      "sha256": "2f9e656450dbe2ee6087b1c9b9eeef555de53c5c0b4aee1c10e15872b7cded0d",
+      "purpose": "SHA-256 hashes of uncompressed and raw compressed members proving non-target invariance"
+    },
+    {
+      "path": "evidence/performance_report.json",
+      "size": 1224,
+      "sha256": "c6516b773f43afe699dde9180ff8a8bb52fc3a8df26e16f9a3e9c0d831f731b3",
+      "purpose": "Processing latency, memory benchmarks, and negative witness rejection latency"
+    },
+    {
+      "path": "evidence/release_verification.json",
+      "size": 3497,
+      "sha256": "a88c114ac486781426aa98b51f537d35cb563302993d0c9d08e10ea2e1d12ed3",
+      "purpose": "Quality checklist verifying completion of all 17 phases and security bounds"
+    },
+    {
+      "path": "evidence/full_pytest_output.txt",
+      "size": 1747,
+      "sha256": "777bd593387ea332de7dbf62159fb6255524eaa1f17b3339e81f91bada9d1df8",
+      "purpose": "Full repository test suite execution log (1359 passed, 152 skipped)"
+    },
+    {
+      "path": "documents/01_GOLDEN_ORIGINAL_UNTOUCHED.docx",
+      "size": 49959,
+      "sha256": "c05ca5c1be3b020b75d5763cf22061879a255b3c4f57b0455ae562b54809f58d",
+      "purpose": "The authoritative True Golden Original baseline file (49,959 bytes)"
+    },
+    {
+      "path": "documents/04_CANDIDATE_LOSSLESS_OUTPUT.docx",
+      "size": 49395,
+      "sha256": "7aa5549f6a0e0b78fa39245c0e79503b2cc9defd6cffbfa5c8a833072d430297",
+      "purpose": "The verified Valid Candidate Lossless Output with raw OPC preservation (49,395 bytes)"
+    },
+    {
+      "path": "regression/02_BAD_OUTPUT_RUN_EXPLOSION.docx",
+      "size": 66394,
+      "sha256": "18627cfd57e661abc24ba3d8febb6802420b871327d05b219f11219dc16fc018",
+      "purpose": "Negative regression witness A: Run explosion flaw (6,467 runs)"
+    },
+    {
+      "path": "regression/03_INTERMEDIATE_OUTPUT_LAYOUT_REGRESSION.docx",
+      "size": 63538,
+      "sha256": "a9dcf7fc3b0f0d43e1510f6775f286d0fe5b100b78b68a6126792159738d8146",
+      "purpose": "Negative regression witness B: Layout regression flaw (18 pages)"
+    },
+    {
+      "path": "manifests/CLEANUP_MANIFEST.json",
+      "size": 4158,
+      "sha256": "c743d2c0acb82e4c80a36a866a83c343918165dbd39da240af7b323303ea460f",
+      "purpose": "Manifest documenting all kept, archived, and deleted files"
+    },
+    {
+      "path": "manifests/REPOSITORY_STATE.txt",
+      "size": 1827,
+      "sha256": "cec718b787b3eaad977955bb7f8eef247b0b63d1ca7a207128d644b480439d2a",
+      "purpose": "Snapshot of git, environment, OS, and toolchain state"
+    },
+    {
+      "path": "source_review/service/scripts/docx/__init__.py",
+      "size": 1510,
+      "sha256": "e38308a4e72aad5ea5a2d7d351bbc4d1ee68ac7187a68bba71804df8c7596f9d",
+      "purpose": "DOCX lossless subsystem entry point and exports"
+    },
+    {
+      "path": "source_review/service/scripts/docx/cleaner.py",
+      "size": 4492,
+      "sha256": "3cd21311a078821d2863b623c0532ba99bd4bcfafc9d08f1f41ffe3288c42a21",
+      "purpose": "DocxCleaner facade coordinating detector, planner, patcher, validator"
+    },
+    {
+      "path": "source_review/service/scripts/docx/detector.py",
+      "size": 12223,
+      "sha256": "cab18a2741ba8b4a23c78017299f49c656c6c7d16cd9fe3791fae3c01a472801",
+      "purpose": "Watermark detector scanning headers, footers, body, shapes, and properties"
+    },
+    {
+      "path": "source_review/service/scripts/docx/exceptions.py",
+      "size": 229,
+      "sha256": "a516f8399a635c6bf253896d4c4f55c4a61554e7633fb2d19cd3fe5c63ef1b97",
+      "purpose": "DocxFidelityError and lossless exception hierarchy"
+    },
+    {
+      "path": "source_review/service/scripts/docx/mutation_plan.py",
+      "size": 2535,
+      "sha256": "a876ed68b99864cc5e85146fdc6d248b8f7621ca5caad78e998f68c7ff72a3c5",
+      "purpose": "DocxMutationPlan and atomic XML mutations"
+    },
+    {
+      "path": "source_review/service/scripts/docx/package.py",
+      "size": 12268,
+      "sha256": "65a0b1b50f1a0dcbfada397f8a8df7bacb7667b0c3b052a060975f408b8327b8",
+      "purpose": "Raw OPC ZIP copier preserving raw compressed stream, flags, and member headers"
+    },
+    {
+      "path": "source_review/service/scripts/docx/patcher.py",
+      "size": 8987,
+      "sha256": "6e187fcc307a332335c9071aacb45897cf8eb30d931da11fc7276c96d8d3495e",
+      "purpose": "Lossless XML patcher applying atomic targeted modifications"
+    },
+    {
+      "path": "source_review/service/scripts/docx/validator.py",
+      "size": 11557,
+      "sha256": "10317a5baf220996a3ce9f611a9d2c6cfc7baf6735d1ae542c14797457540447",
+      "purpose": "4-layer DocxFidelityValidator enforcing zero text damage and invariant bounds"
+    },
+    {
+      "path": "source_review/service/scripts/docx/visible_text.py",
+      "size": 3489,
+      "sha256": "021a83ff5e1c14e166a4514fc7ae06696e34b6927b9069ff58f6356feb9886b3",
+      "purpose": "Canonical visible text extraction engine ignoring non-visual markup"
+    },
+    {
+      "path": "source_review/service/scripts/container_meta.py",
+      "size": 173905,
+      "sha256": "441b9ebb44fe1da1c76c04ef450fe134bca3bdaac4471c2042c4c5d6a8b14c71",
+      "purpose": "Office container metadata inspector and cleaner"
+    },
+    {
+      "path": "source_review/service/scripts/format_policy.py",
+      "size": 7917,
+      "sha256": "62ad118dbc019984f249b9cd911c1a6d93fbf2b1e6937dda6bdf3ecc36b52883",
+      "purpose": "Per-format security and immutability policy definitions"
+    },
+    {
+      "path": "source_review/service/scripts/server.py",
+      "size": 72662,
+      "sha256": "b514d501a19b1e28f957ab116684a318ce14c3eaa87a3ac3b15083b5a13482e3",
+      "purpose": "Local zero-egress HTTP API server and handler routes"
+    },
+    {
+      "path": "source_review/service/web/app.js",
+      "size": 10338,
+      "sha256": "f97615bf6dcea6998a66a9f08fda830ddf9746ad2aeaf9779976a60d1f603b9a",
+      "purpose": "Frontend user interface controller and fidelity verification display"
+    },
+    {
+      "path": "source_review/tests/test_docx_validation_framework.py",
+      "size": 6902,
+      "sha256": "8298b6448d73e2eb2845384b198c64afac51ae83c9e072b6a8d268ad33acc6c4",
+      "purpose": "Test suite verifying 4-layer validation framework"
+    },
+    {
+      "path": "source_review/tests/test_opc_package_preservation.py",
+      "size": 12730,
+      "sha256": "19d769a83723225f8543d1a8b72cd1df1ec23396b9d9e4b3e704cec1d7299001",
+      "purpose": "Test suite verifying raw OPC ZIP entry preservation"
+    },
+    {
+      "path": "source_review/tests/test_golden_revalidation_and_negative_witnesses.py",
+      "size": 6268,
+      "sha256": "f33147619a4b78d0a333fcfae7d3f9cc74964dfebbfa8a55b6fea36f3da701e3",
+      "purpose": "Test suite revalidating True Golden and rejecting negative witnesses"
+    },
+    {
+      "path": "source_review/tests/test_real_document_regression.py",
+      "size": 4972,
+      "sha256": "b29190093f5260a5baa2b5f1242b62c31a082211f10829e7ffb31b874390deef",
+      "purpose": "Test suite verifying real-world document regression and invariants"
+    },
+    {
+      "path": "source_review/tests/test_security_bounds.py",
+      "size": 5465,
+      "sha256": "232f7538d0e52d90fda4ed194c9518588c0e630af23ca2bde52b722ca81e970b",
+      "purpose": "Test suite verifying zero-egress security bounds and offline isolation"
+    },
+    {
+      "path": "source_review/BASE_COMMIT.txt",
+      "size": 42,
+      "sha256": "9290179ac421aa77ec6f7a2d5ec364c46355b0d1bf0f01fa43473a344b2d0cd4",
+      "purpose": "Upstream base commit SHA before lossless engine modifications"
+    },
+    {
+      "path": "source_review/HEAD_COMMIT.txt",
+      "size": 42,
+      "sha256": "9290179ac421aa77ec6f7a2d5ec364c46355b0d1bf0f01fa43473a344b2d0cd4",
+      "purpose": "Local HEAD commit SHA containing complete verified lossless implementation"
+    },
+    {
+      "path": "source_review/final_changes.patch",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "purpose": "Complete git unified diff of all modifications against base commit"
+    }
+  ]
+}

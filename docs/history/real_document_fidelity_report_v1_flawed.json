@@ -1,0 +1,150 @@
+{
+  "_WARNING": "INVALID HISTORICAL BASELINE — retained only as a regression example. DO NOT USE FOR ACCEPTANCE.",
+  "fidelity_guaranteed": false,
+  "status": "SUPERSEDED_BY_TRUE_GOLDEN_V2",
+  "original": {
+    "size_bytes": 70608,
+    "sha256": "0a251436674c36cee95e4354bfd4014dbec04eb4feb0c4c6f53751caf7f09bd4",
+    "visible_chars": 32493,
+    "counts": {
+      "paragraphs": 204,
+      "runs": 6467,
+      "tables": 1,
+      "table_rows": 7,
+      "table_cells": 49,
+      "drawings_inline": 0,
+      "drawings_anchor": 0,
+      "bookmarks": 0
+    }
+  },
+  "clean": {
+    "size_bytes": 63538,
+    "sha256": "a9dcf7fc3b0f0d43e1510f6775f286d0fe5b100b78b68a6126792159738d8146",
+    "visible_chars": 32493,
+    "counts": {
+      "paragraphs": 204,
+      "runs": 6467,
+      "tables": 1,
+      "table_rows": 7,
+      "table_cells": 49,
+      "drawings_inline": 0,
+      "drawings_anchor": 0,
+      "bookmarks": 0
+    }
+  },
+  "structural_deltas": {
+    "paragraphs": 0,
+    "runs": 0,
+    "tables": 0,
+    "table_rows": 0,
+    "table_cells": 0,
+    "drawings_inline": 0,
+    "drawings_anchor": 0,
+    "bookmarks": 0
+  },
+  "visible_text_identical": true,
+  "diff_sample": null,
+  "spot_checks": [
+    {
+      "phrase": "Quản lý",
+      "glued_variant": "Quảnlý",
+      "in_original": true,
+      "in_clean": true,
+      "glued_in_original": false,
+      "glued_in_clean": false,
+      "passed": true
+    },
+    {
+      "phrase": "chất lượng",
+      "glued_variant": "chấtlượng",
+      "in_original": true,
+      "in_clean": true,
+      "glued_in_original": false,
+      "glued_in_clean": false,
+      "passed": true
+    },
+    {
+      "phrase": "công trình",
+      "glued_variant": "côngtrình",
+      "in_original": true,
+      "in_clean": true,
+      "glued_in_original": false,
+      "glued_in_clean": false,
+      "passed": true
+    },
+    {
+      "phrase": "an toàn",
+      "glued_variant": "antoàn",
+      "in_original": true,
+      "in_clean": true,
+      "glued_in_original": false,
+      "glued_in_clean": false,
+      "passed": true
+    },
+    {
+      "phrase": "xây dựng",
+      "glued_variant": "xâydựng",
+      "in_original": true,
+      "in_clean": true,
+      "glued_in_original": false,
+      "glued_in_clean": false,
+      "passed": true
+    },
+    {
+      "phrase": "tiêu chuẩn",
+      "glued_variant": "tiêuchuẩn",
+      "in_original": true,
+      "in_clean": true,
+      "glued_in_original": false,
+      "glued_in_clean": false,
+      "passed": true
+    }
+  ],
+  "regression_comparison": {
+    "size_bytes": 66394,
+    "sha256": "18627cfd57e661abc24ba3d8febb6802420b871327d05b219f11219dc16fc018",
+    "counts": {
+      "paragraphs": 204,
+      "runs": 6467,
+      "tables": 1,
+      "table_rows": 7,
+      "table_cells": 49,
+      "drawings_inline": 0,
+      "drawings_anchor": 0,
+      "bookmarks": 0
+    },
+    "visible_chars": 32259,
+    "spot_checks": [
+      {
+        "phrase": "Quản lý",
+        "in_regress": true,
+        "glued_in_regress": false
+      },
+      {
+        "phrase": "chất lượng",
+        "in_regress": true,
+        "glued_in_regress": false
+      },
+      {
+        "phrase": "công trình",
+        "in_regress": true,
+        "glued_in_regress": false
+      },
+      {
+        "phrase": "an toàn",
+        "in_regress": true,
+        "glued_in_regress": false
+      },
+      {
+        "phrase": "xây dựng",
+        "in_regress": true,
+        "glued_in_regress": false
+      },
+      {
+        "phrase": "tiêu chuẩn",
+        "in_regress": true,
+        "glued_in_regress": false
+      }
+    ]
+  }
+}

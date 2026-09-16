@@ -1386,6 +1386,12 @@ def _clean_payload(data: bytes, name: str, options: dict[str, Any]) -> dict[str,
                     "markdown": ".md",
                 }
                 ext = ext_map.get(container_fmt, "")
+            effective_fmt = container_fmt or (ext.lstrip(".").lower() if ext else "unknown")
+            norm_spaces_default = False if effective_fmt == "docx" else True
+            norm_spaces = bool(options.get("normalize_spaces", norm_spaces_default))
+            if effective_fmt == "docx":
+                norm_spaces = False  # Strictly forbidden for DOCX to protect typography & NBSP
+
             dest = _tmp_path(tmpdir, f"out{ext}")
             result = clean_container(
                 src,
@@ -1394,7 +1400,7 @@ def _clean_payload(data: bytes, name: str, options: dict[str, Any]) -> dict[str,
                 also_layer_a_text=bool(options.get("also_layer_a_text", True)),
                 deep_images=str(options.get("deep_images", "auto")),
                 clean_attachments=str(options.get("clean_attachments", DEFAULT_CLEAN_ATTACHMENTS)),
-                normalize_spaces=bool(options.get("normalize_spaces", True)),
+                normalize_spaces=norm_spaces,
             )
             cleaned_bytes = dest.read_bytes()
             report = {"kind": "container", **result}

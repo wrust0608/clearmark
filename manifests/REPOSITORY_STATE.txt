@@ -1,0 +1,56 @@
+REPOSITORY STATE SNAPSHOT
+Timestamp (UTC): 2026-09-16T04:54:37.500078+00:00
+
+--- GIT CONTEXT ---
+Branch: main
+Commit SHA: 41ef353afd8ff354905c25abb803ae964d06d3d9
+Status: DIRTY (Uncommitted changes present as expected during refactor and freeze)
+
+Git Status Short:
+M .gitignore
+ M README.md
+ M config/clean_strategy.json
+ M service/Dockerfile
+ M service/scripts/container_meta.py
+ M service/scripts/rewrite_text.py
+ M service/scripts/server.py
+ M tests/conftest.py
+ M tests/test_container_meta.py
+?? ClearMark.cmd
+?? Open-ClearMark.cmd
+?? Stop-ClearMark.cmd
+?? assets/
+?? clearmark-manager.ps1
+?? docs/README.md
+?? docs/history/
+?? docs/reports/
+?? service/scripts/docx/
+?? service/scripts/format_policy.py
+?? service/web/
+?? start-app.ps1
+?? tests/test_api_integration.py
+?? tests/test_audit_invariants.py
+?? tests/test_baseline_integrity.py
+?? tests/test_documentation_consistency.py
+?? tests/test_docx_lossless.py
+?? tests/test_docx_non_text_objects.py
+?? tests/test_docx_regression_matrix.py
+?? tests/test_docx_subsystem_isolation.py
+?? tests/test_docx_validation_framework.py
+?? tests/test_fail_closed_mechanism.py
+?? tests/test_format_policies.py
+?? tests/test_golden_revalidation_and_negative_witnesses.py
+?? tests/test_multi_format_revalidation.py
+?? tests/test_mutation_plan_immutability.py
+?? tests/test_opc_package_preservation.py
+?? tests/test_performance_benchmarks.py
+?? tests/test_real_document_regression.py
+?? tests/test_security_bounds.py
+?? tests/test_ui_and_launcher_integrity.py
+?? tools/
+
+--- ENVIRONMENT CONTEXT ---
+Python Version: 3.12.14 (main, Sep  1 2026, 14:17:39) [MSC v.1944 64 bit (AMD64)]
+OS: Windows 11 (10.0.26200)
+LibreOffice Version: LibreOffice 26.8.0.3 (C:\Program Files\LibreOffice\program\soffice.exe)
+Pytest Version: pytest 9.1.1

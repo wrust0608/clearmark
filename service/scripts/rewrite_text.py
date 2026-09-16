@@ -552,10 +552,22 @@ def build_prompt(
         # A (tactic, intensity) pair: modulate the named tactic prompt with the
         # level instead of replacing it with the generic level-only prompt. Code is
         # exempt — identifier/comment rewrites are not naturally intensity-modulated.
+        clauses: list[str] = []
         if rewrite_level is not None and tactic != "code":
-            base = base + "\n\n" + _intensity_clause(rewrite_level)
-    if style:
-        base = base + "\n\n" + _style_clause(style)
+            clauses.append(_intensity_clause(rewrite_level))
+        if tactic in ("paraphrase", "humanize", "chunk", "structural"):
+            clauses.append("Keep the output in exactly the same language as the input.")
+        if style:
+            clauses.append(_style_clause(style))
+        if clauses:
+            instruction = "\n\n".join(clauses)
+            delimiter = "\n\n---\n"
+            if delimiter in base:
+                base = base.replace(delimiter, "\n\n" + instruction + delimiter, 1)
+            else:
+                base = instruction + "\n\n" + base
+    if tactic is None and style:
+        base = _style_clause(style) + "\n\n" + base
     return base
 
 
@@ -606,7 +618,18 @@ def call_ollama(base_url: str, model: str, prompt: str, timeout: float, temperat
         {
             "model": model,
             "stream": False,
-            "messages": [{"role": "user", "content": prompt}],
+            "messages": [
+                {
+                    "role": "system",
+                    "content": (
+                        "Bạn là biên tập viên. Hãy thực hiện chính xác yêu cầu viết lại. "
+                        "Bắt buộc giữ nguyên ngôn ngữ của phần văn bản nguồn; nếu nguồn là "
+                        "tiếng Việt thì chỉ được trả lời bằng tiếng Việt. Chỉ xuất nội dung "
+                        "đã viết lại, không lặp lại, dịch hoặc giải thích yêu cầu."
+                    ),
+                },
+                {"role": "user", "content": prompt},
+            ],
             "options": {"temperature": temperature},
         },
         {},
@@ -635,7 +658,18 @@ def call_openai_compatible(
         headers["Authorization"] = f"Bearer {api_key}"
     payload: dict = {
         "model": model,
-        "messages": [{"role": "user", "content": prompt}],
+        "messages": [
+            {
+                "role": "system",
+                "content": (
+                    "Bạn là biên tập viên. Hãy thực hiện chính xác yêu cầu viết lại. "
+                    "Bắt buộc giữ nguyên ngôn ngữ của phần văn bản nguồn; nếu nguồn là "
+                    "tiếng Việt thì chỉ được trả lời bằng tiếng Việt. Chỉ xuất nội dung "
+                    "đã viết lại, không lặp lại, dịch hoặc giải thích yêu cầu."
+                ),
+            },
+            {"role": "user", "content": prompt},
+        ],
         "temperature": temperature,
     }
     if reasoning_effort:

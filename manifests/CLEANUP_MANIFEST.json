@@ -1,0 +1,117 @@
+{
+  "timestamp": "2026-09-16T11:54:00+07:00",
+  "backup_archive": "artifacts/archive/PRE_FINAL_CLEANUP_BACKUP.zip",
+  "backup_archive_sha256": "36733b3d8fc581d0e14b7326921303cd5a8c3163245d38475d3270657debdab4",
+  "archived": [
+    {
+      "path": "docs/history/INVALID_BASELINE_REPORT.md",
+      "reason": "quarantined historical test report on flawed baseline (6,467 runs)",
+      "status": "RETAINED_FOR_REGRESSION_EVIDENCE"
+    },
+    {
+      "path": "docs/history/real_document_fidelity_report_v1_flawed.json",
+      "reason": "quarantined v1 machine-readable report with run explosion flaws",
+      "status": "RETAINED_FOR_REGRESSION_EVIDENCE"
+    },
+    {
+      "path": "artifacts/baseline_metrics.json",
+      "reason": "Phase 0 snapshot explicitly labeled as historical flawed witness",
+      "status": "RETAINED_FOR_REGRESSION_EVIDENCE"
+    }
+  ],
+  "deleted": [
+    {
+      "old_path": ".run/07-statistical-clean.docx",
+      "reason": "obsolete temporary candidate file generated during statistical paraphrase testing",
+      "replacement": "04_CANDIDATE_LOSSLESS_OUTPUT.docx"
+    },
+    {
+      "old_path": ".run/07-statistical-report.json",
+      "reason": "obsolete temporary execution report from statistical paraphrase testing",
+      "replacement": "artifacts/final_acceptance/real_document_fidelity_report_v2.json"
+    },
+    {
+      "old_path": ".run/llama-b10985-win-cpu-x64.zip",
+      "reason": "stale temporary runtime zip downloaded during testing",
+      "replacement": "clearmark-manager.ps1 (uses Python runtime without external llama zip)"
+    },
+    {
+      "old_path": ".run/launcher.log",
+      "reason": "stale runtime launcher log superseded by final test suite output",
+      "replacement": "artifacts/final_acceptance/full_pytest_output.txt"
+    },
+    {
+      "old_path": ".run/server.log",
+      "reason": "empty stale log file",
+      "replacement": "none needed (empty log)"
+    },
+    {
+      "old_path": ".run/server-error.log",
+      "reason": "empty stale log file",
+      "replacement": "none needed (empty log)"
+    },
+    {
+      "old_path": ".run/clearmark.pid.json",
+      "reason": "stale process pid record from stopped server",
+      "replacement": "clearmark-manager.ps1 active pid manager"
+    }
+  ],
+  "kept": [
+    {
+      "path": "01_GOLDEN_ORIGINAL_UNTOUCHED.docx",
+      "reason": "authoritative True Golden Original baseline"
+    },
+    {
+      "path": "04_CANDIDATE_LOSSLESS_OUTPUT.docx",
+      "reason": "authoritative Valid Candidate Lossless Output"
+    },
+    {
+      "path": "02_BAD_OUTPUT_RUN_EXPLOSION.docx",
+      "reason": "negative regression witness (run explosion)"
+    },
+    {
+      "path": "03_INTERMEDIATE_OUTPUT_LAYOUT_REGRESSION.docx",
+      "reason": "negative regression witness (layout regression)"
+    },
+    {
+      "path": "RELEASE_NOTES.md",
+      "reason": "canonical v2.0.0 release notes"
+    },
+    {
+      "path": "MASTER_IMPLEMENTATION_PLAN.md",
+      "reason": "canonical 17-phase implementation and verification master plan"
+    },
+    {
+      "path": "README.md",
+      "reason": "canonical repository documentation"
+    },
+    {
+      "path": "artifacts/final_acceptance/golden_documents.json",
+      "reason": "canonical cryptographic lock registry"
+    },
+    {
+      "path": "artifacts/final_acceptance/real_document_fidelity_report_v2.json",
+      "reason": "canonical 5-gate document fidelity report"
+    },
+    {
+      "path": "artifacts/final_acceptance/visual_regression_report.json",
+      "reason": "canonical 19-page visual similarity report"
+    },
+    {
+      "path": "artifacts/final_acceptance/non_target_part_hashes.json",
+      "reason": "canonical non-target OOXML part SHA-256 hash table"
+    },
+    {
+      "path": "artifacts/final_acceptance/performance_report.json",
+      "reason": "canonical performance and memory report on True Golden"
+    },
+    {
+      "path": "artifacts/final_acceptance/release_verification.json",
+      "reason": "canonical release gate verification checklist"
+    },
+    {
+      "path": "artifacts/final_acceptance/full_pytest_output.txt",
+      "reason": "canonical full test suite execution evidence"
+    }
+  ]
+}

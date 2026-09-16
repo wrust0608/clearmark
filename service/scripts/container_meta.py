@@ -2490,14 +2490,20 @@ def _scrub_ooxml_zip(
 
 
 def clean_docx(
-    data: bytes, *, also_layer_a_text: bool = True, normalize_spaces: bool = True
+    data: bytes, *, also_layer_a_text: bool = True, normalize_spaces: bool = False
 ) -> tuple[bytes, list[str]]:
-    return _scrub_ooxml_zip(
+    """Lossless DOCX cleaner implementing DETECT -> PLAN -> MINIMAL PATCH -> VALIDATE -> OUTPUT."""
+    from docx import clean_docx_lossless
+
+    cleaned_bytes, report = clean_docx_lossless(
         data,
-        "docx",
-        also_layer_a_text=also_layer_a_text,
-        normalize_spaces=normalize_spaces,
+        options={
+            "mode": "SAFE",
+            "normalize_spaces": normalize_spaces,
+            "also_layer_a_text": also_layer_a_text,
+        },
     )
+    return cleaned_bytes, report.get("actions", [])
 
 
 def clean_xlsx(
@@ -4307,7 +4313,7 @@ def clean_container(
         meta.update(meta_extra)
     elif fmt == "docx":
         cleaned, actions = clean_docx(
-            data, also_layer_a_text=also_layer_a_text, normalize_spaces=normalize_spaces
+            data, also_layer_a_text=also_layer_a_text, normalize_spaces=False
         )
         safe_write_bytes(dest, cleaned)
     elif fmt == "xlsx":

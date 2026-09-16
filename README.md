@@ -23,7 +23,18 @@ Agent skill + stdlib Python service to strip **multi-vendor AI provenance marks*
 
 Vendors / ecosystems (class-level): **Claude**, **Gemini / SynthID-Text**, **OpenAI** provenance surfaces, **open-LLM** Kirchenbauer-style (green-list) and keyed-Gumbel / EXP (Aaronson) marks.
 
-**Latest release:** [v0.7.0](https://github.com/guillaumemeyer/watermarks-remover/releases/tag/v0.7.0)
+### 🛡️ Lossless Document Fidelity Engine (DOCX & OOXML)
+
+The DOCX subsystem operates under a **Zero-Damage Document Fidelity Guarantee**:
+- **Architectural Paradigm**: `DETECT -> PLAN -> MINIMAL PATCH -> VALIDATE -> OUTPUT` *(Destructive `PARSE -> NORMALIZE -> REBUILD` is permanently eliminated)*.
+- **Zero Word Gluing**: Run-level carrier detection and automatic `xml:space="preserve"` injection prevent word concatenation (e.g. preserving exact compound word boundaries like `"Quản lý"`).
+- **Non-Text Object Invariance**: 100% preserves tables (`w:tbl`), DrawingML shapes, math equations (`m:oMath`), track changes, bookmarks, and field codes.
+- **Byte-Safe Raw OPC Preservation**: Raw ZIP pass-through copies local file headers and deflated payloads byte-for-byte for all non-target members, preserving original compression flags (`flag_bits = 6`), external attributes, and raw payload digests.
+- **Fail-Closed Verification**: Built-in 4-layer runtime validator audits package integrity, non-target hash invariance, canonical visible text equality, and structural invariants before output, rolling back seamlessly on any discrepancy. Extended release verification applies 5 quality gates including formatting fingerprints, rendered page count, and visual pixel comparisons.
+- **Local Privacy Guarantee**: DOCX Safe/Lossless cleaning pipeline performs entirely locally and does not make network requests. Optional supported plain-text rewrite backends may access the network only when explicitly enabled by the user.
+
+- **Local fork release candidate**: `v2.0.0-RC2`
+- **Upstream latest release**: [v0.7.0](https://github.com/guillaumemeyer/watermarks-remover/releases/tag/v0.7.0)
 
 Skill path: [`skills/remove-ai-marks/`](skills/remove-ai-marks/)  
 Service path: [`service/`](service/)  
@@ -245,6 +256,42 @@ make serve                 # http://127.0.0.1:8765
 # or directly:
 python3 service/scripts/server.py --host 127.0.0.1 --port 8765
 ```
+
+### Built-in web app
+
+Open `http://127.0.0.1:8765/` after starting the service. The bundled ClearMark
+interface supports drag-and-drop, inspection, cleaning, and downloading without
+uploading files to a third-party service. Text files use the dependency-free
+Layer A cleaner in the browser workflow; API clients retain the stricter Layer B
+rewrite default.
+
+On Windows, the included launcher finds either the system Python or Codex's
+bundled Python runtime:
+
+```powershell
+.\start-app.ps1
+```
+
+For the simplest desktop workflow, double-click `ClearMark.cmd` and choose:
+
+- `1` to start the server in the background and open the app;
+- `2` to stop the managed server and all of its child processes;
+- `3` to see its PID and current memory usage.
+
+The runtime PID record lives under the ignored `.run/` directory. The stop action
+validates both the saved PID and its process start time before terminating it,
+which prevents an old PID file from stopping an unrelated process.
+
+To make the app available to trusted devices on the same LAN, bind to all local
+interfaces and require an API key. Enter the same key under **Khóa truy cập** in
+the web interface:
+
+```powershell
+.\start-app.ps1 -ListenAddress 0.0.0.0 -ApiKey "choose-a-long-random-key"
+```
+
+Do not expose the service directly to the public internet; use an authenticated
+reverse proxy if access from outside the trusted network is required.
 
 ### Windows (no Docker)
 

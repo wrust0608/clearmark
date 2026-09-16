@@ -38,8 +38,28 @@
 !/requirements-dev.txt
 !/ruff.toml
 !/SECURITY.md
+!/ClearMark.cmd
+!/Open-ClearMark.cmd
+!/Stop-ClearMark.cmd
+!/assets/
+!/assets/**
+!/clearmark-manager.ps1
+!/start-app.ps1
 !/stealer/
 !/stealer/**
+!/tools/
+!/tools/**
+!/00_REVIEW_SUMMARY.md
+!/RELEASE_NOTES.md
+!/MASTER_IMPLEMENTATION_PLAN.md
+!/CLEANUP_PLAN.md
+!/manifests/
+!/manifests/**
+!/01_GOLDEN_ORIGINAL_UNTOUCHED.docx
+!/02_BAD_OUTPUT_RUN_EXPLOSION.docx
+!/03_INTERMEDIATE_OUTPUT_LAYOUT_REGRESSION.docx
+!/04_CANDIDATE_LOSSLESS_OUTPUT.docx
+!/WATERMARK_DOCX_3_BASELINES.zip
 
 # Exceptions even inside allowed trees
 .env

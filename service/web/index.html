@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Công cụ nội bộ làm sạch metadata và dấu vết AI khỏi tệp bạn sở hữu.">
+  <title>ClearMark · Làm sạch tệp nội bộ</title>
+  <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="ClearMark — trang chủ">
+        <span class="brand-mark" aria-hidden="true"><i></i><i></i></span>
+        <span>ClearMark</span>
+      </a>
+      <div class="server-state" id="serverState" aria-live="polite">
+        <span class="pulse"></span>
+        <span>Đang kết nối</span>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="eyebrow"><span>01</span> Xử lý tại hạ tầng của bạn</div>
+        <h1>Tệp sạch hơn.<br><em>Dữ liệu vẫn ở nhà.</em></h1>
+        <p class="lede">Loại bỏ metadata, dấu vết C2PA và ký tự ẩn khỏi ảnh, tài liệu, âm thanh hoặc video — ngay trên máy chủ nội bộ.</p>
+      </section>
+
+      <section class="workspace" aria-labelledby="uploadTitle">
+        <div class="drop-zone" id="dropZone">
+          <input id="fileInput" type="file" multiple aria-describedby="fileHelp">
+          <div class="drop-icon" aria-hidden="true">
+            <svg viewBox="0 0 48 48" fill="none"><path d="M24 32V11m0 0-8 8m8-8 8 8M10 30v5a4 4 0 0 0 4 4h20a4 4 0 0 0 4-4v-5"/></svg>
+          </div>
+          <h2 id="uploadTitle">Thả tệp vào đây</h2>
+          <p id="fileHelp">hoặc <button class="text-button" id="browseButton" type="button">chọn từ máy</button></p>
+          <div class="formats">PNG · JPG · PDF · DOCX · MP4 · MP3 · TXT <span>và nhiều định dạng khác</span></div>
+        </div>
+
+        <div class="action-bar" id="actionBar" hidden>
+          <div>
+            <strong id="selectionCount">0 tệp đã chọn</strong>
+            <span id="selectionSize">0 B</span>
+          </div>
+          <div class="actions">
+            <button class="button button-ghost" id="clearButton" type="button">Xóa danh sách</button>
+            <button class="button button-primary" id="cleanAllButton" type="button">
+              <span>Làm sạch tất cả</span>
+              <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m7 4 6 6-6 6"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="file-list" id="fileList" aria-live="polite"></div>
+      </section>
+
+      <section class="trust-row" aria-label="Cam kết xử lý">
+        <article><span>001</span><h3>Riêng tư</h3><p>Trình duyệt chỉ gửi tệp tới máy chủ đang mở trang này.</p></article>
+        <article><span>002</span><h3>Không lưu trữ</h3><p>Tệp được xử lý trong bộ nhớ và thư mục tạm, không tạo thư viện đám mây.</p></article>
+        <article><span>003</span><h3>Giữ nguyên nội dung</h3><p>Mặc định chỉ gỡ metadata và dấu vô hình an toàn; không chỉnh sửa hình ảnh hiển thị.</p></article>
+      </section>
+    </main>
+
+    <footer>
+      <span>Chỉ sử dụng với nội dung bạn sở hữu hoặc được phép xử lý.</span>
+      <button class="settings-toggle" id="settingsToggle" type="button">Khóa truy cập</button>
+    </footer>
+  </div>
+
+  <dialog id="settingsDialog">
+    <form method="dialog" class="settings-card">
+      <div class="dialog-head"><div><span class="eyebrow">Cấu hình</span><h2>Khóa truy cập</h2></div><button class="icon-button" value="cancel" aria-label="Đóng">×</button></div>
+      <p>Nếu máy chủ yêu cầu khóa API, nhập khóa ở đây. Khóa chỉ được giữ trong phiên trình duyệt này.</p>
+      <label for="apiKey">API key</label>
+      <input id="apiKey" type="password" autocomplete="off" placeholder="Để trống nếu máy chủ không yêu cầu">
+      <div class="dialog-actions"><button class="button button-ghost" value="cancel">Hủy</button><button class="button button-primary" id="saveSettings" value="default">Lưu và kiểm tra</button></div>
+    </form>
+  </dialog>
+
+  <template id="fileCardTemplate">
+    <article class="file-card">
+      <div class="file-thumb"><span class="file-ext"></span></div>
+      <div class="file-info">
+        <div class="file-title-row"><h3 class="file-name"></h3><button class="remove-file" type="button" aria-label="Xóa tệp">×</button></div>
+        <div class="file-meta"><span class="file-size"></span><span class="dot">·</span><span class="file-kind">Sẵn sàng</span></div>
+        <div class="progress"><i></i></div>
+        <p class="file-detail"></p>
+      </div>
+      <div class="file-actions">
+        <button class="button button-small inspect-file" type="button">Kiểm tra</button>
+        <button class="button button-small button-dark clean-file" type="button">Làm sạch</button>
+        <button class="button button-small button-download download-file" type="button" hidden>Tải xuống</button>
+      </div>
+    </article>
+  </template>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="/app.js"></script>
+</body>
+</html>
