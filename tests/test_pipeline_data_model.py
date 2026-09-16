@@ -5,22 +5,25 @@ from __future__ import annotations
 import json
 import pytest
 
-from service.scripts.pipeline_types import (
-    CleaningReport,
-    FileIdentity,
-    InspectionData,
-    PolicySelection,
-    MutationRecord,
-    ValidationOutcome,
-    OutputRecord,
-    PrivacySummary,
-    PipelineStatus,
-    ErrorCode,
-    ProcessingMode,
-    FidelityLevel,
+from service.scripts.format_policy import (
     FormatPolicy,
     FormatPolicyRegistry,
 )
+from service.scripts.pipeline_types import (
+    CleaningReport,
+    ErrorCode,
+    FidelityLevel,
+    FileIdentity,
+    InspectionData,
+    MutationRecord,
+    OutputRecord,
+    PipelineStatus,
+    PolicySelection,
+    PrivacySummary,
+    ProcessingMode,
+    ValidationOutcome,
+)
+
 
 
 def test_pipeline_status_enum():
@@ -189,3 +192,62 @@ def test_format_policy_registry():
     assert png_pol is not None
     assert ".png" in png_pol.extensions
     assert "EXIF" in png_pol.clean_capabilities or "metadata" in png_pol.clean_capabilities
+
+
+def test_format_policy_single_source_of_truth():
+    """Verify service/scripts/format_policy.py is the single authoritative source of truth."""
+    from service.scripts.format_policy import (
+        FormatCapabilities,
+        FormatPolicy as FP_Policy,
+        FormatPolicyRegistry as FP_Registry,
+    )
+    from service.scripts import pipeline_types
+
+    # pipeline_types forwards to format_policy without owning a duplicate class
+    assert pipeline_types.FormatPolicyRegistry is FP_Registry
+    assert pipeline_types.FormatPolicy is FP_Policy
+    assert pipeline_types.FormatCapabilities is FormatCapabilities
+
+    # Authoritative registry instance has format policies
+    reg = FP_Registry.get_default()
+    assert reg.get("docx") is not None
+    assert reg.get("xlsx") is not None
+    assert reg.get("pdf") is not None
+    assert reg.get("png") is not None
+
+
+def test_cleaning_report_privacy_regression_scanning_golden_fixture():
+    """Section 13: Regression test scanning serialized CleaningReport for known fixture text."""
+    from pathlib import Path
+    from service.scripts.pipeline import Pipeline
+
+    golden_path = Path("01_GOLDEN_ORIGINAL_UNTOUCHED.docx")
+    assert golden_path.exists(), "Golden fixture document must exist"
+
+    pipeline = Pipeline()
+    # 1. Inspection report
+    insp_report = pipeline.inspect(golden_path)
+    insp_json = json.dumps(insp_report.to_dict(), ensure_ascii=False)
+
+    # 2. Cleaning report
+    _, clean_report = pipeline.clean(golden_path)
+    clean_json = json.dumps(clean_report.to_dict(), ensure_ascii=False)
+
+    # Known Vietnamese document text fragments present in 01_GOLDEN_ORIGINAL_UNTOUCHED.docx
+    fixture_phrases = [
+        "CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM",
+        "Độc lập - Tự do - Hạnh phúc",
+        "BÁO CÁO",
+        "chất lượng công trình",
+        "nghiệm thu",
+        "chủ đầu tư",
+        "thi công",
+        "tiêu chuẩn",
+    ]
+
+    for phrase in fixture_phrases:
+        assert phrase not in insp_json, f"Fixture text '{phrase}' leaked into inspect CleaningReport JSON!"
+        assert phrase not in clean_json, f"Fixture text '{phrase}' leaked into clean CleaningReport JSON!"
+        assert phrase.lower() not in insp_json.lower(), f"Case-insensitive fixture text '{phrase}' leaked into inspect CleaningReport JSON!"
+        assert phrase.lower() not in clean_json.lower(), f"Case-insensitive fixture text '{phrase}' leaked into clean CleaningReport JSON!"
+

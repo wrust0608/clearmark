@@ -31,12 +31,12 @@ from common import (
     safe_write_bytes,
 )
 from format_dispatch import classify, classify_bytes
+from format_policy import FormatPolicy, FormatPolicyRegistry
 from pipeline_types import (
     CleaningReport,
     ErrorCode,
     FidelityLevel,
     FileIdentity,
-    FormatPolicyRegistry,
     InspectionData,
     MutationRecord,
     OutputRecord,
@@ -353,15 +353,11 @@ class Pipeline:
         dest_str: Optional[str] = None
         if in_place and isinstance(input_source, (str, Path)) and is_changed:
             target_path = Path(input_source)
-            temp_path = target_path.with_suffix(f".tmp.{os.getpid()}.{time.time_ns()}{target_path.suffix}")
             try:
-                safe_write_bytes(temp_path, cleaned_bytes)
-                os.replace(temp_path, target_path)
+                safe_write_bytes(target_path, cleaned_bytes)
                 dest_str = str(target_path)
             except Exception as e:
-                if temp_path.exists():
-                    temp_path.unlink(missing_ok=True)
-                raise IOError(f"Atomic replacement failed: {e}") from e
+                raise IOError(f"Atomic in-place replacement failed: {e}") from e
         elif output_path and is_changed:
             out_p = Path(output_path)
             safe_write_bytes(out_p, cleaned_bytes)
