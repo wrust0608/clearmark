@@ -321,8 +321,8 @@ def cmd_verify(args: argparse.Namespace) -> int:
 
     fmt = orig_path.suffix.lower().lstrip(".")
 
-    if fmt != "docx":
-        msg = f"Verification capability is currently supported only for docx documents (got: '{fmt}'). Dedicated verifiers for other formats are planned for subsequent phases."
+    if fmt not in ("docx", "xlsx"):
+        msg = f"Verification capability is currently supported only for docx and xlsx documents (got: '{fmt}'). Dedicated verifiers for other formats are planned for subsequent phases."
         if args.json:
             payload = {
                 "ok": False,
@@ -345,25 +345,45 @@ def cmd_verify(args: argparse.Namespace) -> int:
             sys.stderr.write(f"Error: {msg}\n")
         return ExitCode.UNSUPPORTED
 
-    from tools.verify_document_fidelity import analyze_docx_fidelity
+    if fmt == "docx":
+        from tools.verify_document_fidelity import analyze_docx_fidelity
 
-    # Structural verification only; zero LibreOffice visual launch (Section 10)
-    try:
-        fidelity = analyze_docx_fidelity(orig_bytes, cand_bytes, perform_visual=False)
-        is_pass = (fidelity.get("overall") == "PASS")
-        invariants = [
-            f"paragraphs: {fidelity['paragraphs'][0]} -> {fidelity['paragraphs'][1]}",
-            f"runs: {fidelity['runs'][0]} -> {fidelity['runs'][1]}",
-            f"tables: {fidelity['tables'][0]} -> {fidelity['tables'][1]}",
-            f"manual_page_breaks: {fidelity['manual_page_breaks'][0]} -> {fidelity['manual_page_breaks'][1]}",
-            f"visible_text_exact: {fidelity['visible_text_exact']}",
-            f"non_target_parts_identical: {fidelity['non_target_parts_identical']}",
-        ]
-        warnings = []
-    except Exception as e:
-        is_pass = False
-        invariants = []
-        warnings = [f"Fidelity verification error: {e}"]
+        # Structural verification only; zero LibreOffice visual launch (Section 10)
+        try:
+            fidelity = analyze_docx_fidelity(orig_bytes, cand_bytes, perform_visual=False)
+            is_pass = (fidelity.get("overall") == "PASS")
+            invariants = [
+                f"paragraphs: {fidelity['paragraphs'][0]} -> {fidelity['paragraphs'][1]}",
+                f"runs: {fidelity['runs'][0]} -> {fidelity['runs'][1]}",
+                f"tables: {fidelity['tables'][0]} -> {fidelity['tables'][1]}",
+                f"manual_page_breaks: {fidelity['manual_page_breaks'][0]} -> {fidelity['manual_page_breaks'][1]}",
+                f"visible_text_exact: {fidelity['visible_text_exact']}",
+                f"non_target_parts_identical: {fidelity['non_target_parts_identical']}",
+            ]
+            warnings = []
+        except Exception as e:
+            is_pass = False
+            invariants = []
+            warnings = [f"Fidelity verification error: {e}"]
+    else:  # xlsx
+        from xlsx import XlsxPackage, XlsxFidelityValidator
+
+        try:
+            b_pkg = XlsxPackage(orig_bytes)
+            a_pkg = XlsxPackage(cand_bytes)
+            changed = {m for m in b_pkg.member_order if b_pkg.get_hash(m) != a_pkg.get_hash(m)}
+            dropped = set(b_pkg.member_order) - set(a_pkg.member_order)
+            validator = XlsxFidelityValidator(b_pkg, a_pkg, changed, dropped)
+            fidelity_report = validator.validate()
+            is_pass = fidelity_report.passed
+            invariants = list(fidelity_report.invariants)
+            warnings = list(fidelity_report.warnings)
+            if not is_pass:
+                warnings.extend(fidelity_report.errors)
+        except Exception as e:
+            is_pass = False
+            invariants = []
+            warnings = [f"XLSX fidelity verification error: {e}"]
 
     res_status = "PASS" if is_pass else "FAIL"
 

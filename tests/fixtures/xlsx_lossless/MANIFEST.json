@@ -1,0 +1,129 @@
+{
+  "corpus_name": "xlsx_lossless",
+  "version": "2.1.0",
+  "fixed_timestamp": "2026-01-01T00:00:00Z",
+  "fixture_count": 12,
+  "fixtures": {
+    "synthetic_baseline": {
+      "filename": "synthetic_baseline.xlsx",
+      "category": "baseline",
+      "description": "Clean 2-sheet workbook with shared strings, inline string, rich text, formula, styles, merged range, and hyperlink",
+      "tested_codepoints": [],
+      "expected_mutations": 0,
+      "sha256": "f375858c68db4e285e056328a3fc595acd3771a958ce1a26dcf1095d1dab12f1"
+    },
+    "carrier_shared_string": {
+      "filename": "carrier_shared_string.xlsx",
+      "category": "positive_carrier",
+      "description": "U+200B carrier embedded inside xl/sharedStrings.xml <si><t>",
+      "tested_codepoints": [
+        "U+200B"
+      ],
+      "expected_mutations": 1,
+      "sha256": "f8296244600d67754d5870bc5227835f27b16c2dec1d8c8ca4a10bccbde0c415"
+    },
+    "carrier_inline_string": {
+      "filename": "carrier_inline_string.xlsx",
+      "category": "positive_carrier",
+      "description": "U+200C carrier embedded inside sheet1.xml inline string <is><t>",
+      "tested_codepoints": [
+        "U+200C"
+      ],
+      "expected_mutations": 1,
+      "sha256": "7ef4c0e2754bba30fe3365fa45f66b36e2d3ead6e6b382b23a4fa2815173aa74"
+    },
+    "carrier_rich_text": {
+      "filename": "carrier_rich_text.xlsx",
+      "category": "positive_carrier",
+      "description": "U+200D carrier embedded inside rich text run <si><r><t>",
+      "tested_codepoints": [
+        "U+200D"
+      ],
+      "expected_mutations": 1,
+      "sha256": "bb209ed558bd1821754cf727fd974d6518db5e829d3a09f325f23a1d21b85bce"
+    },
+    "carrier_cross_reference": {
+      "filename": "carrier_cross_reference.xlsx",
+      "category": "positive_carrier",
+      "description": "Multiple cells (A1, B1, C1) reference the same shared string index containing U+200B",
+      "tested_codepoints": [
+        "U+200B"
+      ],
+      "expected_mutations": 1,
+      "sha256": "6f339add15f97bfe26fb2bef17478f365da3308898b7de654490e883b84716ed"
+    },
+    "carrier_mixed": {
+      "filename": "carrier_mixed.xlsx",
+      "category": "positive_carrier",
+      "description": "Carriers across shared strings, inline string, rich text, core.xml, app.xml, customXml, and custom.xml",
+      "tested_codepoints": [
+        "U+200B",
+        "U+E0001"
+      ],
+      "expected_mutations": 7,
+      "sha256": "8b3b319fbc6f5e6d38108c26993d60afdbfed2e4277e67fc484a0da5be88d1a1"
+    },
+    "carrier_and_legitimate_unicode": {
+      "filename": "carrier_and_legitimate_unicode.xlsx",
+      "category": "positive_carrier",
+      "description": "Carrier U+200B alongside legitimate emoji ZWJ, Persian ZWNJ, Devanagari conjuncts, and NBSP",
+      "tested_codepoints": [
+        "U+200B"
+      ],
+      "expected_mutations": 1,
+      "sha256": "1ae4fbb65724746a5610f580aea32d4e9dd38c0494fbee75e3c51f1a4438c9fe"
+    },
+    "counterexample_emoji_zwj": {
+      "filename": "counterexample_emoji_zwj.xlsx",
+      "category": "counterexample",
+      "description": "Legitimate emoji ZWJ sequence (U+200D in \ud83d\udc68\u200d\ud83d\udc69\u200d\ud83d\udc67\u200d\ud83d\udc66); expected zero mutations",
+      "tested_codepoints": [
+        "U+200D (in emoji sequence)"
+      ],
+      "expected_mutations": 0,
+      "sha256": "6a18d02525a918afd17b05a9d66e3fcf4f12844e279fa9110256b9bb5f342588"
+    },
+    "counterexample_arabic_joiner": {
+      "filename": "counterexample_arabic_joiner.xlsx",
+      "category": "counterexample",
+      "description": "Legitimate Persian orthographic ZWNJ (U+200C in \u0645\u06cc\u200c\u0631\u0648\u0645); expected zero mutations",
+      "tested_codepoints": [
+        "U+200C (in Persian text)"
+      ],
+      "expected_mutations": 0,
+      "sha256": "6ea934b78e144dd4811e01015acf578db5fbbcf0f5302dd207bf619012b61a01"
+    },
+    "counterexample_devanagari": {
+      "filename": "counterexample_devanagari.xlsx",
+      "category": "counterexample",
+      "description": "Legitimate Devanagari halant conjunct (U+200D in \u0915\u094d\u200d\u0937); expected zero mutations",
+      "tested_codepoints": [
+        "U+200D (in Devanagari text)"
+      ],
+      "expected_mutations": 0,
+      "sha256": "9ec880b1bd7d99e8d8ee406a5e23fa25415594ed54006e8edfa1c817acefe57d"
+    },
+    "counterexample_nbsp": {
+      "filename": "counterexample_nbsp.xlsx",
+      "category": "counterexample",
+      "description": "Typographic spaces (U+00A0 NBSP and U+202F NNBSP); expected zero mutations in SAFE mode",
+      "tested_codepoints": [
+        "U+00A0",
+        "U+202F"
+      ],
+      "expected_mutations": 0,
+      "sha256": "942d680bac989e31698c4ea1799d3e51a1e20bab742188a6ffa24ee56b9fcdf0"
+    },
+    "counterexample_nfc_nfd": {
+      "filename": "counterexample_nfc_nfd.xlsx",
+      "category": "counterexample",
+      "description": "Distinct NFC (U+00E9) and NFD (U+0065 U+0301) encodings preserved without forced normalization",
+      "tested_codepoints": [
+        "U+00E9",
+        "U+0301"
+      ],
+      "expected_mutations": 0,
+      "sha256": "9c9246da28f71662fb465d78ba14660248fa802348dfdfba70d11c970388d22b"
+    }
+  }
+}

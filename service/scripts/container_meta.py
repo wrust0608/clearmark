@@ -2507,14 +2507,20 @@ def clean_docx(
 
 
 def clean_xlsx(
-    data: bytes, *, also_layer_a_text: bool = True, normalize_spaces: bool = True
+    data: bytes, *, also_layer_a_text: bool = True, normalize_spaces: bool = False
 ) -> tuple[bytes, list[str]]:
-    return _scrub_ooxml_zip(
+    """Lossless XLSX cleaner implementing DETECT -> PLAN -> MINIMAL PATCH -> VALIDATE -> OUTPUT."""
+    from xlsx import clean_xlsx_lossless
+
+    cleaned_bytes, report = clean_xlsx_lossless(
         data,
-        "xlsx",
-        also_layer_a_text=also_layer_a_text,
-        normalize_spaces=normalize_spaces,
+        options={
+            "mode": "SAFE",
+            "normalize_spaces": normalize_spaces,
+            "also_layer_a_text": also_layer_a_text,
+        },
     )
+    return cleaned_bytes, report.get("actions", [])
 
 
 def clean_pptx(

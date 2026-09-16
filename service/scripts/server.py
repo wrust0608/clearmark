@@ -1703,13 +1703,13 @@ class Handler(BaseHTTPRequestHandler):
         orig_sha = hashlib.sha256(orig_bytes).hexdigest()
         cand_sha = hashlib.sha256(cand_bytes).hexdigest()
 
-        if fmt != "docx":
+        if fmt not in ("docx", "xlsx"):
             self._respond(HTTPStatus.UNSUPPORTED_MEDIA_TYPE, {
                 "ok": False,
                 "status": "UNSUPPORTED",
                 "format": fmt,
                 "error_code": "UNSUPPORTED_VERIFICATION_CAPABILITY",
-                "error": f"Verification capability is currently supported only for docx documents (got: '{fmt}'). Dedicated verifiers for other formats are planned for subsequent phases.",
+                "error": f"Verification capability is currently supported only for docx and xlsx documents (got: '{fmt}'). Dedicated verifiers for other formats are planned for subsequent phases.",
                 "validation": {
                     "structural_invariants_passed": False,
                 },
@@ -1722,23 +1722,42 @@ class Handler(BaseHTTPRequestHandler):
             })
             return
 
-        from tools.verify_document_fidelity import analyze_docx_fidelity
-        try:
-            fidelity = analyze_docx_fidelity(orig_bytes, cand_bytes, perform_visual=False)
-            is_pass = (fidelity.get("overall") == "PASS")
-            invariants = [
-                f"paragraphs: {fidelity['paragraphs'][0]} -> {fidelity['paragraphs'][1]}",
-                f"runs: {fidelity['runs'][0]} -> {fidelity['runs'][1]}",
-                f"tables: {fidelity['tables'][0]} -> {fidelity['tables'][1]}",
-                f"manual_page_breaks: {fidelity['manual_page_breaks'][0]} -> {fidelity['manual_page_breaks'][1]}",
-                f"visible_text_exact: {fidelity['visible_text_exact']}",
-                f"non_target_parts_identical: {fidelity['non_target_parts_identical']}",
-            ]
-            warnings = []
-        except Exception as e:
-            is_pass = False
-            invariants = []
-            warnings = [f"Fidelity verification error: {e}"]
+        if fmt == "docx":
+            from tools.verify_document_fidelity import analyze_docx_fidelity
+            try:
+                fidelity = analyze_docx_fidelity(orig_bytes, cand_bytes, perform_visual=False)
+                is_pass = (fidelity.get("overall") == "PASS")
+                invariants = [
+                    f"paragraphs: {fidelity['paragraphs'][0]} -> {fidelity['paragraphs'][1]}",
+                    f"runs: {fidelity['runs'][0]} -> {fidelity['runs'][1]}",
+                    f"tables: {fidelity['tables'][0]} -> {fidelity['tables'][1]}",
+                    f"manual_page_breaks: {fidelity['manual_page_breaks'][0]} -> {fidelity['manual_page_breaks'][1]}",
+                    f"visible_text_exact: {fidelity['visible_text_exact']}",
+                    f"non_target_parts_identical: {fidelity['non_target_parts_identical']}",
+                ]
+                warnings = []
+            except Exception as e:
+                is_pass = False
+                invariants = []
+                warnings = [f"Fidelity verification error: {e}"]
+        else:  # xlsx
+            from xlsx import XlsxPackage, XlsxFidelityValidator
+            try:
+                b_pkg = XlsxPackage(orig_bytes)
+                a_pkg = XlsxPackage(cand_bytes)
+                changed = {m for m in b_pkg.member_order if b_pkg.get_hash(m) != a_pkg.get_hash(m)}
+                dropped = set(b_pkg.member_order) - set(a_pkg.member_order)
+                validator = XlsxFidelityValidator(b_pkg, a_pkg, changed, dropped)
+                fidelity_report = validator.validate()
+                is_pass = fidelity_report.passed
+                invariants = list(fidelity_report.invariants)
+                warnings = list(fidelity_report.warnings)
+                if not is_pass:
+                    warnings.extend(fidelity_report.errors)
+            except Exception as e:
+                is_pass = False
+                invariants = []
+                warnings = [f"XLSX fidelity verification error: {e}"]
 
         res_status = "PASS" if is_pass else "FAIL"
         resp_code = HTTPStatus.OK if is_pass else HTTPStatus.UNPROCESSABLE_ENTITY

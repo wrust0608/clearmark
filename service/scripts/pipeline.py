@@ -300,6 +300,77 @@ class Pipeline:
                     error_code=ErrorCode.INVALID_CONTAINER,
                     error_message=f"Invalid or corrupted DOCX archive: {e}",
                 )
+        elif fmt == "xlsx":
+            try:
+                from xlsx import XlsxDetector, XlsxPackage
+
+                detectors_run.extend([
+                    "XlsxDetector",
+                    "XlsxMetadataDetector",
+                    "XlsxUnicodeDetector",
+                    "XlsxMediaDetector",
+                ])
+
+                pkg = XlsxPackage(data)
+                detector = XlsxDetector(pkg, {"mode": mode.value})
+                plan = detector.build_plan()
+
+                for tm in plan.text_mutations:
+                    findings.append(
+                        Finding(
+                            detector_id="XlsxUnicodeDetector",
+                            category="unicode_carrier",
+                            target_part=tm.part_name,
+                            location=tm.location,
+                            codepoint=f"U+{tm.codepoint:04X}",
+                            reason=tm.char_name,
+                        )
+                    )
+                for mm in plan.metadata_mutations:
+                    findings.append(
+                        Finding(
+                            detector_id="XlsxMetadataDetector",
+                            category="metadata_provenance",
+                            target_part=mm.part_name,
+                            metadata_key=mm.tag_name,
+                            reason=mm.label,
+                        )
+                    )
+                for pd in plan.part_drops:
+                    findings.append(
+                        Finding(
+                            detector_id="XlsxMetadataDetector",
+                            category="part_drop",
+                            target_part=pd.part_name,
+                            reason=pd.reason,
+                        )
+                    )
+                for med in plan.media_mutations:
+                    findings.append(
+                        Finding(
+                            detector_id="XlsxMediaDetector",
+                            category="media_metadata",
+                            target_part=med.part_name,
+                            reason=med.reason,
+                        )
+                    )
+            except Exception as e:
+                return CleaningReport(
+                    status=PipelineStatus.ERROR,
+                    input=ident,
+                    inspection=InspectionData(
+                        detectors_run=detectors_run,
+                        detection_status=DetectionStatus.UNAVAILABLE,
+                    ),
+                    policy=PolicySelection(mode=mode, format_policy=fmt),
+                    mutation_plan=MutationRecord(),
+                    validation=ValidationOutcome(status="FAIL", warnings=[str(e)]),
+                    output=OutputRecord(changed=False, would_change=False, size=size, sha256=sha),
+                    privacy=PrivacySummary(network_used=False),
+                    performance_elapsed_ms=(time.perf_counter() - t0) * 1000.0,
+                    error_code=ErrorCode.INVALID_CONTAINER,
+                    error_message=f"Invalid or corrupted XLSX archive: {e}",
+                )
         elif fmt in ("png", "jpeg", "jpg", "webp", "gif", "bmp", "tiff", "avif", "heic"):
             try:
                 from image_meta import inspect_image
@@ -544,6 +615,14 @@ class Pipeline:
                 mutations = _docx_plan_to_mutations(plan)
                 changed_parts = sorted(plan.changed_parts())
                 plan_is_empty = plan.is_empty()
+            elif fmt == "xlsx":
+                from xlsx import XlsxDetector, XlsxPackage
+
+                pkg = XlsxPackage(data)
+                plan = XlsxDetector(pkg, opts).build_plan()
+                mutations = plan.to_mutations_list()
+                changed_parts = sorted(plan.changed_parts())
+                plan_is_empty = plan.is_empty()
             elif fmt in ("png", "jpeg", "jpg", "webp", "gif", "bmp", "tiff", "avif", "heic", "txt", "md", "html", "latex", "pdf", "odt", "ods", "odp", "epub"):
                 # For non-docx formats, check if inspection detected actionable markers
                 plan_is_empty = insp_report.inspection.detection_status == DetectionStatus.NOT_DETECTED
@@ -569,7 +648,7 @@ class Pipeline:
                 policy=PolicySelection(
                     mode=mode,
                     format_policy=fmt,
-                    normalize_spaces=False if fmt == "docx" else policy.allow_destructive_normalization,
+                    normalize_spaces=False if fmt in ("docx", "xlsx") else policy.allow_destructive_normalization,
                 ),
                 mutation_plan=MutationRecord(mutations=mutations, changed_parts=changed_parts),
                 validation=ValidationOutcome(status="SKIPPED", warnings=dry_run_warnings),
@@ -624,6 +703,51 @@ class Pipeline:
                         f"breaks:{inv.page_breaks_before}->{inv.page_breaks_after}",
                         f"visible_text_identical:{inv.visible_text_identical}",
                     ]
+                else:
+                    invariants_checked = ["fidelity_guaranteed:True"]
+            except Exception as e:
+                report = CleaningReport(
+                    status=PipelineStatus.VALIDATION_FAILED,
+                    input=ident,
+                    inspection=insp_report.inspection,
+                    policy=PolicySelection(mode=mode, format_policy=fmt),
+                    mutation_plan=MutationRecord(),
+                    validation=ValidationOutcome(status="FAIL", warnings=[str(e)]),
+                    output=OutputRecord(changed=False, would_change=False, size=size, sha256=sha),
+                    privacy=PrivacySummary(network_used=False),
+                    performance_elapsed_ms=(time.perf_counter() - t0) * 1000.0,
+                    error_code=ErrorCode.VALIDATION_FAILED,
+                    error_message=f"Validation failed: {e}",
+                )
+                return data, report
+        elif fmt == "xlsx":
+            from xlsx import XlsxDetector, XlsxPackage, clean_xlsx_lossless
+
+            try:
+                pkg = XlsxPackage(data)
+                pre_plan = XlsxDetector(pkg, opts).build_plan()
+                mutations_applied = pre_plan.to_mutations_list()
+                parts_changed = sorted(pre_plan.changed_parts())
+
+                cleaned_bytes, xlsx_report = clean_xlsx_lossless(data, options=opts)
+                if xlsx_report.get("error"):
+                    err_msg = xlsx_report["error"]
+                    return data, CleaningReport(
+                        status=PipelineStatus.VALIDATION_FAILED,
+                        input=ident,
+                        inspection=insp_report.inspection,
+                        policy=PolicySelection(mode=mode, format_policy=fmt),
+                        mutation_plan=MutationRecord(),
+                        validation=ValidationOutcome(status="FAIL", warnings=[err_msg]),
+                        output=OutputRecord(changed=False, would_change=False, size=size, sha256=sha),
+                        privacy=PrivacySummary(network_used=False),
+                        performance_elapsed_ms=(time.perf_counter() - t0) * 1000.0,
+                        error_code=ErrorCode.VALIDATION_FAILED,
+                        error_message=f"Validation failed: {err_msg}",
+                    )
+                val_rep = xlsx_report.get("validation")
+                if val_rep and hasattr(val_rep, "invariants"):
+                    invariants_checked = list(val_rep.invariants)
                 else:
                     invariants_checked = ["fidelity_guaranteed:True"]
             except Exception as e:
@@ -726,7 +850,7 @@ class Pipeline:
             policy=PolicySelection(
                 mode=mode,
                 format_policy=fmt,
-                normalize_spaces=False if fmt == "docx" else policy.allow_destructive_normalization,
+                normalize_spaces=False if fmt in ("docx", "xlsx") else policy.allow_destructive_normalization,
                 remote_processing=False,
             ),
             mutation_plan=MutationRecord(mutations=mutations_applied, changed_parts=parts_changed),

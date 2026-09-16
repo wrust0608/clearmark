@@ -76,9 +76,10 @@ _POLICIES: dict[str, FormatFidelityPolicy] = {
     "xlsx": FormatFidelityPolicy(
         fmt="xlsx",
         category=FormatCategory.SPREADSHEET,
-        default_normalize_spaces=True,
-        allow_llm_rewrite=False,
+        default_normalize_spaces=False,  # NBSP must be preserved
+        allow_llm_rewrite=False,          # LLM rewrite banned on XLSX
         structural_invariants_required=True,
+        fail_closed=True,
     ),
     # Presentations (PPTX)
     "pptx": FormatFidelityPolicy(
@@ -347,19 +348,20 @@ class FormatPolicyRegistry:
             )
         )
 
-        # XLSX: Structured OOXML Spreadsheet (Levels A, B, C)
+        # XLSX: Structured OOXML Spreadsheet (Levels A, B, C, D)
         reg.register(
             FormatPolicy(
                 format_name="xlsx",
                 extensions=(".xlsx",),
-                inspect_capabilities=("metadata", "docProps", "customXml", "sharedStrings", "media_c2pa"),
-                clean_capabilities=("docProps_scrub", "customXml_drop", "sharedStrings_carrier_remove", "media_meta_strip", "raw_opc_preservation"),
-                fidelity_requirements=(FidelityLevel.LEVEL_A, FidelityLevel.LEVEL_B, FidelityLevel.LEVEL_C),
+                inspect_capabilities=("metadata", "docProps", "customXml", "sharedStrings", "inlineStrings", "media_c2pa"),
+                clean_capabilities=("docProps_scrub", "customXml_drop", "sharedStrings_carrier_remove", "inlineStrings_carrier_remove", "media_meta_strip", "raw_opc_preservation"),
+                fidelity_requirements=(FidelityLevel.LEVEL_A, FidelityLevel.LEVEL_B, FidelityLevel.LEVEL_C, FidelityLevel.LEVEL_D),
                 destructive_operations=(),
                 optional_dependencies=(),
                 network_policy="LOCAL_ONLY",
                 default_mode=ProcessingMode.SAFE,
                 allow_destructive_normalization=False,
+                verify_capabilities=("structural_invariants", "raw_opc_invariants", "formula_exact", "style_invariants", "shared_string_invariants"),
             )
         )
 

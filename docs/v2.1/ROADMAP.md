@@ -215,10 +215,10 @@ class CleaningReport:
 - **Files**: `docs/v2.1/PHASE6_CARRIER_RULE_MATRIX.md`, `docs/v2.1/PHASE6_DOCX_BODY_CARRIER_REPORT.md`, `tests/fixtures/docx_body_carriers/build_fixtures.py`, `tests/fixtures/docx_body_carriers/MANIFEST.json`, `tests/test_docx_body_carriers.py`.
 - **Gate**: PASS. Deterministic 12-fixture corpus with cryptographic SHA256 provenance generated without external dependencies. Zero false positives and zero false negatives against declared expectations. Invariant run count (`run_count_before == run_count_after`), paragraph count, table count, cell count, manual page breaks (`<w:br w:type="page"/>`), and tabs across all positive fixtures. Byte-for-byte preservation of legitimate contextual Unicode: emoji ZWJ sequences (family, profession, gendered), Arabic/Persian orthographic joiners, Devanagari shaping conjuncts, protected typographic spaces (U+00A0 NBSP, U+202F NNBSP), and NFC/NFD distinct representations. Non-target OPC package members byte-for-byte identical. Pipeline inspection, dry-run parity, report privacy, zero network egress, and second-pass cleaning idempotence verified. Canonical v2.0 Golden regression passed. DOCX frozen core diff against v2.0.0: EMPTY. Full pytest regression: 1525 passed, 152 skipped, 0 failed, 0 warnings in 71.48s.
 
-### Phase 7: XLSX Lossless Adapter
+### Phase 7: XLSX Lossless Adapter (COMPLETED)
 - **Objective**: Implement `service/scripts/xlsx/` following `DETECT -> PLAN -> MINIMAL PATCH -> VALIDATE`.
-- **Files**: `service/scripts/xlsx/*`, `tests/test_xlsx_lossless.py`.
-- **Gate**: SharedStrings, formulas, cell styling, and sheet structures invariant.
+- **Files**: `service/scripts/xlsx/*`, `docs/v2.1/PHASE7_XLSX_RULE_MATRIX.md`, `docs/v2.1/PHASE7_XLSX_LOSSLESS_REPORT.md`, `tests/fixtures/xlsx_lossless/build_fixtures.py`, `tests/fixtures/xlsx_lossless/MANIFEST.json`, `tests/test_xlsx_lossless.py`.
+- **Gate**: PASS. Shared strings never re-indexed/deduplicated; rich text runs preserved; formula expressions `<f>`, attributes, and cached values `<v>` 100% invariant; styles preserved byte-identical; strict raw OPC non-target pass-through; empty-plan zero-copy identity; fail-closed validation safety; report privacy; zero network. Focused Phase 7 test suite: 27 passed, 0 failed in 1.91s. DOCX frozen core diff against v2.0.0: EMPTY. Full regression: 1557 passed, 152 skipped, 0 failed, 0 warnings in 97.52s.
 
 ### Phase 8: PPTX Lossless Adapter
 - **Objective**: Implement `service/scripts/pptx/` following `DETECT -> PLAN -> MINIMAL PATCH -> VALIDATE`.
