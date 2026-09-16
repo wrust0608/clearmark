@@ -34,7 +34,12 @@ Every part within a PowerPoint `.pptx` Open Packaging Conventions (OPC) containe
 | `ppt/tableStyles.xml` | `PRESERVE_RAW` | Byte-for-byte passthrough | Table styling definitions preserved raw. |
 | `ppt/presProps.xml` | `PRESERVE_RAW` | Byte-for-byte passthrough | Presentation display properties preserved raw. |
 | `_rels/.rels` | `PRESERVE_RAW` | Byte-for-byte passthrough | Top-level package relationships preserved intact. |
-| `ppt/_rels/*.rels` | `PRESERVE_RAW` | Byte-for-byte passthrough | Presentation, slide, layout, and master relationships preserved verbatim. |
+| `ppt/_rels/*.rels` | `PRESERVE_RAW` | Byte-for-byte passthrough | Presentation relationships (`ppt/_rels/presentation.xml.rels`) preserved verbatim. |
+| `ppt/slides/_rels/*.rels` | `PRESERVE_RAW` | Byte-for-byte passthrough | Slide relationships (hyperlinks, layout references, media targets) preserved verbatim. |
+| `ppt/slideLayouts/_rels/*.rels` | `PRESERVE_RAW` | Byte-for-byte passthrough | Slide layout relationships (master references) preserved verbatim. |
+| `ppt/slideMasters/_rels/*.rels` | `PRESERVE_RAW` | Byte-for-byte passthrough | Slide master relationships (theme references) preserved verbatim. |
+| `ppt/notesSlides/_rels/*.rels` | `PRESERVE_RAW` | Byte-for-byte passthrough | Notes slide relationships (slide references) preserved verbatim. |
+| `**/_rels/*.rels` | `PRESERVE_RAW` | Byte-for-byte passthrough | Recursive rule: all package relationship streams are strictly preserved raw. |
 | `[Content_Types].xml` | `PRESERVE_RAW` | Byte-for-byte passthrough | MIME overrides and extension defaults preserved intact. |
 | `vbaProject.bin` | `UNSUPPORTED` | FAIL_CLOSED | Macro-enabled presentations (`.pptm` / `.ppsm`) or embedded VBA code trigger fail-closed rollback. |
 | `_xmlsignatures/*` | `UNSUPPORTED` | FAIL_CLOSED | Digitally signed packages trigger fail-closed rollback to prevent generating invalid signatures. |
@@ -94,3 +99,6 @@ The detector applies strict contextual awareness to prevent false positives:
 - **Typographic Non-Breaking Spaces**: `U+00A0` (NBSP) and `U+202F` (NNBSP) are preserved (0 FP).
 - **Unicode Normal Forms**: NFC and NFD encodings are preserved without canonical normalization.
 - **Empty-Plan Zero-Copy**: Clean presentations with no detected carriers return the exact input bytes (`output_bytes is input_bytes`, SHA-256 identical, zero ZIP repackaging).
+
+> [!NOTE]
+> All false-positive (0 FP) and false-negative (0 FN) assertions are strictly scoped to the declared Phase 8 test corpus (`tests/fixtures/pptx_lossless/MANIFEST.json`). Surfaces not present in the corpus (comments, charts, SmartArt, embeddings) are classified as `NOT_TESTED_PRESERVE_POLICY`.

@@ -62,6 +62,7 @@ from service.scripts.pipeline import Pipeline
 from service.scripts.pipeline_types import (
     CleaningReport,
     DetectionStatus,
+    ErrorCode,
     PipelineStatus,
     ProcessingMode,
 )
@@ -688,4 +689,230 @@ def test_legacy_path_no_double_cleaning(monkeypatch):
     assert call_count == 1, f"Expected clean_pptx_lossless called once, got {call_count}"
     assert len(cleaned_bytes) > 0
     assert len(actions) > 0
+
+
+# 26. Negative Witness: Nested Slide Relationship Drift (Sections 3, 4)
+def test_negative_witness_nested_relationship_drift(tmp_path):
+    orig_path = FIXTURES_DIR / "synthetic_clean_baseline.pptx"
+    orig_bytes = orig_path.read_bytes()
+    pkg = PptxPackage(orig_bytes)
+    rels_part = "ppt/slides/_rels/slide1.xml.rels"
+    orig_rels = pkg.get_member(rels_part)
+
+    # Modify Target without altering slide XML
+    bad_target_rels = orig_rels.replace(b"slideLayout1.xml", b"slideLayout99.xml")
+    cand_bytes = pkg.build_patched_package({rels_part: bad_target_rels})
+
+    # A. PptxFidelityValidator MUST fail
+    val = PptxFidelityValidator(orig_bytes, cand_bytes)
+    rep = val.validate()
+    assert rep.passed is False
+    assert any("Slide relationships drift in ppt/slides/_rels/slide1.xml.rels" in err for err in rep.errors)
+
+    # B. CLI two-file verify MUST fail
+    orig_file = tmp_path / "orig.pptx"
+    cand_file = tmp_path / "cand.pptx"
+    orig_file.write_bytes(orig_bytes)
+    cand_file.write_bytes(cand_bytes)
+
+    import io
+    from contextlib import redirect_stdout
+    out = io.StringIO()
+    with redirect_stdout(out):
+        ret = cli_main(["verify", str(orig_file), str(cand_file), "--json"])
+    assert ret != 0
+    cli_rep = json.loads(out.getvalue())
+    assert cli_rep.get("status") == "FAIL"
+    assert cli_rep.get("ok") is False
+
+    # C. HTTP /verify MUST fail with 422
+    import http.client
+    import threading
+    import server
+
+    srv = server.ThreadingHTTPServer(("127.0.0.1", 0), server.Handler)
+    thread = threading.Thread(target=srv.serve_forever, daemon=True)
+    thread.start()
+    try:
+        conn = http.client.HTTPConnection("127.0.0.1", srv.server_address[1])
+        payload = {
+            "original": base64.b64encode(orig_bytes).decode("ascii"),
+            "candidate": base64.b64encode(cand_bytes).decode("ascii"),
+            "name": "presentation.pptx",
+        }
+        conn.request("POST", "/verify", body=json.dumps(payload), headers={"Content-Type": "application/json"})
+        resp = conn.getresponse()
+        body = json.loads(resp.read().decode("utf-8"))
+        assert resp.status == 422
+        assert body.get("ok") is False
+        assert body.get("status") == "FAIL"
+        assert any("Slide relationships drift" in w for w in body.get("warnings", []))
+    finally:
+        conn.close()
+        srv.shutdown()
+        srv.server_close()
+        thread.join(timeout=5)
+
+    # D. Id drift MUST fail
+    bad_id_rels = orig_rels.replace(b"rId1", b"rId99")
+    val_id = PptxFidelityValidator(orig_bytes, pkg.build_patched_package({rels_part: bad_id_rels}))
+    assert val_id.validate().passed is False
+
+    # E. TargetMode drift MUST fail
+    bad_mode_rels = orig_rels.replace(b'slideLayout1.xml"', b'slideLayout1.xml" TargetMode="External"')
+    val_mode = PptxFidelityValidator(orig_bytes, pkg.build_patched_package({rels_part: bad_mode_rels}))
+    assert val_mode.validate().passed is False
+
+
+# 27. Hyperlink, Image, and Layout Relationship Drift Detection (Section 3)
+def test_relationship_targets_types_drift():
+    orig_bytes = (FIXTURES_DIR / "synthetic_clean_baseline.pptx").read_bytes()
+    pkg = PptxPackage(orig_bytes)
+    rels_part = "ppt/slides/_rels/slide1.xml.rels"
+    orig_rels = pkg.get_member(rels_part)
+
+    # Hyperlink Target drift
+    bad_hl = orig_rels.replace(b"https://example.com", b"https://malicious.com")
+    val_hl = PptxFidelityValidator(orig_bytes, pkg.build_patched_package({rels_part: bad_hl}))
+    rep_hl = val_hl.validate()
+    assert rep_hl.passed is False
+    assert any("Slide relationships drift" in e for e in rep_hl.errors)
+
+    # Image relationship Target drift
+    bad_img = orig_rels.replace(b"../media/image1.png", b"../media/image99.png")
+    val_img = PptxFidelityValidator(orig_bytes, pkg.build_patched_package({rels_part: bad_img}))
+    rep_img = val_img.validate()
+    assert rep_img.passed is False
+    assert any("Slide relationships drift" in e for e in rep_img.errors)
+
+    # SlideLayout relationship Target drift
+    bad_ly = orig_rels.replace(b"../slideLayouts/slideLayout1.xml", b"../slideLayouts/slideLayout99.xml")
+    val_ly = PptxFidelityValidator(orig_bytes, pkg.build_patched_package({rels_part: bad_ly}))
+    rep_ly = val_ly.validate()
+    assert rep_ly.passed is False
+    assert any("Slide relationships drift" in e for e in rep_ly.errors)
+
+
+# 28. Package-Content-Driven Macro and Digital Signature Fail-Closed (Sections 10, 11, 12)
+def test_macro_and_signature_fail_closed_package_driven():
+    orig_bytes = (FIXTURES_DIR / "carrier_slide_text.pptx").read_bytes()
+    pipeline = Pipeline()
+
+    # 1. Macro package disguised as standard .pptx
+    buf_vba = io.BytesIO()
+    with zipfile.ZipFile(io.BytesIO(orig_bytes), "r") as z_in:
+        with zipfile.ZipFile(buf_vba, "w", zipfile.ZIP_DEFLATED) as z_out:
+            for item in z_in.infolist():
+                z_out.writestr(item, z_in.read(item.filename))
+            z_out.writestr("ppt/vbaProject.bin", b"fake vba binary payload")
+    vba_bytes = buf_vba.getvalue()
+
+    with pytest.raises(PptxError, match="Macro-enabled"):
+        clean_pptx_lossless(vba_bytes)
+
+    insp_vba = pipeline.inspect(vba_bytes, filename="sample.pptx", mode=ProcessingMode.SAFE)
+    assert insp_vba.status == PipelineStatus.ERROR
+    assert insp_vba.error_code == ErrorCode.INVALID_CONTAINER
+
+    cleaned_vba, clean_rep_vba = pipeline.clean(vba_bytes, filename="sample.pptx", mode=ProcessingMode.SAFE)
+    assert clean_rep_vba.status == PipelineStatus.ERROR
+    assert clean_rep_vba.error_code == ErrorCode.INVALID_CONTAINER
+    assert cleaned_vba == vba_bytes  # original bytes untouched
+
+    # 2. Digitally signed package disguised as standard .pptx
+    buf_sig = io.BytesIO()
+    with zipfile.ZipFile(io.BytesIO(orig_bytes), "r") as z_in:
+        with zipfile.ZipFile(buf_sig, "w", zipfile.ZIP_DEFLATED) as z_out:
+            for item in z_in.infolist():
+                z_out.writestr(item, z_in.read(item.filename))
+            z_out.writestr("_xmlsignatures/origin.sigs", b"fake signature payload")
+    sig_bytes = buf_sig.getvalue()
+
+    with pytest.raises(PptxError, match="Digitally signed"):
+        clean_pptx_lossless(sig_bytes)
+
+    insp_sig = pipeline.inspect(sig_bytes, filename="sample.pptx", mode=ProcessingMode.SAFE)
+    assert insp_sig.status == PipelineStatus.ERROR
+    assert insp_sig.error_code == ErrorCode.INVALID_CONTAINER
+
+    cleaned_sig, clean_rep_sig = pipeline.clean(sig_bytes, filename="sample.pptx", mode=ProcessingMode.SAFE)
+    assert clean_rep_sig.status == PipelineStatus.ERROR
+    assert clean_rep_sig.error_code == ErrorCode.INVALID_CONTAINER
+    assert cleaned_sig == sig_bytes  # original bytes untouched
+
+
+# 29. Strict Raw OPC Relationship Preservation Across Positive Clean (Section 14)
+def test_raw_opc_relationship_preservation():
+    orig_bytes = (FIXTURES_DIR / "carrier_slide_text.pptx").read_bytes()
+    cleaned_bytes, rep = clean_pptx_lossless(orig_bytes)
+    assert cleaned_bytes != orig_bytes
+
+    orig_pkg = PptxPackage(orig_bytes)
+    clean_pkg = PptxPackage(cleaned_bytes)
+
+    # Verify every relationship part is strictly preserved at the raw OPC level
+    rels_parts = [m for m in orig_pkg.member_order if "_rels" in m]
+    assert len(rels_parts) >= 4, "Expected multiple relationship parts in package"
+
+    for name in rels_parts:
+        assert clean_pkg.has_member(name), f"Missing relationship member {name}"
+        assert orig_pkg.get_hash(name) == clean_pkg.get_hash(name), f"{name} uncompressed SHA256 drift"
+        assert orig_pkg.get_local_record(name) == clean_pkg.get_local_record(name), f"{name} raw local record drift"
+        assert orig_pkg.get_compressed_hash(name) == clean_pkg.get_compressed_hash(name), f"{name} raw compressed payload drift"
+
+        b_info = orig_pkg.zip_infos[name]
+        a_info = clean_pkg.zip_infos[name]
+        assert b_info.CRC == a_info.CRC, f"{name} CRC drift"
+        assert b_info.compress_type == a_info.compress_type, f"{name} compress_type drift"
+        assert b_info.compress_size == a_info.compress_size, f"{name} compress_size drift"
+        assert b_info.file_size == a_info.file_size, f"{name} file_size drift"
+        assert b_info.flag_bits == a_info.flag_bits, f"{name} flag_bits drift"
+        assert b_info.date_time == a_info.date_time, f"{name} timestamp drift"
+
+    # Member ordering invariant
+    assert orig_pkg.member_order == clean_pkg.member_order
+
+
+# 30. Target Slide XML Surgical Diff Verification (Section 15)
+def test_target_slide_xml_surgical_diff():
+    target_fixtures = [
+        "carrier_slide_text.pptx",
+        "carrier_multi_run.pptx",
+        "carrier_table_text.pptx",
+    ]
+    for fn in target_fixtures:
+        orig_bytes = (FIXTURES_DIR / fn).read_bytes()
+        cleaned_bytes, _ = clean_pptx_lossless(orig_bytes)
+        assert cleaned_bytes != orig_bytes
+
+        orig_pkg = PptxPackage(orig_bytes)
+        clean_pkg = PptxPackage(cleaned_bytes)
+
+        for m in orig_pkg.member_order:
+            if orig_pkg.get_hash(m) != clean_pkg.get_hash(m):
+                # Must be a planned slide XML or metadata
+                assert m.startswith("ppt/slides/slide") or m.startswith("docProps/"), f"Unexpected changed part {m}"
+
+                if m.startswith("ppt/slides/slide"):
+                    orig_xml = orig_pkg.get_member(m).decode("utf-8")
+                    clean_xml = clean_pkg.get_member(m).decode("utf-8")
+
+                    orig_lines = orig_xml.splitlines()
+                    clean_lines = clean_xml.splitlines()
+                    assert len(orig_lines) == len(clean_lines), f"Line count drift in {m}"
+
+                    # For every differing line, prove it is an <a:t> line and everything around it is byte-exact
+                    for line_idx, (ol, cl) in enumerate(zip(orig_lines, clean_lines)):
+                        if ol != cl:
+                            assert "<a:t>" in ol and "<a:t>" in cl, (
+                                f"Non-text modification in {fn} -> {m} at line {line_idx + 1}: {ol!r} -> {cl!r}"
+                            )
+                            # Ensure prefix before <a:t> and suffix after </a:t> match byte-for-byte
+                            prefix_o = ol[:ol.index("<a:t>")]
+                            prefix_c = cl[:cl.index("<a:t>")]
+                            suffix_o = ol[ol.rindex("</a:t>"):]
+                            suffix_c = cl[cl.rindex("</a:t>"):]
+                            assert prefix_o == prefix_c, f"Prefix drift before <a:t> in {m}"
+                            assert suffix_o == suffix_c, f"Suffix drift after </a:t> in {m}"
+
 

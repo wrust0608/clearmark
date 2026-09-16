@@ -3,7 +3,8 @@
 **Status**: **COMPLETE & VERIFIED (PASS)**  
 **Target Format**: PowerPoint OpenXML Presentation (`.pptx`, PresentationML / DrawingML)  
 **Implementation Modules**: `service/scripts/pptx/`  
-**Test Suite**: `tests/test_pptx_lossless.py` (41 passed in 2.23s)  
+**Implementation Commit**: `17bb830e085100416d1ee59dcd266a0456156777`  
+**Focused Test Suite**: `tests/test_pptx_lossless.py` (46 passed in 3.12s)  
 **Full Regression Suite**: 1610 passed, 152 skipped, 0 failed, 0 warnings (81.65s)  
 
 ---
@@ -26,7 +27,14 @@ $$\text{DETECT} \longrightarrow \text{PLAN} \longrightarrow \text{MINIMAL PATCH}
 
 ### 2.1 STRUCTURAL EVIDENCE
 - **Slide Count & Ordering**: Tracked via `ppt/presentation.xml` (`<p:sldIdLst>`). Slide count, IDs (`<p:sldId id="...">`), and relationship bindings (`r:id`) are invariant across all positive cleaning operations.
-- **Relationships Mapping**: Slide targets, layout bindings, master bindings, and media targets are tracked via `ppt/_rels/*.rels` and must match before vs after.
+- **Relationships Mapping**: Tracked comprehensively across all container levels:
+  - Package level: `_rels/.rels`
+  - Presentation level: `ppt/_rels/presentation.xml.rels`
+  - Slide level: `ppt/slides/_rels/*.rels` (hyperlinks, layout references, media targets)
+  - Slide layout level: `ppt/slideLayouts/_rels/*.rels` (master references)
+  - Slide master level: `ppt/slideMasters/_rels/*.rels` (theme references)
+  - Notes level: `ppt/notesSlides/_rels/*.rels`
+  All relationship IDs, Types, Targets, and TargetModes must match before vs after.
 - **Table Structure**: In `carrier_table_text.pptx`, table grids (`<a:tblGrid>`), row counts, column widths, row heights (`<a:tr/@h>`), and cell merging remain structurally exact.
 
 ### 2.2 TEXT & RUN EVIDENCE
@@ -36,6 +44,7 @@ $$\text{DETECT} \longrightarrow \text{PLAN} \longrightarrow \text{MINIMAL PATCH}
 - **Line Breaks (`<a:br/>`)**: Preserved exactly in their original positions without being converted to spaces or runs.
 - **Field Nodes (`<a:fld>`)**: Slide numbers, dates, and footers are classified as `NOT_CHECKED` / `PRESERVE_RAW` and are never mutated by normal run cleaners (verified by `counterexample_field.pptx`).
 - **Whitespace Preservation**: `xml:space="preserve"` attributes on DrawingML text nodes are preserved intact.
+- **Target Slide XML Surgical Diff**: Proved that all slide XML byte changes are limited strictly to expected planned text payloads inside `<a:t>...</a:t>`. All surrounding XML tags, namespace declarations, attribute orders, whitespace rules, and `<a:rPr>` properties remain 100% byte-exact across `carrier_slide_text.pptx`, `carrier_multi_run.pptx`, and `carrier_table_text.pptx`.
 
 ### 2.3 SHAPE TREE EVIDENCE
 - **Shape Tree Ordering**: Structural sequence in `<p:spTree>` before == after. Shapes are never detached, appended, or reordered by text content.
@@ -48,24 +57,30 @@ $$\text{DETECT} \longrightarrow \text{PLAN} \longrightarrow \text{MINIMAL PATCH}
 - **Rotation & Flip**: Rotation angles (`@rot`) and flip flags (`@flipH`, `@flipV`) are invariant.
 
 ### 2.5 RELATIONSHIPS EVIDENCE
-- **Slide Relationships**: Hyperlinks (`<a:hlinkClick r:id="...">`), image embeds, layout targets, and master targets maintain invariant relationship IDs (`r:id`) and URIs.
+- **Slide Relationships**: Hyperlinks (`<a:hlinkClick r:id="...">`), image embeds, layout targets, and master targets maintain invariant relationship IDs (`r:id`), URIs, and modes.
 - **Hyperlink Preservation**: In `carrier_slide_text.pptx`, visible text carriers are removed while hyperlink target URLs and click actions remain functional.
+- **Negative Witness Verification**: Deliberately mutating Target, Id, or TargetMode in `ppt/slides/_rels/slide1.xml.rels` without altering slide XML causes `PptxFidelityValidator`, CLI two-file verify, and HTTP `/verify` to immediately fail (returning status `FAIL` / code 422).
 
 ### 2.6 MASTER / LAYOUT / THEME EVIDENCE
 - **Slide Masters (`ppt/slideMasters/*`)**: Preserved byte-for-byte (`PRESERVE_RAW`). In `counterexample_master.pptx`, master text containing carrier-like Unicode is never touched.
 - **Slide Layouts (`ppt/slideLayouts/*`)**: Layout placeholder geometry and layout XML remain bit-for-bit identical.
 - **Themes (`ppt/theme/*`)**: Color schemes, font schemes, and format schemes are bit-for-bit identical.
-- **Notes Slides (`ppt/notesSlides/*`)**: Speaker notes are user content and remain `PRESERVE_RAW` / `NOT_CHECKED` (verified by `counterexample_notes.pptx`).
+- **Notes Slides (`ppt/notesSlides/*`)**: `TESTED_PRESERVED` (classified as `NOT_CHECKED` / `PRESERVE_RAW`). Speaker notes are user content and remain `PRESERVE_RAW` (verified by `counterexample_notes.pptx`).
 
 ### 2.7 MEDIA & EMBEDDED CONTENT EVIDENCE
-- **Embedded Media (`ppt/media/*`)**: Verified bit-for-bit identical across all operations in `carrier_mixed.pptx`:
+- **Embedded Media (`ppt/media/*`)**: `TESTED_PRESERVED`. Verified bit-for-bit identical across all operations in `carrier_mixed.pptx` (present in all 17 fixtures):
   - Uncompressed SHA-256 identical
   - Raw compressed payload byte stream identical
   - Raw local file header record byte identical
-- **Charts / Diagrams / Embeddings**: Classed as `NOT_CHECKED` / `PRESERVE_RAW` and passed through without modification.
+- **Notes Slides (`ppt/notesSlides/*`)**: `TESTED_PRESERVED`. Present in all 17 fixtures and preserved byte-for-byte.
+- **Charts (`ppt/charts/*`)**: `NOT_TESTED_PRESERVE_POLICY`. Classified as `NOT_CHECKED` / `PRESERVE_RAW`; not present in current 17-fixture baseline corpus.
+- **SmartArt & Diagrams (`ppt/diagrams/*`)**: `NOT_TESTED_PRESERVE_POLICY`. Classified as `NOT_CHECKED` / `PRESERVE_RAW`; not present in current 17-fixture baseline corpus.
+- **Embeddings (`ppt/embeddings/*`)**: `NOT_TESTED_PRESERVE_POLICY`. Classified as `NOT_CHECKED` / `PRESERVE_RAW`; not present in current 17-fixture baseline corpus.
+- **Comments (`ppt/comments/*`, `ppt/commentAuthors.xml`)**: `NOT_TESTED_PRESERVE_POLICY`. Classified as `NOT_CHECKED` / `PRESERVE_RAW`; not present in current 17-fixture baseline corpus.
 
 ### 2.8 PACKAGE & STRICT RAW OPC EVIDENCE
 - **Member Ordering**: Verbatim preservation of ZIP central directory and local entry ordering.
+- **Strict Raw OPC Relationship Preservation**: For all relationship members (`**/_rels/*.rels`), uncompressed SHA-256, raw local records, raw compressed payloads, CRC-32, timestamps, flags, and archive member ordering are 100% invariant across positive clean.
 - **Non-Target Raw Pass-Through**: For every non-target member:
   - Raw local file header bytes identical.
   - Raw compressed stream bytes identical (no recompression).
@@ -127,7 +142,7 @@ A deterministic corpus of 17 `.pptx` presentations was generated with fixed ZIP 
 
 ## 4. Verification & Regression Metrics
 
-- **Focused PPTX Test Suite**: `tests/test_pptx_lossless.py` -> **41 passed** in 2.23s
+- **Focused PPTX Test Suite**: `tests/test_pptx_lossless.py` -> **46 passed** in 3.12s
 - **Focused XLSX Regression**: `tests/test_xlsx_lossless.py` -> **39 passed** in 3.07s
 - **DOCX Body Carriers Regression**: `tests/test_docx_body_carriers.py` -> **49 passed** in 6.80s
 - **DOCX Frozen Core Diff**: `git diff v2.0.0 -- service/scripts/docx/` -> **EMPTY** (0 modifications)
