@@ -1,0 +1,481 @@
+{
+  "version": "2.1.0",
+  "provenance": "Generated deterministically by tests/fixtures/docx_body_carriers/build_fixtures.py",
+  "baseline_document": "synthetic_baseline.docx",
+  "baseline_sha256": "fad4c7d909ccb7a49f1d0a397a652a3c976e53b1685cb19651ca4d8eb55d987d",
+  "fixtures": [
+    {
+      "fixture_id": "synthetic_baseline",
+      "filename": "synthetic_baseline.docx",
+      "sha256": "fad4c7d909ccb7a49f1d0a397a652a3c976e53b1685cb19651ca4d8eb55d987d",
+      "source_baseline_sha256": "fad4c7d909ccb7a49f1d0a397a652a3c976e53b1685cb19651ca4d8eb55d987d",
+      "purpose": "Clean synthetic base document containing paragraphs, multiple runs, table, headers/footers, bookmarks, hyperlinks, and page break.",
+      "inserted_codepoints": [],
+      "preserved_sequences": [
+        "xml:space='preserve'",
+        "w:br",
+        "w:tab",
+        "w:br w:type='page'"
+      ],
+      "expected_changed_parts": [],
+      "expected_structure": {
+        "paragraph_count": 8,
+        "run_count": 13,
+        "table_count": 1,
+        "table_row_count": 2,
+        "table_cell_count": 4,
+        "manual_page_break_count": 1,
+        "bookmark_count": 1,
+        "hyperlink_count": 1
+      }
+    },
+    {
+      "fixture_id": "carrier_zwsp",
+      "filename": "carrier_zwsp.docx",
+      "sha256": "2fb92469d883740326df6cf09251484dd01af2519b41973ed97f52eb7a9d00cf",
+      "source_baseline_sha256": "fad4c7d909ccb7a49f1d0a397a652a3c976e53b1685cb19651ca4d8eb55d987d",
+      "purpose": "Positive test: U+200B ZERO WIDTH SPACE carrier in paragraph run and table cell.",
+      "inserted_codepoints": [
+        {
+          "codepoint": "U+200B",
+          "name": "ZERO WIDTH SPACE",
+          "part": "word/document.xml",
+          "location": "paragraph 1 run 2 (offset 12)",
+          "expected": "REMOVE"
+        },
+        {
+          "codepoint": "U+200B",
+          "name": "ZERO WIDTH SPACE",
+          "part": "word/document.xml",
+          "location": "paragraph 1 run 2 (offset 22)",
+          "expected": "REMOVE"
+        },
+        {
+          "codepoint": "U+200B",
+          "name": "ZERO WIDTH SPACE",
+          "part": "word/document.xml",
+          "location": "table cell 1 (offset 5)",
+          "expected": "REMOVE"
+        }
+      ],
+      "preserved_sequences": [],
+      "expected_changed_parts": [
+        "word/document.xml"
+      ],
+      "expected_structure": {
+        "paragraph_count": 8,
+        "run_count": 13,
+        "table_count": 1,
+        "table_row_count": 2,
+        "table_cell_count": 4,
+        "manual_page_break_count": 1,
+        "bookmark_count": 1,
+        "hyperlink_count": 1
+      }
+    },
+    {
+      "fixture_id": "carrier_bidi_supported",
+      "filename": "carrier_bidi_supported.docx",
+      "sha256": "bebce7b057f463080dcbd4a2b3865e7003a7a43c87322214ebe722d06bb91fdb",
+      "source_baseline_sha256": "fad4c7d909ccb7a49f1d0a397a652a3c976e53b1685cb19651ca4d8eb55d987d",
+      "purpose": "Positive test: supported bidi direction controls (LRM U+200E, RLM U+200F, LRE U+202A, PDF U+202C, LRI U+2066, PDI U+2069).",
+      "inserted_codepoints": [
+        {
+          "codepoint": "U+200E",
+          "name": "LEFT-TO-RIGHT MARK",
+          "part": "word/document.xml",
+          "location": "paragraph 2 run 2",
+          "expected": "REMOVE"
+        },
+        {
+          "codepoint": "U+200F",
+          "name": "RIGHT-TO-LEFT MARK",
+          "part": "word/document.xml",
+          "location": "paragraph 2 run 2",
+          "expected": "REMOVE"
+        },
+        {
+          "codepoint": "U+202A",
+          "name": "LEFT-TO-RIGHT EMBEDDING",
+          "part": "word/document.xml",
+          "location": "paragraph 2 run 2",
+          "expected": "REMOVE"
+        },
+        {
+          "codepoint": "U+202C",
+          "name": "POP DIRECTIONAL FORMATTING",
+          "part": "word/document.xml",
+          "location": "paragraph 2 run 2",
+          "expected": "REMOVE"
+        },
+        {
+          "codepoint": "U+2066",
+          "name": "LEFT-TO-RIGHT ISOLATE",
+          "part": "word/document.xml",
+          "location": "paragraph 2 run 2",
+          "expected": "REMOVE"
+        },
+        {
+          "codepoint": "U+2069",
+          "name": "POP DIRECTIONAL ISOLATE",
+          "part": "word/document.xml",
+          "location": "paragraph 2 run 2",
+          "expected": "REMOVE"
+        }
+      ],
+      "preserved_sequences": [],
+      "expected_changed_parts": [
+        "word/document.xml"
+      ],
+      "expected_structure": {
+        "paragraph_count": 8,
+        "run_count": 13,
+        "table_count": 1,
+        "table_row_count": 2,
+        "table_cell_count": 4,
+        "manual_page_break_count": 1,
+        "bookmark_count": 1,
+        "hyperlink_count": 1
+      }
+    },
+    {
+      "fixture_id": "carrier_unicode_tags",
+      "filename": "carrier_unicode_tags.docx",
+      "sha256": "f7b8f1c050de4c79fc575587008225a7bb9c23aa250c882a0c4e1ca31994f167",
+      "source_baseline_sha256": "fad4c7d909ccb7a49f1d0a397a652a3c976e53b1685cb19651ca4d8eb55d987d",
+      "purpose": "Positive test: Unicode Tag characters (U+E0001, U+E0020, U+E0041, U+E007F).",
+      "inserted_codepoints": [
+        {
+          "codepoint": "U+E0001",
+          "name": "LANGUAGE TAG",
+          "part": "word/document.xml",
+          "location": "paragraph 3 run 1",
+          "expected": "REMOVE"
+        },
+        {
+          "codepoint": "U+E0020",
+          "name": "TAG SPACE",
+          "part": "word/document.xml",
+          "location": "paragraph 3 run 1",
+          "expected": "REMOVE"
+        },
+        {
+          "codepoint": "U+E0041",
+          "name": "TAG LATIN CAPITAL LETTER A",
+          "part": "word/document.xml",
+          "location": "paragraph 3 run 1",
+          "expected": "REMOVE"
+        },
+        {
+          "codepoint": "U+E007F",
+          "name": "CANCEL TAG",
+          "part": "word/document.xml",
+          "location": "paragraph 3 run 1",
+          "expected": "REMOVE"
+        }
+      ],
+      "preserved_sequences": [],
+      "expected_changed_parts": [
+        "word/document.xml"
+      ],
+      "expected_structure": {
+        "paragraph_count": 8,
+        "run_count": 13,
+        "table_count": 1,
+        "table_row_count": 2,
+        "table_cell_count": 4,
+        "manual_page_break_count": 1,
+        "bookmark_count": 1,
+        "hyperlink_count": 1
+      }
+    },
+    {
+      "fixture_id": "carrier_with_non_text_children",
+      "filename": "carrier_with_non_text_children.docx",
+      "sha256": "4dbfc8f4a01f71fa7551569bec8ae3ee60daccac0d5561055b3f27d41cc4e594",
+      "source_baseline_sha256": "fad4c7d909ccb7a49f1d0a397a652a3c976e53b1685cb19651ca4d8eb55d987d",
+      "purpose": "Positive test: carriers adjacent to run children (w:br, w:tab, w:br w:type='page') confirming children are not dropped or reordered.",
+      "inserted_codepoints": [
+        {
+          "codepoint": "U+200B",
+          "name": "ZERO WIDTH SPACE",
+          "part": "word/document.xml",
+          "location": "paragraph 4 run 1 (before br)",
+          "expected": "REMOVE"
+        },
+        {
+          "codepoint": "U+200B",
+          "name": "ZERO WIDTH SPACE",
+          "part": "word/document.xml",
+          "location": "paragraph 4 run 1 (after tab)",
+          "expected": "REMOVE"
+        },
+        {
+          "codepoint": "U+200B",
+          "name": "ZERO WIDTH SPACE",
+          "part": "word/document.xml",
+          "location": "paragraph 4 run 1 (after page break)",
+          "expected": "REMOVE"
+        }
+      ],
+      "preserved_sequences": [
+        "w:br",
+        "w:tab",
+        "w:br w:type='page'"
+      ],
+      "expected_changed_parts": [
+        "word/document.xml"
+      ],
+      "expected_structure": {
+        "paragraph_count": 8,
+        "run_count": 13,
+        "table_count": 1,
+        "table_row_count": 2,
+        "table_cell_count": 4,
+        "manual_page_break_count": 1,
+        "bookmark_count": 1,
+        "hyperlink_count": 1
+      }
+    },
+    {
+      "fixture_id": "carrier_mixed",
+      "filename": "carrier_mixed.docx",
+      "sha256": "8a3ec003284fb24c5be4e27e93ac9109aa1116fdbf5573cf688ed059b809e1d2",
+      "source_baseline_sha256": "fad4c7d909ccb7a49f1d0a397a652a3c976e53b1685cb19651ca4d8eb55d987d",
+      "purpose": "Positive test: mixed carriers (U+200B, U+00AD, U+2060, U+FEFF, U+200E) across document body, table cells, header, and footer.",
+      "inserted_codepoints": [
+        {
+          "codepoint": "U+200B",
+          "name": "ZERO WIDTH SPACE",
+          "part": "word/document.xml",
+          "location": "document heading",
+          "expected": "REMOVE"
+        },
+        {
+          "codepoint": "U+00AD",
+          "name": "SOFT HYPHEN",
+          "part": "word/document.xml",
+          "location": "document heading",
+          "expected": "REMOVE"
+        },
+        {
+          "codepoint": "U+2060",
+          "name": "WORD JOINER",
+          "part": "word/document.xml",
+          "location": "table cell 4",
+          "expected": "REMOVE"
+        },
+        {
+          "codepoint": "U+FEFF",
+          "name": "ZERO WIDTH NO-BREAK SPACE",
+          "part": "word/document.xml",
+          "location": "table cell 4",
+          "expected": "REMOVE"
+        },
+        {
+          "codepoint": "U+200B",
+          "name": "ZERO WIDTH SPACE",
+          "part": "word/header1.xml",
+          "location": "header paragraph",
+          "expected": "REMOVE"
+        },
+        {
+          "codepoint": "U+200E",
+          "name": "LEFT-TO-RIGHT MARK",
+          "part": "word/footer1.xml",
+          "location": "footer paragraph",
+          "expected": "REMOVE"
+        }
+      ],
+      "preserved_sequences": [],
+      "expected_changed_parts": [
+        "word/document.xml",
+        "word/header1.xml",
+        "word/footer1.xml"
+      ],
+      "expected_structure": {
+        "paragraph_count": 8,
+        "run_count": 13,
+        "table_count": 1,
+        "table_row_count": 2,
+        "table_cell_count": 4,
+        "manual_page_break_count": 1,
+        "bookmark_count": 1,
+        "hyperlink_count": 1
+      }
+    },
+    {
+      "fixture_id": "counterexample_emoji_zwj",
+      "filename": "counterexample_emoji_zwj.docx",
+      "sha256": "f4c7e10e507c74904f34e8f4e5a3fffcceada903ebc5f6cc0c42eed654132c75",
+      "source_baseline_sha256": "fad4c7d909ccb7a49f1d0a397a652a3c976e53b1685cb19651ca4d8eb55d987d",
+      "purpose": "Counterexample test: legitimate emoji sequences with ZWJ U+200D (family, profession, gendered) must be preserved exactly.",
+      "inserted_codepoints": [],
+      "preserved_sequences": [
+        "👨‍👩‍👧",
+        "👩‍💻",
+        "👨‍🚀"
+      ],
+      "expected_changed_parts": [],
+      "expected_structure": {
+        "paragraph_count": 8,
+        "run_count": 13,
+        "table_count": 1,
+        "table_row_count": 2,
+        "table_cell_count": 4,
+        "manual_page_break_count": 1,
+        "bookmark_count": 1,
+        "hyperlink_count": 1
+      }
+    },
+    {
+      "fixture_id": "counterexample_arabic_joiner",
+      "filename": "counterexample_arabic_joiner.docx",
+      "sha256": "5a0776a5ae558ba1b6f448602041102c2746b5595e16f8c554051405152eb50f",
+      "source_baseline_sha256": "fad4c7d909ccb7a49f1d0a397a652a3c976e53b1685cb19651ca4d8eb55d987d",
+      "purpose": "Counterexample test: legitimate Arabic/Persian orthographic joiners (ZWNJ U+200C and ZWJ U+200D in Arabic script context) must be preserved exactly.",
+      "inserted_codepoints": [],
+      "preserved_sequences": [
+        "می‌روم",
+        "ب‍ه"
+      ],
+      "expected_changed_parts": [],
+      "expected_structure": {
+        "paragraph_count": 8,
+        "run_count": 13,
+        "table_count": 1,
+        "table_row_count": 2,
+        "table_cell_count": 4,
+        "manual_page_break_count": 1,
+        "bookmark_count": 1,
+        "hyperlink_count": 1
+      }
+    },
+    {
+      "fixture_id": "counterexample_devanagari",
+      "filename": "counterexample_devanagari.docx",
+      "sha256": "74b627eba7e6f556b3f0f21a851c6287b3b30efb7b72babf74e911d245ee827b",
+      "source_baseline_sha256": "fad4c7d909ccb7a49f1d0a397a652a3c976e53b1685cb19651ca4d8eb55d987d",
+      "purpose": "Counterexample test: legitimate Devanagari shaping conjuncts with ZWJ and ZWNJ in Indic context must be preserved exactly.",
+      "inserted_codepoints": [],
+      "preserved_sequences": [
+        "क्‍ष",
+        "क्‌ष"
+      ],
+      "expected_changed_parts": [],
+      "expected_structure": {
+        "paragraph_count": 8,
+        "run_count": 13,
+        "table_count": 1,
+        "table_row_count": 2,
+        "table_cell_count": 4,
+        "manual_page_break_count": 1,
+        "bookmark_count": 1,
+        "hyperlink_count": 1
+      }
+    },
+    {
+      "fixture_id": "counterexample_nbsp",
+      "filename": "counterexample_nbsp.docx",
+      "sha256": "e2b0702b5232a4362084351f285e06d33bf93750ecc71f04d1909278f7001149",
+      "source_baseline_sha256": "fad4c7d909ccb7a49f1d0a397a652a3c976e53b1685cb19651ca4d8eb55d987d",
+      "purpose": "Counterexample test: protected typographic spaces (U+00A0 NO-BREAK SPACE and U+202F NARROW NO-BREAK SPACE) in SAFE mode must remain untouched.",
+      "inserted_codepoints": [],
+      "preserved_sequences": [
+        "100 km",
+        "50 kg",
+        "Page 42"
+      ],
+      "expected_changed_parts": [],
+      "expected_structure": {
+        "paragraph_count": 8,
+        "run_count": 13,
+        "table_count": 1,
+        "table_row_count": 2,
+        "table_cell_count": 4,
+        "manual_page_break_count": 1,
+        "bookmark_count": 1,
+        "hyperlink_count": 1
+      }
+    },
+    {
+      "fixture_id": "counterexample_nfc_nfd",
+      "filename": "counterexample_nfc_nfd.docx",
+      "sha256": "446308e056c0b2fe8c242810030255e395403dc35f12c4c243437244db644ef2",
+      "source_baseline_sha256": "fad4c7d909ccb7a49f1d0a397a652a3c976e53b1685cb19651ca4d8eb55d987d",
+      "purpose": "Counterexample test: NFC and NFD strings preserved in their exact representation without cross-normalization.",
+      "inserted_codepoints": [],
+      "preserved_sequences": [
+        "Tiếng Việt",
+        "Tiếng Việt"
+      ],
+      "expected_changed_parts": [],
+      "expected_structure": {
+        "paragraph_count": 8,
+        "run_count": 13,
+        "table_count": 1,
+        "table_row_count": 2,
+        "table_cell_count": 4,
+        "manual_page_break_count": 1,
+        "bookmark_count": 1,
+        "hyperlink_count": 1
+      }
+    },
+    {
+      "fixture_id": "carrier_and_legitimate_unicode",
+      "filename": "carrier_and_legitimate_unicode.docx",
+      "sha256": "992356b8cb1bff93aa58e4ba2b424374cc6ff8bd661fe6b74f5af392dee02f23",
+      "source_baseline_sha256": "fad4c7d909ccb7a49f1d0a397a652a3c976e53b1685cb19651ca4d8eb55d987d",
+      "purpose": "Combined test: simultaneous presence of removable carriers (U+200B, U+00AD, U+200E, U+E0020) AND legitimate counterexamples (emoji ZWJ, Arabic ZWNJ, Devanagari ZWJ, NBSP).",
+      "inserted_codepoints": [
+        {
+          "codepoint": "U+200B",
+          "name": "ZERO WIDTH SPACE",
+          "part": "word/document.xml",
+          "location": "heading",
+          "expected": "REMOVE"
+        },
+        {
+          "codepoint": "U+00AD",
+          "name": "SOFT HYPHEN",
+          "part": "word/document.xml",
+          "location": "heading",
+          "expected": "REMOVE"
+        },
+        {
+          "codepoint": "U+200E",
+          "name": "LEFT-TO-RIGHT MARK",
+          "part": "word/document.xml",
+          "location": "body paragraph",
+          "expected": "REMOVE"
+        },
+        {
+          "codepoint": "U+E0020",
+          "name": "TAG SPACE",
+          "part": "word/document.xml",
+          "location": "body paragraph",
+          "expected": "REMOVE"
+        }
+      ],
+      "preserved_sequences": [
+        "👨‍👩‍👧",
+        "می‌روم",
+        "क्‍ष",
+        "100 km"
+      ],
+      "expected_changed_parts": [
+        "word/document.xml"
+      ],
+      "expected_structure": {
+        "paragraph_count": 8,
+        "run_count": 13,
+        "table_count": 1,
+        "table_row_count": 2,
+        "table_cell_count": 4,
+        "manual_page_break_count": 1,
+        "bookmark_count": 1,
+        "hyperlink_count": 1
+      }
+    }
+  ]
+}
