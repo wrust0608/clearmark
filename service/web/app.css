@@ -521,6 +521,16 @@ h1 em { font-weight: 400; color: var(--green-deep); }
 .status-unsupported { background: var(--warning-bg); color: var(--warning); }
 .status-error, .status-failed { background: var(--danger-bg); color: var(--danger); }
 
+/* Accessible status indicators: glyph prefixes and dashed border ensure status is never conveyed by color alone */
+.status-badge.status-cleaned::before { content: "✓ "; font-weight: 900; }
+.status-badge.status-error::before { content: "✕ "; font-weight: 900; }
+.status-badge.status-failed::before { content: "⊘ "; font-weight: 900; }
+.status-badge.status-unsupported::before { content: "⊘ "; font-weight: 900; }
+
+.file-card.error {
+  border: 1px dashed var(--danger);
+}
+
 .badge-lossless {
   font-size: 10px;
   font-weight: 850;

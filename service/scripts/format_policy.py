@@ -288,6 +288,7 @@ class FormatPolicy:
     default_mode: ProcessingMode = ProcessingMode.SAFE
     allow_destructive_normalization: bool = False
     verify_capabilities: tuple[str, ...] = ()
+    supported_modes: tuple[str, ...] = ("safe", "balanced", "aggressive")
 
     @property
     def capabilities(self) -> FormatCapabilities:
@@ -450,6 +451,7 @@ class FormatPolicyRegistry:
                 network_policy="LOCAL_ONLY",
                 default_mode=ProcessingMode.SAFE,
                 allow_destructive_normalization=False,
+                supported_modes=("safe",),
             )
         )
 

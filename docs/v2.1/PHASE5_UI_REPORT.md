@@ -1,68 +1,75 @@
-# Phase 5: ClearMark v2.1 Web UI Enhancements Report
+# Phase 5: ClearMark v2.1 Web UI Enhancements & Micro-Audit Report
 
 **Date**: 2026-09-16  
 **Status**: PASS / COMPLETED  
 **Baseline Commit**: `cd263066d5968370014f87cdd4b2e572239b40ef` (Phase 4)  
-**Full Pytest Regression**: 1477 passed, 152 skipped, 0 failed, 0 warnings in 82.36s  
-**Node.js Unit Tests**: 6 passed, 0 failed  
-**Browser Gate**: Google Chrome 153.0.8010.48 — 15/15 scenario steps passed  
+**Full Pytest Regression**: 1481 passed, 152 skipped, 0 failed, 0 warnings in 89.49s  
+**Node.js Unit Tests**: 9 passed, 0 failed  
+**UI Contract Pytest**: 18 passed, 0 failed  
+**Real Browser Smoke Gate**: Google Chrome 153.0.8010.48 — 19/19 scenario steps passed  
 **DOCX Frozen Core**: 100% untouched (`git diff v2.0.0 -- service/scripts/docx/` is EMPTY)  
+**Golden DOCX Hash**: `c05ca5c1be3b020b75d5763cf22061879a255b3c4f57b0455ae562b54809f58d` (VERIFIED UNCHANGED)  
+**Candidate DOCX Hash**: `7aa5549f6a0e0b78fa39245c0e79503b2cc9defd6cffbfa5c8a833072d430297` (VERIFIED UNCHANGED)  
 
 ---
 
 ## 1. Executive Summary
 
-Phase 5 delivers a polished, capabilities-first, inspection-first, failure-isolated multi-file & batch web user interface over the canonical ClearMark v2.1 API. It upholds all core invariants:
-1. **Capabilities-First**: Bootstraps dynamically from `GET /capabilities`. Does not hard-code file formats, modes, or backend tooling limits.
-2. **Inspection-First**: Files added to the queue undergo non-destructive inspection (`POST /inspect`) before cleaning.
-3. **Multi-File Queue & Card State Determinism**: Independent card lifecycle with states: `QUEUED`, `INSPECTING`, `READY`, `CLEANING`, `CLEANED`, `NO CHANGE`, `PREVIEW READY`, `UNSUPPORTED`, `VALIDATION FAILED`, `ERROR`.
-4. **Honest Terminology (ADR-003)**: Eliminates all misleading marketing claims ("100% watermark removed", "AI absent", "perfectly clean"). Uses truthful labels ("Supported markers cleaned", "No supported marker detected").
-5. **DOCX Lossless Badge**: Displayed (`LOSSLESS VALIDATION PASSED`) strictly when backend runtime report confirms validation status `PASS` on a DOCX document. Never derived from filename alone.
-6. **HTTP Batch Transport Delivery**: Full adherence to the Phase 4 batch contract (`outputs_included=true` delivers inline downloads; `outputs_included=false` / `not_available_inline` provides informative explanations and prevents broken download links).
-7. **Security & Memory Safety**: Untrusted inputs (filenames, error strings, finding details) render via safe DOM APIs (`textContent`). Download filenames are sanitized against path traversal (`../../evil.docx` -> `evil.cleaned.docx`). All Object URLs (`URL.createObjectURL`) are reliably revoked (`URL.revokeObjectURL`) upon card removal, queue clear, or reprocessing.
-8. **Request Race Safety**: Per-card version counters discard stale HTTP responses.
+Phase 5 delivers a capabilities-driven, inspection-first, failure-isolated multi-file and batch web interface over the canonical ClearMark v2.1 API. Following the Phase 5 Micro-Audit, all contracts and invariants have been verified and enforced:
+
+1. **Processing Mode Source of Truth**:
+   - Single authoritative pipeline: `FormatPolicyRegistry -> GET /capabilities -> UI`.
+   - Zero hardcoded format->mode tables in `service/web/app.js`.
+   - `FormatPolicy` in `service/scripts/format_policy.py` declares supported modes per format (`supported_modes`).
+   - SVG is registered with `supported_modes=("safe",)`.
+   - The UI inspects `state.capabilities.formats[ext]?.supported_modes` dynamically.
+2. **SAFE-Only Format & Dynamic Mode Disabling**:
+   - When a format supporting SAFE only (such as SVG) is added to the UI, the UI immediately disables `BALANCED` (`#optModeBalanced.disabled = true`) and `AGGRESSIVE` (`#optModeAggressive.disabled = true`).
+   - The UI never allows the user to believe stronger processing will occur when backend policy forbids it.
+3. **Invalid / Stale Mode Protection**:
+   - When a user selects `BALANCED` or `AGGRESSIVE` for a format supporting stronger modes (e.g. DOCX), and then adds or switches to a SAFE-only format (e.g. SVG), the UI resets the selection immediately to SAFE (`state.mode = 'safe'`, `#modeSelect.value = 'safe'`), displays an alert toast, and updates the mode explanation.
+4. **Truthful Mode Descriptions**:
+   - Global behavioral claims about homoglyphs and control characters have been removed from frontend copy because they are format-specific (e.g. not applicable to images or vector files).
+   - Standardized truthful copy:
+     - `SAFE`: "High-confidence/default processing."
+     - `BALANCED`: "Additional operations where supported by this format."
+     - `AGGRESSIVE`: "Broader operations where explicitly supported; may show additional warnings."
+5. **Concrete Accessibility Evidence**:
+   - Keyboard accessible: File picker operable via keyboard (`#browseButton` click, Space/Enter on `#dropZone`).
+   - Mode selector keyboard accessible: Standard `<select>` element operable via Tab and Arrow keys.
+   - Buttons have accessible names: Explicit text or `aria-label` on all buttons.
+   - Dynamic status regions use `role="status"` or `role="alert"` with `aria-live="polite"`.
+   - Visible focus styling enforced via `:focus-visible` with `outline: 2px solid var(--green-deep); outline-offset: 2px;`.
+   - Statuses and errors are not communicated by color alone: distinct text badges (`ERROR`, `VALIDATION FAILED`, `UNSUPPORTED`, `CLEANED`), symbol prefixes (`✕ `, `⊘ `, `✓ `), and dashed border styling on error cards.
+6. **`outputs_included=false` / `not_available_inline` Browser UX**:
+   - In accordance with the Phase 4 batch contract, oversized batches returning `outputs_included=false` and `output_delivery="not_available_inline"` preserve successful item status (`CLEANED`), suppress broken download buttons, and explicitly display `"Batch completed, but cleaned files are too large for inline browser delivery."` without falsely claiming batch failure.
+7. **XSS & Path Traversal Security**:
+   - Malicious filenames (`<img src=x onerror=alert(1)>.docx`) render strictly via `textContent`, producing 0 DOM element injections and 0 script executions.
+   - Filenames are sanitized for safe downloads (`_img_src_x_onerror_alert_1__.cleaned.docx`).
+   - Object URLs are strictly revoked upon card removal or replacement.
 
 ---
 
-## 2. Architecture & File Inventory
+## 2. Capabilities Invariant Claims Verification
 
-### Frontend Architecture Classification
-- **Framework**: Pure Vanilla HTML5 / CSS3 / ES6+ JavaScript. No React, Vue, Svelte, or runtime bundling needed.
-- **Design System**: Strict CSS variable token system (`--ink`, `--paper`, `--surface`, `--border`, `--green`, `--green-deep`, `--shadow`, `--radius`, `--space-*`). High information density, calm technical forensic styling, dark/light theme awareness, fully responsive layout.
-- **Asset Serving**: Built-in HTTP server (`service/scripts/server.py`) routes `/`, `/index.html`, `/app.js`, `/app.css` directly without external web servers.
-
-### Files Modified & Created
-| File | Action | Role |
+| Metric / Claim | Result | Evidence |
 |---|---|---|
-| `service/scripts/server.py` | MODIFIED | Static asset handlers for `/`, `/index.html`, `/app.js`, `/app.css` |
-| `service/web/index.html` | MODIFIED | Mode selector, dry-run toggle, summary counters, large-batch warning, card template |
-| `service/web/app.css` | MODIFIED | Forensic design tokens, status badge styles, findings drawer, responsive layout |
-| `service/web/app.js` | MODIFIED | Capabilities bootstrap, queue manager, inspect/clean/batch controller, safe DOM renderer |
-| `tests/test_ui_contract.py` | NEW | 14 pytest integration tests verifying static serving, XSS safety, and contract invariants |
-| `tests/test_web_app.mjs` | NEW | 6 Node.js unit tests for pure frontend functions (formatting, sanitization, envelope decoding) |
-| `tests/smoke_browser.mjs` | NEW | Native CDP automation executing the full 15-step real browser smoke gate scenario |
-| `tests/fixtures/unsupported_file.xyz` | NEW | Unsupported file fixture for testing batch partial failure isolation in UI |
+| Hard-coded supported format matrix | **NO** | Rendered purely from `GET /capabilities` (`state.capabilities.formats`) |
+| Hard-coded format->mode matrix | **NO** | Resolved dynamically via `getSupportedModesForFile(item)` from `state.capabilities.formats[ext].supported_modes` |
+| Hard-coded backend byte limits | **NO** | Dynamically read from `state.capabilities?.batch_limits?.max_batch_inline_output_bytes` |
+| DOCX Lossless Core Diff | **EMPTY** | `git diff v2.0.0 -- service/scripts/docx/` produces 0 lines |
+| Golden DOCX Hash Preserved | **MATCH** | `c05ca5c1be3b020b75d5763cf22061879a255b3c4f57b0455ae562b54809f58d` |
+| Candidate DOCX Hash Preserved | **MATCH** | `7aa5549f6a0e0b78fa39245c0e79503b2cc9defd6cffbfa5c8a833072d430297` |
 
 ---
 
-## 3. Capabilities-First & Mode Selector Contract
+## 3. Real Browser Smoke Gate Verification (Google Chrome 153.0.8010.48)
 
-- On load, `loadCapabilities()` fetches `GET /capabilities`. Supported formats, optional tools, and backend limits are rendered dynamically. If unreachable, a visible offline state is displayed.
-- **Mode Selector**:
-  - `SAFE` (Default): Preserves structure and formatting using high-confidence cleaning operations.
-  - `BALANCED`: Expands metadata inspection and standardizes control characters.
-  - `AGGRESSIVE`: Experimental normalization of homoglyphs.
-- **Dry-Run Toggle**: Switches operation to simulation mode (`dry_run=true`), rendering `PREVIEW READY` with truthful `would_change` feedback and suppressing download buttons.
-
----
-
-## 4. Real Browser Smoke Gate Verification (Section 45)
-
-Automated via Chrome DevTools Protocol (`tests/smoke_browser.mjs`) on real installed Google Chrome (`C:\Program Files\Google\Chrome\Application\chrome.exe`):
+Automated via Chrome DevTools Protocol (`tests/smoke_browser.mjs`):
 
 - **Browser**: Google Chrome `153.0.8010.48`
-- **Results**: 15/15 steps PASSED:
-  1. Open UI: Title, server state (`Sẵn sàng · vdev`), and capabilities (`23 formats`) rendered cleanly.
+- **Result**: **19/19 scenario steps PASSED**:
+  1. Open UI: Title, server state (`Sẵn sàng · vdev`), and formats (23 formats) rendered cleanly.
   2. Select Golden DOCX (`01_GOLDEN_ORIGINAL_UNTOUCHED.docx`): Card created with unique ID.
   3. Auto-Inspection: Transitions `QUEUED` -> `INSPECTING` -> `READY`. Findings displayed: `"Phát hiện: 2 bề mặt metadata / dấu vết"`.
   4. Mode Selection: `SAFE` selected by default.
@@ -80,34 +87,59 @@ Automated via Chrome DevTools Protocol (`tests/smoke_browser.mjs`) on real insta
       - `unsupported_file.xyz`: `UNSUPPORTED`, download hidden.
   14. Partial Failure Isolation: Summary reflects `Total: 3, Cleaned: 2, Unsupported: 1`. Failure on item 2 does not erase or corrupt items 0 and 1.
   15. Page Reload: Page reloads cleanly with empty queue and online server status.
+  16. **SAFE-Only Format & Stale Mode Protection**:
+      - Added Golden DOCX, switched to `BALANCED`.
+      - Added `sample_meta.svg` (SAFE-only policy).
+      - Verified `#optModeBalanced.disabled === true` and `#optModeAggressive.disabled === true`.
+      - Verified mode reset to `safe` (`#modeSelect.value === 'safe'`).
+  17. **Accessibility Verification**:
+      - Verified `dropZone` has `role="button"`, `tabindex="0"`.
+      - Verified `fileInput` has `aria-label="Chọn tệp tải lên"`.
+      - Verified `modeExplanation` has `role="status"` and `aria-live="polite"`.
+      - Verified `:focus-visible` rule exists in active CSS stylesheets.
+  18. **`outputs_included=false` / `not_available_inline` Browser UX**:
+      - Dispatched batch response with `outputs_included: false, output_delivery: "not_available_inline"`.
+      - Card marked `CLEANED`.
+      - Download button strictly hidden (`hidden === true`).
+      - Card detail explicitly states: `"Batch completed, but cleaned files are too large for inline browser delivery."`.
+      - Card does not have `error` CSS class.
+  19. **XSS / Malicious Filename textContent Safety**:
+      - Added file named `<img src=x onerror=alert(1)>.docx`.
+      - Rendered file name in DOM: `"<img src=x onerror=alert(1)>.docx"`.
+      - Injected `<img>` tags found in DOM: `0`.
+      - XSS alert fired: `false`.
 
 ---
 
-## 5. Frozen Core & Golden Invariant Verification
+## 4. Test Verification Suite
 
-1. **DOCX Frozen Core Diff**:
-   ```bash
-   git diff v2.0.0 -- service/scripts/docx/
-   # Output: EMPTY (0 lines changed)
-   ```
-2. **Golden DOCX SHA256**:
-   `c05ca5c1be3b020b75d5763cf22061879a255b3c4f57b0455ae562b54809f58d` (VERIFIED UNCHANGED)
-3. **Candidate DOCX SHA256**:
-   `7aa5549f6a0e0b78fa39245c0e79503b2cc9defd6cffbfa5c8a833072d430297` (VERIFIED UNCHANGED)
+### Node.js Frontend Unit Tests (`tests/test_web_app.mjs`)
+- 9 tests, 0 failures:
+  - `formatBytes` units formatting
+  - `safeCleanedName` path traversal protection
+  - Card state mapping and status labels completeness
+  - DOCX Lossless badge predicate strictness
+  - Batch summary mathematical reconciliation
+  - HTTP Batch response transport envelope decoding
+  - Capability-driven mode resolution and stale mode protection
+  - HTTP Batch `outputs_included=false` / `not_available_inline` UX handling
+  - XSS malicious filename safe handling
 
----
-
-## 6. Regression Test Summary
-
-- **Full Pytest Regression**:
-  ```
-  1477 passed, 152 skipped, 0 failed, 0 warnings in 82.36s
-  ```
-- **Node.js Frontend Unit Tests**:
-  ```
-  6 passed, 0 failed in 88ms
-  ```
-- **Browser Gate**:
-  ```
-  15/15 scenario checks passed in Google Chrome 153.0.8010.48
-  ```
+### Pytest UI Contract Tests (`tests/test_ui_contract.py`)
+- 18 tests, 0 failures:
+  - Static asset serving (`/`, `/index.html`, `/app.js`, `/app.css`)
+  - HTML semantic elements & option IDs (`optModeSafe`, `optModeBalanced`, `optModeAggressive`)
+  - Safe filename sanitization regex parity
+  - XSS security rendering invariants (zero `innerHTML` for dynamic text)
+  - Honest terminology invariant (ADR-003)
+  - DOCX Lossless badge display predicate
+  - Zero body text leakage in UI assets
+  - Object URL cleanup (`URL.revokeObjectURL`)
+  - Default mode SAFE invariant
+  - Request race & stale response protection (`item.version`)
+  - Privacy indicator truthfulness (`privacy.network_used`)
+  - Batch transport delivery contract
+  - Capability-aware mode resolution & stale mode protection contract
+  - Accessibility contract (`aria-live`, `:focus-visible`, glyph indicators, dashed error borders)
+  - Truthful mode copy contract (zero universal homoglyph/control character claims)
+  - Capabilities authoritative source contract (zero hardcoded format->mode tables in `app.js`)

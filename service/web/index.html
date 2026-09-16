@@ -35,7 +35,7 @@
 
       <section class="workspace" aria-labelledby="uploadTitle">
         <div class="drop-zone" id="dropZone" tabindex="0" role="button" aria-label="Thả tệp vào đây hoặc nhấn để chọn tệp">
-          <input id="fileInput" type="file" multiple aria-describedby="fileHelp">
+          <input id="fileInput" type="file" multiple aria-label="Chọn tệp tải lên" aria-describedby="fileHelp">
           <div class="drop-icon" aria-hidden="true">
             <svg viewBox="0 0 48 48" fill="none"><path d="M24 32V11m0 0-8 8m8-8 8 8M10 30v5a4 4 0 0 0 4 4h20a4 4 0 0 0 4-4v-5"/></svg>
           </div>
@@ -46,7 +46,7 @@
           </div>
         </div>
 
-        <div class="batch-warning-banner" id="batchWarningBanner" hidden role="alert">
+        <div class="batch-warning-banner" id="batchWarningBanner" hidden role="alert" aria-live="polite">
           <span class="warning-icon" aria-hidden="true">⚠️</span>
           <span id="batchWarningText">Kích thước đợt xử lý lớn (> 32 MB). Các tệp kết quả có thể không tải về trực tiếp qua trình duyệt (giới hạn an toàn bộ nhớ). Báo cáo kiểm tra và làm sạch vẫn được tạo đầy đủ.</span>
         </div>
@@ -61,17 +61,17 @@
             <div class="mode-control">
               <label for="modeSelect" class="control-label">Chế độ:</label>
               <select id="modeSelect" class="select-mode" aria-label="Chọn chế độ xử lý">
-                <option value="safe" selected>SAFE (An toàn · Giữ nguyên định dạng)</option>
-                <option value="balanced">BALANCED (Cân bằng · Mở rộng metadata)</option>
-                <option value="aggressive">AGGRESSIVE (Triệt để · Chuẩn hóa ký tự)</option>
+                <option value="safe" id="optModeSafe" selected>SAFE</option>
+                <option value="balanced" id="optModeBalanced">BALANCED</option>
+                <option value="aggressive" id="optModeAggressive">AGGRESSIVE</option>
               </select>
               <label class="toggle-dry-run">
                 <input type="checkbox" id="dryRunToggle">
                 <span>Xem trước (Dry Run)</span>
               </label>
             </div>
-            <p class="mode-explanation" id="modeExplanation">
-              <strong>SAFE:</strong> Mặc định an toàn. Gỡ bỏ metadata nhận diện và ký tự ẩn với độ tin cậy cao, bảo toàn 100% cấu trúc tài liệu.
+            <p class="mode-explanation" id="modeExplanation" role="status" aria-live="polite">
+              <strong>SAFE:</strong> High-confidence/default processing.
             </p>
           </div>
           <div class="actions">
@@ -85,7 +85,7 @@
           </div>
         </div>
 
-        <div class="batch-summary-bar" id="batchSummaryBar" hidden aria-label="Tóm tắt trạng thái đợt xử lý">
+        <div class="batch-summary-bar" id="batchSummaryBar" hidden aria-label="Tóm tắt trạng thái đợt xử lý" role="region" aria-live="polite">
           <div class="summary-pill summary-total"><span class="label">Tổng:</span> <strong id="sumTotal">0</strong></div>
           <div class="summary-pill summary-ready"><span class="label">Sẵn sàng:</span> <strong id="sumReady">0</strong></div>
           <div class="summary-pill summary-cleaned"><span class="label">Đã làm sạch:</span> <strong id="sumCleaned">0</strong></div>

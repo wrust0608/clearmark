@@ -414,7 +414,7 @@ def cmd_capabilities(args: argparse.Namespace) -> int:
                 "fidelity_levels": [f.value for f in p.fidelity_requirements],
                 "optional_dependencies": list(p.optional_dependencies),
                 "network_policy": p.network_policy,
-                "supported_modes": ["safe", "balanced", "aggressive"],
+                "supported_modes": list(p.supported_modes),
                 "destructive_operations": list(p.destructive_operations),
                 "verify_capabilities": list(p.verify_capabilities),
             }

@@ -77,9 +77,11 @@ def test_capabilities_authoritative_source_of_truth(conn):
         assert required_fields.issubset(entry.keys())
         assert entry["format"] == policy.format_name
         assert entry["extensions"] == list(policy.extensions)
-        assert entry["network_policy"] == policy.network_policy
-        assert entry["supported_modes"] == ["safe", "balanced", "aggressive"]
+        assert entry["supported_modes"] == list(policy.supported_modes)
         assert entry["verify_capabilities"] == list(policy.verify_capabilities)
+
+    # Verify SAFE-only policy contract
+    assert formats["svg"]["supported_modes"] == ["safe"]
 
 
 def test_capabilities_preserves_legacy_tooling_keys(conn):

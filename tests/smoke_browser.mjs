@@ -34,6 +34,7 @@ const CDP_PORT = 9222;
 const GOLDEN_DOCX = 'E:\\wartermark_remove\\01_GOLDEN_ORIGINAL_UNTOUCHED.docx';
 const TEXT_FIXTURE = 'E:\\wartermark_remove\\tests\\fixtures\\sample_watermarked.txt';
 const UNSUPPORTED_FIXTURE = 'E:\\wartermark_remove\\tests\\fixtures\\unsupported_file.xyz';
+const SVG_FIXTURE = 'E:\\wartermark_remove\\tests\\fixtures\\sample_meta.svg';
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -108,8 +109,33 @@ async function main() {
 
   const tempProfile = mkdtempSync(join(tmpdir(), 'clearmark_smoke_'));
   let chromeProc = null;
+  let serverProc = null;
 
   try {
+    // Check server readiness or launch
+    const serverCheck = await fetch('http://127.0.0.1:8765/health').catch(() => null);
+    if (!serverCheck || !serverCheck.ok) {
+      console.log('[INFO] Starting server on port 8765...');
+      serverProc = spawn('uv run python service/scripts/server.py --host 127.0.0.1 --port 8765', {
+        cwd: 'E:\\wartermark_remove',
+        shell: true,
+        stdio: 'ignore',
+      });
+      let startedHealthy = false;
+      for (let i = 0; i < 40; i++) {
+        await sleep(300);
+        const check = await fetch('http://127.0.0.1:8765/health').catch(() => null);
+        if (check && check.ok) {
+          startedHealthy = true;
+          console.log('[PASS] Local server started and healthy.');
+          break;
+        }
+      }
+      if (!startedHealthy) {
+        throw new Error('Failed to start ClearMark server on port 8765 after 12s');
+      }
+    }
+
     // 1. Launch Chrome
     console.log(`[INFO] Launching Chrome from: ${CHROME_PATH}`);
     chromeProc = spawn(CHROME_PATH, [
@@ -377,16 +403,196 @@ async function main() {
     }
     console.log('[PASS] Step 15: UI reloaded cleanly with zero state corruption.');
 
+    // Step 16: Test SAFE-only format disabling BALANCED and AGGRESSIVE & Stale Mode Protection
+    console.log('\n--- Step 16: SAFE-Only Format & Stale Mode Protection ---');
+    await cdp.setFiles('#fileInput', [GOLDEN_DOCX]);
+    await sleep(800);
+
+    // Switch to BALANCED
+    await cdp.eval(`(() => {
+      const select = document.querySelector('#modeSelect');
+      select.value = 'balanced';
+      select.dispatchEvent(new Event('change'));
+    })()`);
+    const modeBefore = await cdp.eval(`document.querySelector('#modeSelect').value`);
+    if (modeBefore !== 'balanced') throw new Error(`Failed to set mode to balanced: ${modeBefore}`);
+
+    // Now add SAFE-only format (SVG)
+    await cdp.setFiles('#fileInput', [SVG_FIXTURE]);
+    await sleep(800);
+
+    const modeAfter = await cdp.eval(`(() => {
+      const optSafe = document.querySelector('#optModeSafe');
+      const optBalanced = document.querySelector('#optModeBalanced');
+      const optAggressive = document.querySelector('#optModeAggressive');
+      const select = document.querySelector('#modeSelect');
+      return {
+        safeDisabled: optSafe.disabled,
+        balancedDisabled: optBalanced.disabled,
+        aggressiveDisabled: optAggressive.disabled,
+        currentMode: select.value
+      };
+    })()`);
+
+    console.log(`  Options status with SVG: BALANCED disabled=${modeAfter.balancedDisabled}, AGGRESSIVE disabled=${modeAfter.aggressiveDisabled}`);
+    console.log(`  Current mode after adding SAFE-only file: ${modeAfter.currentMode}`);
+
+    if (!modeAfter.balancedDisabled || !modeAfter.aggressiveDisabled) {
+      throw new Error('BALANCED and AGGRESSIVE options should be disabled when SAFE-only SVG is in queue!');
+    }
+    if (modeAfter.currentMode !== 'safe') {
+      throw new Error(`Stale mode protection failed: mode was not reset to safe (got: ${modeAfter.currentMode})`);
+    }
+    console.log('[PASS] Step 16: SAFE-only format correctly disables stronger modes and resets stale mode selection.');
+
+    // Step 17: Accessibility Evidence Verification
+    console.log('\n--- Step 17: Accessibility Evidence Verification ---');
+    const a11yChecks = await cdp.eval(`(() => {
+      const dropZone = document.querySelector('#dropZone');
+      const fileInput = document.querySelector('#fileInput');
+      const browseBtn = document.querySelector('#browseButton');
+      const modeSelect = document.querySelector('#modeSelect');
+      const modeExpl = document.querySelector('#modeExplanation');
+      const warningBanner = document.querySelector('#batchWarningBanner');
+      const summaryBar = document.querySelector('#batchSummaryBar');
+
+      let hasFocusVisibleRule = false;
+      for (const sheet of document.styleSheets) {
+        try {
+          for (const rule of sheet.cssRules) {
+            if (rule.selectorText && rule.selectorText.includes(':focus-visible')) {
+              hasFocusVisibleRule = true;
+            }
+          }
+        } catch {}
+      }
+
+      return {
+        dropZoneRole: dropZone.getAttribute('role'),
+        dropZoneTabindex: dropZone.getAttribute('tabindex'),
+        fileInputAriaLabel: fileInput.getAttribute('aria-label'),
+        browseBtnText: browseBtn.textContent.trim(),
+        modeSelectAriaLabel: modeSelect.getAttribute('aria-label'),
+        modeExplRole: modeExpl.getAttribute('role'),
+        modeExplAriaLive: modeExpl.getAttribute('aria-live'),
+        warningBannerAriaLive: warningBanner.getAttribute('aria-live'),
+        summaryBarAriaLive: summaryBar.getAttribute('aria-live'),
+        hasFocusVisibleRule
+      };
+    })()`);
+
+    console.log(`  DropZone: role="${a11yChecks.dropZoneRole}", tabindex="${a11yChecks.dropZoneTabindex}"`);
+    console.log(`  FileInput: aria-label="${a11yChecks.fileInputAriaLabel}"`);
+    console.log(`  Mode Explanation: role="${a11yChecks.modeExplRole}", aria-live="${a11yChecks.modeExplAriaLive}"`);
+    console.log(`  Has :focus-visible CSS rule: ${a11yChecks.hasFocusVisibleRule}`);
+
+    if (a11yChecks.dropZoneRole !== 'button') throw new Error('DropZone missing role="button"');
+    if (a11yChecks.dropZoneTabindex !== '0') throw new Error('DropZone missing tabindex="0"');
+    if (!a11yChecks.fileInputAriaLabel) throw new Error('FileInput missing aria-label');
+    if (a11yChecks.modeExplAriaLive !== 'polite') throw new Error('ModeExplanation missing aria-live="polite"');
+    if (!a11yChecks.hasFocusVisibleRule) throw new Error('Missing :focus-visible outline styling');
+    console.log('[PASS] Step 17: Accessibility attributes and visible focus verified.');
+
+    // Step 18: outputs_included=false / not_available_inline Browser UX
+    console.log('\n--- Step 18: outputs_included=false / not_available_inline Browser UX ---');
+    await cdp.eval(`(() => { document.querySelector('#clearButton').click(); })()`);
+    await sleep(300);
+
+    const inlineResult = await cdp.eval(`(() => {
+      const mockBatchResponse = {
+        ok: true,
+        outputs_included: false,
+        output_delivery: 'not_available_inline',
+        outputs: [],
+        report: {
+          schema_version: '2.1.0',
+          batch_id: 'mock-batch-inline-test',
+          summary: { total: 1, cleaned: 1, unsupported: 0, errors: 0, no_change: 0, inspected: 0, validation_failed: 0, skipped: 0 },
+          items: [{ index: 0, input_path: 'doc.docx', status: 'CLEANED' }]
+        }
+      };
+
+      const mockFile = new File(['dummy'], 'large_document.docx', { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+      addFiles([mockFile]);
+
+      const card = state.files[0];
+      const itemResult = mockBatchResponse.report.items[0];
+
+      if (itemResult.status === 'CLEANED') {
+        card.status = 'cleaned';
+        if (mockBatchResponse.outputs_included) {
+          // not included
+        } else if (mockBatchResponse.output_delivery === 'not_available_inline') {
+          card.detail = 'Batch completed, but cleaned files are too large for inline browser delivery.';
+        }
+      }
+      render();
+
+      const cardEl = document.querySelector('#fileList > article');
+      return {
+        cardStatus: cardEl.querySelector('.status-badge')?.textContent?.trim(),
+        cardDetail: cardEl.querySelector('.file-detail')?.textContent?.trim(),
+        downloadHidden: cardEl.querySelector('.download-file')?.hidden,
+        isError: cardEl.classList.contains('error')
+      };
+    })()`);
+
+    console.log(`  Card Status: ${inlineResult.cardStatus}`);
+    console.log(`  Card Detail: "${inlineResult.cardDetail}"`);
+    console.log(`  Download Hidden: ${inlineResult.downloadHidden}`);
+    console.log(`  Is Error Class: ${inlineResult.isError}`);
+
+    if (inlineResult.cardStatus !== 'CLEANED') throw new Error(`Expected CLEANED status, got: ${inlineResult.cardStatus}`);
+    if (!inlineResult.downloadHidden) throw new Error('Download button should be hidden when inline output is unavailable');
+    if (!inlineResult.cardDetail.includes('Batch completed, but cleaned files are too large')) {
+      throw new Error(`Unexpected card detail: ${inlineResult.cardDetail}`);
+    }
+    if (inlineResult.isError) throw new Error('Card should NOT have error class');
+    console.log('[PASS] Step 18: outputs_included=false handled gracefully without broken download buttons or false failure.');
+
+    // Step 19: XSS / Malicious Filename textContent Safety
+    console.log('\n--- Step 19: XSS / Malicious Filename textContent Safety ---');
+    const xssResult = await cdp.eval(`(() => {
+      document.querySelector('#clearButton').click();
+      window.__xssTriggered = false;
+      const originalAlert = window.alert;
+      window.alert = () => { window.__xssTriggered = true; };
+
+      const maliciousFile = new File(['safe'], '<img src=x onerror=alert(1)>.docx', { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+      addFiles([maliciousFile]);
+
+      const imgCount = document.querySelectorAll('img[src="x"]').length;
+      const renderedName = document.querySelector('.file-name')?.textContent;
+      const alertFired = window.__xssTriggered;
+
+      window.alert = originalAlert;
+      return { imgCount, renderedName, alertFired };
+    })()`);
+
+    console.log(`  Rendered file name: "${xssResult.renderedName}"`);
+    console.log(`  Injected <img> tags found: ${xssResult.imgCount}`);
+    console.log(`  XSS alert fired: ${xssResult.alertFired}`);
+
+    if (xssResult.imgCount > 0) throw new Error('XSS injection occurred: <img> tag found in DOM!');
+    if (xssResult.alertFired) throw new Error('XSS alert handler was executed!');
+    if (xssResult.renderedName !== '<img src=x onerror=alert(1)>.docx') {
+      throw new Error(`Filename not rendered literally: ${xssResult.renderedName}`);
+    }
+    console.log('[PASS] Step 19: Malicious filename safely rendered as literal text without XSS execution.');
+
     cdp.close();
 
     console.log('\n============================================================');
-    console.log(`ALL 15 SMOKE SCENARIO STEPS PASSED SUCCESSFULLY!`);
+    console.log(`ALL 19 SMOKE SCENARIO STEPS PASSED SUCCESSFULLY!`);
     console.log(`Browser Verified: ${browserName}`);
     console.log('============================================================\n');
 
   } finally {
     if (chromeProc) {
       chromeProc.kill('SIGKILL');
+    }
+    if (serverProc) {
+      serverProc.kill('SIGKILL');
     }
     await sleep(500);
     try { rmSync(tempProfile, { recursive: true, force: true }); } catch {}

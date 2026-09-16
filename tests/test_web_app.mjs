@@ -147,3 +147,115 @@ test('HTTP Batch response transport envelope decoding', () => {
   const matchBad = serverResponse.outputs.find(o => o.index === 1);
   assert.equal(matchBad, undefined);
 });
+
+test('Capability-driven mode resolution and stale mode protection', () => {
+  const capabilities = {
+    formats: {
+      docx: { format: 'docx', supported_modes: ['safe', 'balanced', 'aggressive'] },
+      svg: { format: 'svg', supported_modes: ['safe'] },
+      txt: { format: 'txt', supported_modes: ['safe', 'balanced', 'aggressive'] },
+    }
+  };
+
+  function getSupportedModesForFile(item, caps) {
+    if (!caps?.formats) return ['safe', 'balanced', 'aggressive'];
+    const ext = (item.file?.name?.split('.').pop() || item.format || '').toLowerCase();
+    const fmtCap = caps.formats[ext];
+    if (!fmtCap) return ['safe'];
+    return fmtCap.supported_modes || ['safe', 'balanced', 'aggressive'];
+  }
+
+  function computeQueueModes(files, caps) {
+    let balancedSupported = true;
+    let aggressiveSupported = true;
+    for (const item of files) {
+      const supported = getSupportedModesForFile(item, caps);
+      if (!supported.includes('balanced')) balancedSupported = false;
+      if (!supported.includes('aggressive')) aggressiveSupported = false;
+    }
+    return { balancedSupported, aggressiveSupported };
+  }
+
+  // 1. DOCX alone: supports BALANCED and AGGRESSIVE
+  const docxFile = { format: 'DOCX', file: { name: 'document.docx' } };
+  const modes1 = computeQueueModes([docxFile], capabilities);
+  assert.equal(modes1.balancedSupported, true);
+  assert.equal(modes1.aggressiveSupported, true);
+
+  // 2. SVG alone: only supports SAFE
+  const svgFile = { format: 'SVG', file: { name: 'graphic.svg' } };
+  const modes2 = computeQueueModes([svgFile], capabilities);
+  assert.equal(modes2.balancedSupported, false);
+  assert.equal(modes2.aggressiveSupported, false);
+
+  // 3. Mixed queue (DOCX + SVG): BALANCED and AGGRESSIVE disabled
+  const modes3 = computeQueueModes([docxFile, svgFile], capabilities);
+  assert.equal(modes3.balancedSupported, false);
+  assert.equal(modes3.aggressiveSupported, false);
+
+  // 4. Stale mode protection simulation
+  let currentMode = 'aggressive';
+  const { balancedSupported, aggressiveSupported } = computeQueueModes([docxFile, svgFile], capabilities);
+  if ((currentMode === 'balanced' && !balancedSupported) ||
+      (currentMode === 'aggressive' && !aggressiveSupported)) {
+    currentMode = 'safe';
+  }
+  assert.equal(currentMode, 'safe');
+});
+
+test('HTTP Batch outputs_included=false / not_available_inline UX handling', () => {
+  const batchResponse = {
+    ok: true,
+    outputs_included: false,
+    output_delivery: 'not_available_inline',
+    outputs: [],
+    report: {
+      schema_version: '2.1.0',
+      batch_id: 'large-batch-id',
+      summary: { total: 1, cleaned: 1, unsupported: 0, errors: 0, no_change: 0, inspected: 0, validation_failed: 0, skipped: 0 },
+      items: [
+        { index: 0, input_path: 'large_doc.docx', status: 'CLEANED' }
+      ]
+    }
+  };
+
+  // Simulate app.js card mapping logic
+  const card = {
+    file: { name: 'large_doc.docx', type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' },
+    status: 'queued',
+    detail: '',
+    result: null
+  };
+
+  const itemResult = batchResponse.report.items[0];
+  const outputsIncluded = Boolean(batchResponse.outputs_included);
+  const outputDelivery = batchResponse.output_delivery || 'none';
+
+  if (itemResult.status === 'CLEANED') {
+    card.status = 'cleaned';
+    if (outputsIncluded) {
+      // Inlined outputs
+    } else if (outputDelivery === 'not_available_inline') {
+      card.detail = 'Batch completed, but cleaned files are too large for inline browser delivery.';
+    }
+  }
+
+  // Verify invariants
+  assert.equal(card.status, 'cleaned');
+  assert.equal(card.result, null); // No broken download URL created
+  assert.equal(card.detail, 'Batch completed, but cleaned files are too large for inline browser delivery.');
+  assert.notEqual(card.status, 'error');
+  assert.notEqual(card.status, 'failed');
+});
+
+test('XSS malicious filename handling is strictly literal', () => {
+  const maliciousName = '<img src=x onerror=alert(1)>.docx';
+  const safeName = safeCleanedName(maliciousName);
+
+  // Sanitized output replaces unsafe characters
+  assert.ok(!safeName.includes('<'));
+  assert.ok(!safeName.includes('>'));
+  assert.ok(!safeName.includes('"'));
+  assert.equal(safeName, '_img_src_x_onerror_alert_1__.cleaned.docx');
+});
+

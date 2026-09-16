@@ -190,7 +190,7 @@ def test_ui_object_url_cleanup():
 def test_ui_safe_mode_default():
     index_html = (WEB_DIR / "index.html").read_text(encoding="utf-8")
     app_js = (WEB_DIR / "app.js").read_text(encoding="utf-8")
-    assert '<option value="safe" selected>' in index_html
+    assert '<option value="safe" id="optModeSafe" selected>' in index_html
     assert "mode: 'safe'" in app_js
 
 
@@ -215,4 +215,74 @@ def test_ui_batch_transport_delivery_contract():
     assert "outputDelivery === 'not_available_inline'" in app_js
     assert "Batch completed, but cleaned files are too large for inline browser delivery." in app_js
     assert "downloadBtn.hidden = !item.result?.url" in app_js
+
+
+# 13. Capability-Aware Mode Resolution & Stale Mode Protection Contract
+def test_ui_capability_aware_mode_contract():
+    app_js = (WEB_DIR / "app.js").read_text(encoding="utf-8")
+    index_html = (WEB_DIR / "index.html").read_text(encoding="utf-8")
+
+    # Options have unique IDs for dynamic capability control
+    assert 'id="optModeSafe"' in index_html
+    assert 'id="optModeBalanced"' in index_html
+    assert 'id="optModeAggressive"' in index_html
+
+    # Invariants in app.js
+    assert "function getSupportedModesForFile(" in app_js
+    assert "function updateModeSelector(" in app_js
+    assert "optBalanced.disabled = !balancedSupported" in app_js
+    assert "optAggressive.disabled = !aggressiveSupported" in app_js
+    assert "state.mode = 'safe'" in app_js
+    assert "els.modeSelect.value = 'safe'" in app_js
+
+
+# 14. Accessibility Contract
+def test_ui_accessibility_contract():
+    index_html = (WEB_DIR / "index.html").read_text(encoding="utf-8")
+    app_css = (WEB_DIR / "app.css").read_text(encoding="utf-8")
+    app_js = (WEB_DIR / "app.js").read_text(encoding="utf-8")
+
+    # Important status regions use aria-live
+    assert 'id="modeExplanation" role="status" aria-live="polite"' in index_html
+    assert 'id="batchWarningBanner" hidden role="alert" aria-live="polite"' in index_html
+    assert 'id="batchSummaryBar"' in index_html and 'aria-live="polite"' in index_html
+
+    # Keyboard accessibility for dropzone
+    assert "e.key === 'Enter' || e.key === ' '" in app_js
+
+    # Visible focus style
+    assert ":focus-visible" in app_css
+    assert "outline: 2px solid var(--green-deep)" in app_css
+
+    # Non-color-only status & error indicators
+    assert '.status-badge.status-error::before { content: "✕ "' in app_css
+    assert '.status-badge.status-failed::before { content: "⊘ "' in app_css
+    assert '.status-badge.status-unsupported::before { content: "⊘ "' in app_css
+    assert '.status-badge.status-cleaned::before { content: "✓ "' in app_css
+    assert "border: 1px dashed var(--danger)" in app_css
+
+
+# 15. Truthful Mode Copy Contract
+def test_ui_truthful_mode_copy_contract():
+    app_js = (WEB_DIR / "app.js").read_text(encoding="utf-8")
+    index_html = (WEB_DIR / "index.html").read_text(encoding="utf-8")
+
+    # Truthful wording
+    assert "High-confidence/default processing." in app_js
+    assert "Additional operations where supported by this format." in app_js
+    assert "Broader operations where explicitly supported; may show additional warnings." in app_js
+    assert "High-confidence/default processing." in index_html
+
+    # No global universal behavioral claims about homoglyphs/control chars on all formats
+    assert "chuẩn hóa ký tự điều khiển bổ sung" not in app_js
+    assert "homoglyphs" not in app_js
+
+
+# 16. Capabilities Authoritative Source (No Hardcoded Matrix in app.js)
+def test_ui_no_hardcoded_mode_matrix():
+    app_js = (WEB_DIR / "app.js").read_text(encoding="utf-8")
+    # Must query state.capabilities.formats, not a hardcoded format->mode table
+    assert "state.capabilities.formats[ext]" in app_js
+    assert "fmtCap.supported_modes" in app_js
+
 

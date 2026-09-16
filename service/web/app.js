@@ -153,11 +153,76 @@ async function loadCapabilities() {
       });
       els.formatsDisplay.textContent = `Định dạng hỗ trợ: ${formatNames.join(' · ')}`;
     }
+    updateModeSelector();
   } catch (err) {
     els.server.className = 'server-state offline';
     els.serverStatusText.textContent = 'Chế độ giới hạn (mất kết nối)';
     els.formatsDisplay.textContent = 'Định dạng phổ biến: DOCX (Lossless) · PDF · PNG · JPG · TXT';
   }
+}
+
+// -----------------------------------------------------------------------------
+// Capabilities-Driven Mode Resolution & Stale Mode Protection
+// -----------------------------------------------------------------------------
+
+function getSupportedModesForFile(item) {
+  if (!state.capabilities?.formats) {
+    return ['safe', 'balanced', 'aggressive'];
+  }
+  const ext = (item.file?.name?.split('.').pop() || item.format || '').toLowerCase();
+  const fmtCap = state.capabilities.formats[ext];
+  if (!fmtCap) {
+    return ['safe'];
+  }
+  return fmtCap.supported_modes || ['safe', 'balanced', 'aggressive'];
+}
+
+function updateModeSelector() {
+  const optSafe = $('#optModeSafe');
+  const optBalanced = $('#optModeBalanced');
+  const optAggressive = $('#optModeAggressive');
+  if (!optSafe || !optBalanced || !optAggressive) return;
+
+  if (state.files.length === 0) {
+    optSafe.disabled = false;
+    optBalanced.disabled = false;
+    optAggressive.disabled = false;
+    updateModeExplanation();
+    return;
+  }
+
+  // Determine which modes are supported across all files currently in the queue
+  let balancedSupported = true;
+  let aggressiveSupported = true;
+
+  for (const item of state.files) {
+    const supported = getSupportedModesForFile(item);
+    if (!supported.includes('balanced')) balancedSupported = false;
+    if (!supported.includes('aggressive')) aggressiveSupported = false;
+  }
+
+  optBalanced.disabled = !balancedSupported;
+  optAggressive.disabled = !aggressiveSupported;
+
+  // Stale mode protection: if current selection is now disabled, reset to safe
+  if ((state.mode === 'balanced' && !balancedSupported) ||
+      (state.mode === 'aggressive' && !aggressiveSupported)) {
+    state.mode = 'safe';
+    els.modeSelect.value = 'safe';
+    showToast('Đã chuyển về chế độ SAFE do danh sách tệp có định dạng chỉ hỗ trợ SAFE.');
+  }
+
+  updateModeExplanation();
+}
+
+function updateModeExplanation() {
+  const explanations = {
+    safe: 'High-confidence/default processing.',
+    balanced: 'Additional operations where supported by this format.',
+    aggressive: 'Broader operations where explicitly supported; may show additional warnings.',
+  };
+  const text = explanations[state.mode] || explanations.safe;
+  els.modeExplanation.innerHTML = `<strong>${state.mode.toUpperCase()}:</strong> ${text}`;
 }
 
 // -----------------------------------------------------------------------------
@@ -190,6 +255,7 @@ function addFiles(fileList) {
   }
 
   updateBatchWarnings();
+  updateModeSelector();
   render();
 }
 
@@ -203,6 +269,7 @@ function removeFile(id) {
     state.files.splice(idx, 1);
   }
   updateBatchWarnings();
+  updateModeSelector();
   render();
 }
 
@@ -217,6 +284,7 @@ function clearCompleted() {
   }
   state.files = remaining;
   updateBatchWarnings();
+  updateModeSelector();
   render();
 }
 
@@ -226,6 +294,7 @@ function clearAll() {
   }
   state.files = [];
   updateBatchWarnings();
+  updateModeSelector();
   render();
 }
 
@@ -333,13 +402,16 @@ async function cleanItem(item, quiet = false) {
       ? { also_layer_a_text: true, normalize_spaces: false }
       : { layer_a_only: true };
 
+    const supported = getSupportedModesForFile(item);
+    const effectiveMode = supported.includes(state.mode) ? state.mode : 'safe';
+
     const resp = await fetch('/clean', {
       method: 'POST',
       headers: authHeaders(),
       body: JSON.stringify({
         name: item.file.name,
         file: b64,
-        mode: state.mode,
+        mode: effectiveMode,
         dry_run: state.dryRun,
         options,
       }),
@@ -612,7 +684,12 @@ function createCardElement(item) {
   $('.file-size', node).textContent = formatBytes(item.file.size);
   $('.file-ext', node).textContent = item.format;
   $('.file-format-label', node).textContent = `Định dạng: ${item.format}`;
-  $('.file-mode-label', node).textContent = `Chế độ: ${state.mode.toUpperCase()}`;
+  const supported = getSupportedModesForFile(item);
+  let modeLabel = `Chế độ: ${state.mode.toUpperCase()}`;
+  if (!supported.includes(state.mode)) {
+    modeLabel = `Chế độ: SAFE (Định dạng chỉ hỗ trợ SAFE)`;
+  }
+  $('.file-mode-label', node).textContent = modeLabel;
 
   // Status Badge
   const statusBadge = $('.status-badge', node);
@@ -715,13 +792,16 @@ function updateSummary() {
 // -----------------------------------------------------------------------------
 
 function onModeChange() {
-  state.mode = els.modeSelect.value;
-  const explanations = {
-    safe: 'SAFE: Mặc định an toàn. Gỡ bỏ metadata nhận diện và ký tự ẩn với độ tin cậy cao, bảo toàn 100% cấu trúc tài liệu.',
-    balanced: 'BALANCED: Mở rộng kiểm tra và làm sạch metadata toàn diện, chuẩn hóa ký tự điều khiển bổ sung.',
-    aggressive: 'AGGRESSIVE: Chế độ làm sạch triệt để nhất, bao gồm chuẩn hóa ký tự đồng dạng (homoglyphs) thử nghiệm.',
-  };
-  els.modeExplanation.innerHTML = `<strong>${state.mode.toUpperCase()}:</strong> ${explanations[state.mode] || ''}`;
+  const chosen = els.modeSelect.value;
+  const opt = $(`#modeSelect option[value="${chosen}"]`);
+  if (opt && opt.disabled) {
+    els.modeSelect.value = 'safe';
+    state.mode = 'safe';
+    showToast('Chế độ này không được hỗ trợ bởi các tệp trong danh sách.');
+  } else {
+    state.mode = els.modeSelect.value;
+  }
+  updateModeExplanation();
   render();
 }
 
@@ -736,6 +816,12 @@ function onDryRunChange() {
 
 els.browse.onclick = () => els.input.click();
 els.drop.onclick = e => { if (!e.target.closest('button')) els.input.click(); };
+els.drop.addEventListener('keydown', e => {
+  if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault();
+    els.input.click();
+  }
+});
 els.input.onchange = () => { addFiles(els.input.files); els.input.value = ''; };
 
 for (const name of ['dragenter', 'dragover']) {
