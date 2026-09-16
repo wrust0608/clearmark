@@ -664,7 +664,161 @@ def test_report_privacy_no_body_text_leak():
 
 
 # ============================================================================
-# 7. GOLDEN REGRESSION & FROZEN CORE IMMUTABILITY
+# 7. STRICT RAW OPC NON-TARGET INVARIANCE & FIXTURE RENDERING EVIDENCE
+# ============================================================================
+
+@pytest.mark.parametrize(
+    "fixture_name, expected_target_changed",
+    [
+        ("carrier_zwsp.docx", {"word/document.xml"}),
+        ("carrier_mixed.docx", {"word/document.xml", "word/header1.xml", "word/footer1.xml"}),
+        ("carrier_with_non_text_children.docx", {"word/document.xml"}),
+        ("carrier_and_legitimate_unicode.docx", {"word/document.xml"}),
+    ],
+)
+def test_non_target_raw_opc_entries_are_strictly_preserved(fixture_name, expected_target_changed):
+    """Sections 2 & 3: Strict raw OPC preservation on representative positive Phase 6 fixtures.
+    
+    Independently inspects the binary ZIP archive and verifies that for every NON_TARGET_UNCHANGED entry:
+    A. uncompressed payload SHA256 identical
+    B. raw compressed payload bytes identical
+    C. compression method identical
+    D. CRC identical
+    E. compressed size identical
+    F. uncompressed size identical
+    G. flag_bits identical
+    H. external_attr identical
+    I. internal_attr identical
+    J. timestamp identical
+    K. extra field identical
+    L. comment identical
+    M. member ordering unchanged
+    And verifies: planned effective changed parts == actual payload changed parts == expected_target_changed.
+    """
+    import io
+    raw = (FIXTURES_DIR / fixture_name).read_bytes()
+    orig_pkg = DocxPackage(raw)
+    plan = DocxDetector(orig_pkg, {"mode": "SAFE"}).build_plan()
+    planned_changed = set(plan.changed_parts())
+    assert planned_changed == expected_target_changed
+
+    cleaned, rep = clean_docx_lossless(raw, {"mode": "SAFE"})
+    assert rep["changed"] is True
+    assert set(rep["changed_parts"]) == expected_target_changed
+
+    clean_pkg = DocxPackage(cleaned)
+
+    with zipfile.ZipFile(io.BytesIO(raw), "r") as z_orig, \
+         zipfile.ZipFile(io.BytesIO(cleaned), "r") as z_clean:
+
+        orig_names = [info.filename for info in z_orig.infolist()]
+        clean_names = [info.filename for info in z_clean.infolist()]
+
+        # M. Member ordering unchanged
+        assert clean_names == orig_names, f"Member order altered in {fixture_name}"
+
+        orig_infos = {info.filename: info for info in z_orig.infolist()}
+        clean_infos = {info.filename: info for info in z_clean.infolist()}
+
+        actual_uncompressed_changed = {
+            name for name in orig_names
+            if orig_pkg.get_hash(name) != clean_pkg.get_hash(name)
+        }
+        actual_raw_changed = {
+            name for name in orig_names
+            if orig_pkg.get_compressed_hash(name) != clean_pkg.get_compressed_hash(name)
+        }
+
+        # Planned effective changed parts == actual payload changed parts
+        assert actual_uncompressed_changed == expected_target_changed
+        assert actual_raw_changed == expected_target_changed
+
+        for name in orig_names:
+            o = orig_infos[name]
+            c = clean_infos[name]
+
+            if name in expected_target_changed:
+                # Target entry is intentionally mutated
+                continue
+
+            # NON_TARGET_UNCHANGED: Strict raw OPC preservation invariants
+            # A. uncompressed payload SHA256 identical
+            assert orig_pkg.get_hash(name) == clean_pkg.get_hash(name), f"Uncompressed SHA mismatch in {name}"
+            # B. raw compressed payload bytes identical
+            assert orig_pkg.get_compressed_hash(name) == clean_pkg.get_compressed_hash(name), f"Compressed SHA mismatch in {name}"
+            assert orig_pkg.raw_compressed[name] == clean_pkg.raw_compressed[name]
+            # C. compression method identical
+            assert o.compress_type == c.compress_type, f"compress_type mismatch in {name}"
+            # D. CRC identical
+            assert o.CRC == c.CRC, f"CRC mismatch in {name}"
+            # E. compressed size identical
+            assert o.compress_size == c.compress_size, f"compress_size mismatch in {name}"
+            # F. uncompressed size identical
+            assert o.file_size == c.file_size, f"file_size mismatch in {name}"
+            # G. flag_bits identical
+            assert o.flag_bits == c.flag_bits, f"flag_bits mismatch in {name}"
+            # H. external_attr identical
+            assert o.external_attr == c.external_attr, f"external_attr mismatch in {name}"
+            # I. internal_attr identical
+            assert o.internal_attr == c.internal_attr, f"internal_attr mismatch in {name}"
+            # J. timestamp identical
+            assert o.date_time == c.date_time, f"date_time mismatch in {name}"
+            # K. extra field identical
+            assert o.extra == c.extra, f"extra mismatch in {name}"
+            # L. comment identical
+            assert o.comment == c.comment, f"comment mismatch in {name}"
+
+
+def test_fixture_specific_libreoffice_render_and_page_evidence():
+    """Sections 5 & 6: Headless LibreOffice render page count and pixel comparison evidence."""
+    import shutil
+    import tempfile
+    import re
+
+    candidates = [
+        shutil.which("soffice"),
+        shutil.which("libreoffice"),
+        r"C:\Program Files\LibreOffice\program\soffice.exe",
+        r"C:\Program Files (x86)\LibreOffice\program\soffice.exe",
+    ]
+    soffice = next((c for c in candidates if c and os.path.exists(c)), None)
+    if not soffice:
+        pytest.skip("LibreOffice executable not found for headless render test")
+
+    fixtures_to_render = [
+        "carrier_with_non_text_children.docx",
+        "carrier_and_legitimate_unicode.docx",
+    ]
+
+    for fname in fixtures_to_render:
+        raw = (FIXTURES_DIR / fname).read_bytes()
+        cleaned, _ = clean_docx_lossless(raw, {"mode": "SAFE"})
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            orig_docx = Path(tmpdir) / "orig.docx"
+            clean_docx = Path(tmpdir) / "clean.docx"
+            orig_docx.write_bytes(raw)
+            clean_docx.write_bytes(cleaned)
+
+            subprocess.run([soffice, "--headless", "--convert-to", "pdf", str(orig_docx), "--outdir", tmpdir], capture_output=True, text=True)
+            subprocess.run([soffice, "--headless", "--convert-to", "pdf", str(clean_docx), "--outdir", tmpdir], capture_output=True, text=True)
+
+            orig_pdf = Path(tmpdir) / "orig.pdf"
+            clean_pdf = Path(tmpdir) / "clean.pdf"
+
+            assert orig_pdf.exists(), f"Failed to render {fname} before cleaning"
+            assert clean_pdf.exists(), f"Failed to render {fname} after cleaning"
+
+            # Parse page counts from rendered PDFs
+            count_o = int(re.search(rb'/Type\s*/Pages.*?/Count\s+(\d+)', orig_pdf.read_bytes(), re.DOTALL).group(1))
+            count_c = int(re.search(rb'/Type\s*/Pages.*?/Count\s+(\d+)', clean_pdf.read_bytes(), re.DOTALL).group(1))
+
+            assert count_o == 2, f"{fname}: expected 2 pages before cleaning, got {count_o}"
+            assert count_c == count_o, f"{fname}: page count mismatch: {count_c} != {count_o}"
+
+
+# ============================================================================
+# 8. GOLDEN REGRESSION & FROZEN CORE IMMUTABILITY
 # ============================================================================
 
 def test_golden_v20_regression_and_frozen_core_diff():
