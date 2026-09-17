@@ -1603,6 +1603,20 @@ class Handler(BaseHTTPRequestHandler):
             self._respond(HTTPStatus.OK, openapi_spec())
         else:
             web_dir = Path(__file__).resolve().parent.parent / "web"
+            if not web_dir.is_dir():
+                if hasattr(sys, "_MEIPASS"):
+                    base = Path(getattr(sys, "_MEIPASS"))
+                    if (base / "service" / "web").is_dir():
+                        web_dir = base / "service" / "web"
+                    elif (base / "web").is_dir():
+                        web_dir = base / "web"
+                elif hasattr(sys, "executable"):
+                    exe_dir = Path(sys.executable).resolve().parent
+                    if (exe_dir / "service" / "web").is_dir():
+                        web_dir = exe_dir / "service" / "web"
+                    elif (exe_dir / "_internal" / "service" / "web").is_dir():
+                        web_dir = exe_dir / "_internal" / "service" / "web"
+
             if path in ("/", "/index.html"):
                 target = web_dir / "index.html"
                 if target.is_file():
@@ -2230,8 +2244,34 @@ class Handler(BaseHTTPRequestHandler):
         self._respond(HTTPStatus.OK, {"ok": True, "results": results})
 
 
+def create_server(
+    host: str = "127.0.0.1",
+    port: int = 8765,
+    api_key: str | None = None,
+    strategy_config: Path | str | None = None,
+) -> ThreadingHTTPServer:
+    """Create and return a configured ThreadingHTTPServer instance without blocking."""
+    global API_KEY, _DEFAULT_STRATEGY  # noqa: PLW0603
+    if api_key is not None:
+        API_KEY = api_key
+    if strategy_config:
+        _DEFAULT_STRATEGY = _load_default_strategy(Path(strategy_config))
+    elif _DEFAULT_STRATEGY is None:
+        _DEFAULT_STRATEGY = _load_default_strategy(
+            Path(os.environ.get("WATERMARKS_CLEAN_STRATEGY_FILE", "config/clean_strategy.json"))
+        )
+
+    if host not in ("127.0.0.1", "localhost", "::1"):
+        eprint(f"warning: binding {host} — intended for a trusted network only")
+    if API_KEY:
+        eprint("API key required for requests")
+    else:
+        eprint("warning: no API key set — only bind to loopback or a trusted network")
+
+    return ThreadingHTTPServer((host, port), Handler)
+
+
 def main() -> int:
-    global API_KEY  # noqa: PLW0603 — CLI overrides env
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--host", default=os.environ.get("WATERMARKS_SERVER_HOST", "127.0.0.1"))
     p.add_argument(
@@ -2252,24 +2292,19 @@ def main() -> int:
         print(VERSION)
         return 0
 
-    API_KEY = args.api_key
-    global _DEFAULT_STRATEGY  # noqa: PLW0603 — loaded once at startup
-    _DEFAULT_STRATEGY = _load_default_strategy(Path(args.strategy_config))
-
-    if args.host not in ("127.0.0.1", "localhost", "::1"):
-        eprint(f"warning: binding {args.host} — intended for a trusted network only")
-    if API_KEY:
-        eprint("API key required for requests")
-    else:
-        eprint("warning: no API key set — only bind to loopback or a trusted network")
-
-    server = ThreadingHTTPServer((args.host, args.port), Handler)
+    server = create_server(
+        host=args.host,
+        port=args.port,
+        api_key=args.api_key,
+        strategy_config=args.strategy_config,
+    )
     eprint(f"watermarks-remover service {VERSION} on http://{args.host}:{args.port}")
     try:
         server.serve_forever()
     except KeyboardInterrupt:
         eprint("shutting down")
         server.shutdown()
+        server.server_close()
     return 0
 
 
