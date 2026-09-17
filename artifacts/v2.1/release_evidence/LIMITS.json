@@ -1,0 +1,95 @@
+{
+  "batch_cli_vs_http_distinction": {
+    "cli_max_batch_files": 100,
+    "http_max_batch_files": 50,
+    "scope": "CLI batch engine defaults to 100 files; HTTP server defaults to 50 files for bounded latency"
+  },
+  "limits": {
+    "batch_processor.MAX_BATCH_FILES": {
+      "display": "100 files",
+      "enforcement": "CLI batch queue item ceiling (exit 6)",
+      "raw_count": 100
+    },
+    "batch_processor.MAX_BATCH_INLINE_OUTPUT_BYTES": {
+      "display": "32 MiB",
+      "enforcement": "Batch inline output switch ceiling",
+      "raw_bytes": 33554432
+    },
+    "batch_processor.MAX_BATCH_TOTAL_BYTES": {
+      "display": "200 MiB",
+      "enforcement": "Batch aggregate payload ceiling (exit 6 / HTTP 413)",
+      "raw_bytes": 209715200
+    },
+    "batch_processor.MAX_INPUT_BYTES": {
+      "display": "32 MiB",
+      "enforcement": "Batch single-file ceiling (item error LIMIT_EXCEEDED)",
+      "raw_bytes": 33554432
+    },
+    "common.MAX_INPUT_BYTES": {
+      "display": "256 MiB",
+      "enforcement": "Top-level input byte size ceiling (exit 6 / HTTP 413)",
+      "raw_bytes": 268435456
+    },
+    "common.MAX_STDIN_BYTES": {
+      "display": "64 MiB",
+      "enforcement": "CLI stdin stream byte limit (exit 6)",
+      "raw_bytes": 67108864
+    },
+    "security.SecurityLimits.max_compression_ratio": {
+      "display": "100.0x",
+      "enforcement": "ZIP decompression ratio bomb protection (exit 6 / HTTP 413)",
+      "raw_ratio": 100.0
+    },
+    "security.SecurityLimits.max_member_count": {
+      "display": "10,000 entries",
+      "enforcement": "ZIP member count preflight ceiling (exit 6 / HTTP 413)",
+      "raw_count": 10000
+    },
+    "security.SecurityLimits.max_member_uncompressed_bytes": {
+      "display": "64 MiB",
+      "enforcement": "ZIP member uncompressed size ceiling (exit 6 / HTTP 413)",
+      "raw_bytes": 67108864
+    },
+    "security.SecurityLimits.max_total_uncompressed_bytes": {
+      "display": "128 MiB",
+      "enforcement": "ZIP total uncompressed size ceiling (exit 6 / HTTP 413)",
+      "raw_bytes": 134217728
+    },
+    "security.SecurityLimits.max_total_xml_bytes": {
+      "display": "128 MiB",
+      "enforcement": "XML package aggregate byte size ceiling (exit 6 / HTTP 413)",
+      "raw_bytes": 134217728
+    },
+    "security.SecurityLimits.max_xml_depth": {
+      "display": "100 levels",
+      "enforcement": "XML element nesting depth ceiling (exit 6 / HTTP 413)",
+      "raw_count": 100
+    },
+    "security.SecurityLimits.max_xml_elements": {
+      "display": "500,000 elements",
+      "enforcement": "XML element count expansion ceiling (exit 6 / HTTP 413)",
+      "raw_count": 500000
+    },
+    "security.SecurityLimits.max_xml_part_bytes": {
+      "display": "32 MiB",
+      "enforcement": "XML document part byte size ceiling (exit 6 / HTTP 413)",
+      "raw_bytes": 33554432
+    },
+    "server.MAX_BATCH_FILES": {
+      "display": "50 files",
+      "enforcement": "HTTP /batch request item ceiling (HTTP 413)",
+      "raw_count": 50
+    },
+    "server.MAX_BODY_BYTES": {
+      "display": "384 MiB",
+      "enforcement": "HTTP multipart/JSON request body limit (HTTP 413)",
+      "raw_bytes": 402653184
+    },
+    "server.MAX_INPUT_BYTES": {
+      "display": "256 MiB",
+      "enforcement": "HTTP input payload limit (HTTP 413)",
+      "raw_bytes": 268435456
+    }
+  },
+  "status": "PASS"
+}

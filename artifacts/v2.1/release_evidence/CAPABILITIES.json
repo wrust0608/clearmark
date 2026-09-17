@@ -1,0 +1,910 @@
+{
+  "all_extensions": [
+    ".aac",
+    ".avi",
+    ".avif",
+    ".bmp",
+    ".docx",
+    ".epub",
+    ".flac",
+    ".gif",
+    ".heic",
+    ".htm",
+    ".html",
+    ".jpeg",
+    ".jpg",
+    ".latex",
+    ".m4a",
+    ".markdown",
+    ".md",
+    ".mkv",
+    ".mov",
+    ".mp3",
+    ".mp4",
+    ".odp",
+    ".ods",
+    ".odt",
+    ".ogg",
+    ".pdf",
+    ".png",
+    ".pptx",
+    ".svg",
+    ".tex",
+    ".tif",
+    ".tiff",
+    ".txt",
+    ".wav",
+    ".webm",
+    ".webp",
+    ".xlsx"
+  ],
+  "canonical_policies": [
+    "audio",
+    "avif",
+    "bmp",
+    "docx",
+    "epub",
+    "gif",
+    "heic",
+    "html",
+    "jpeg",
+    "latex",
+    "md",
+    "odp",
+    "ods",
+    "odt",
+    "pdf",
+    "png",
+    "pptx",
+    "svg",
+    "tiff",
+    "txt",
+    "video",
+    "webp",
+    "xlsx"
+  ],
+  "canonical_policy_count": 23,
+  "dependency_sensitive_policies": [
+    "pdf"
+  ],
+  "extension_aliases_count": 14,
+  "policies": {
+    "audio": {
+      "clean_capabilities": [
+        "audio_watermark_notch",
+        "c2pa_strip",
+        "tag_strip"
+      ],
+      "extensions": [
+        ".aac",
+        ".flac",
+        ".m4a",
+        ".mp3",
+        ".ogg",
+        ".wav"
+      ],
+      "fidelity_requirements": [
+        "LEVEL_C"
+      ],
+      "format_name": "audio",
+      "inspect_capabilities": [
+        "audio_watermark",
+        "c2pa",
+        "id3",
+        "tags",
+        "xmp"
+      ],
+      "network_policy": "LOCAL_ONLY",
+      "optional_dependencies": [
+        "ffmpeg"
+      ],
+      "runtime_available": true,
+      "runtime_state": "AVAILABLE",
+      "supported_modes": [
+        "aggressive",
+        "balanced",
+        "safe"
+      ],
+      "verify_capabilities": []
+    },
+    "avif": {
+      "clean_capabilities": [
+        "EXIF",
+        "XMP",
+        "c2pa_strip",
+        "metadata",
+        "metadata_strip",
+        "pixel_watermark_inpaint"
+      ],
+      "extensions": [
+        ".avif"
+      ],
+      "fidelity_requirements": [
+        "LEVEL_C"
+      ],
+      "format_name": "avif",
+      "inspect_capabilities": [
+        "C2PA",
+        "EXIF",
+        "IPTC",
+        "XMP",
+        "pixel_watermark"
+      ],
+      "network_policy": "LOCAL_ONLY",
+      "optional_dependencies": [
+        "c2patool",
+        "exiftool"
+      ],
+      "runtime_available": true,
+      "runtime_state": "AVAILABLE",
+      "supported_modes": [
+        "aggressive",
+        "balanced",
+        "safe"
+      ],
+      "verify_capabilities": []
+    },
+    "bmp": {
+      "clean_capabilities": [
+        "EXIF",
+        "XMP",
+        "c2pa_strip",
+        "metadata",
+        "metadata_strip",
+        "pixel_watermark_inpaint"
+      ],
+      "extensions": [
+        ".bmp"
+      ],
+      "fidelity_requirements": [
+        "LEVEL_C"
+      ],
+      "format_name": "bmp",
+      "inspect_capabilities": [
+        "C2PA",
+        "EXIF",
+        "IPTC",
+        "XMP",
+        "pixel_watermark"
+      ],
+      "network_policy": "LOCAL_ONLY",
+      "optional_dependencies": [
+        "c2patool",
+        "exiftool"
+      ],
+      "runtime_available": true,
+      "runtime_state": "AVAILABLE",
+      "supported_modes": [
+        "aggressive",
+        "balanced",
+        "safe"
+      ],
+      "verify_capabilities": []
+    },
+    "docx": {
+      "clean_capabilities": [
+        "customXml_drop",
+        "docProps_scrub",
+        "media_meta_strip",
+        "raw_opc_preservation",
+        "unicode_carrier_remove"
+      ],
+      "extensions": [
+        ".docx"
+      ],
+      "fidelity_requirements": [
+        "LEVEL_A",
+        "LEVEL_B",
+        "LEVEL_C",
+        "LEVEL_D"
+      ],
+      "format_name": "docx",
+      "inspect_capabilities": [
+        "customXml",
+        "docProps",
+        "media_c2pa",
+        "metadata",
+        "unicode_carriers"
+      ],
+      "network_policy": "LOCAL_ONLY",
+      "optional_dependencies": [],
+      "runtime_available": true,
+      "runtime_state": "AVAILABLE",
+      "supported_modes": [
+        "aggressive",
+        "balanced",
+        "safe"
+      ],
+      "verify_capabilities": [
+        "raw_opc_invariants",
+        "structural_invariants",
+        "visible_text_exact"
+      ]
+    },
+    "epub": {
+      "clean_capabilities": [
+        "manifest_prune",
+        "meta_scrub",
+        "text_carrier_remove"
+      ],
+      "extensions": [
+        ".epub"
+      ],
+      "fidelity_requirements": [
+        "LEVEL_B",
+        "LEVEL_C"
+      ],
+      "format_name": "epub",
+      "inspect_capabilities": [
+        "manifest",
+        "metadata",
+        "text_runs"
+      ],
+      "network_policy": "LOCAL_ONLY",
+      "optional_dependencies": [],
+      "runtime_available": true,
+      "runtime_state": "AVAILABLE",
+      "supported_modes": [
+        "aggressive",
+        "balanced",
+        "safe"
+      ],
+      "verify_capabilities": []
+    },
+    "gif": {
+      "clean_capabilities": [
+        "EXIF",
+        "XMP",
+        "c2pa_strip",
+        "metadata",
+        "metadata_strip",
+        "pixel_watermark_inpaint"
+      ],
+      "extensions": [
+        ".gif"
+      ],
+      "fidelity_requirements": [
+        "LEVEL_C"
+      ],
+      "format_name": "gif",
+      "inspect_capabilities": [
+        "C2PA",
+        "EXIF",
+        "IPTC",
+        "XMP",
+        "pixel_watermark"
+      ],
+      "network_policy": "LOCAL_ONLY",
+      "optional_dependencies": [
+        "c2patool",
+        "exiftool"
+      ],
+      "runtime_available": true,
+      "runtime_state": "AVAILABLE",
+      "supported_modes": [
+        "aggressive",
+        "balanced",
+        "safe"
+      ],
+      "verify_capabilities": []
+    },
+    "heic": {
+      "clean_capabilities": [
+        "EXIF",
+        "XMP",
+        "c2pa_strip",
+        "metadata",
+        "metadata_strip",
+        "pixel_watermark_inpaint"
+      ],
+      "extensions": [
+        ".heic"
+      ],
+      "fidelity_requirements": [
+        "LEVEL_C"
+      ],
+      "format_name": "heic",
+      "inspect_capabilities": [
+        "C2PA",
+        "EXIF",
+        "IPTC",
+        "XMP",
+        "pixel_watermark"
+      ],
+      "network_policy": "LOCAL_ONLY",
+      "optional_dependencies": [
+        "c2patool",
+        "exiftool"
+      ],
+      "runtime_available": true,
+      "runtime_state": "AVAILABLE",
+      "supported_modes": [
+        "aggressive",
+        "balanced",
+        "safe"
+      ],
+      "verify_capabilities": []
+    },
+    "html": {
+      "clean_capabilities": [
+        "homoglyph_normalize",
+        "invisible_unicode_remove",
+        "semantic_rewrite"
+      ],
+      "extensions": [
+        ".htm",
+        ".html"
+      ],
+      "fidelity_requirements": [
+        "LEVEL_C"
+      ],
+      "format_name": "html",
+      "inspect_capabilities": [
+        "c2pa",
+        "homoglyphs",
+        "invisible_unicode",
+        "stylometry"
+      ],
+      "network_policy": "LOCAL_ONLY",
+      "optional_dependencies": [],
+      "runtime_available": true,
+      "runtime_state": "AVAILABLE",
+      "supported_modes": [
+        "aggressive",
+        "balanced",
+        "safe"
+      ],
+      "verify_capabilities": []
+    },
+    "jpeg": {
+      "clean_capabilities": [
+        "EXIF",
+        "XMP",
+        "c2pa_strip",
+        "metadata",
+        "metadata_strip",
+        "pixel_watermark_inpaint"
+      ],
+      "extensions": [
+        ".jpeg",
+        ".jpg"
+      ],
+      "fidelity_requirements": [
+        "LEVEL_C"
+      ],
+      "format_name": "jpeg",
+      "inspect_capabilities": [
+        "C2PA",
+        "EXIF",
+        "IPTC",
+        "XMP",
+        "pixel_watermark"
+      ],
+      "network_policy": "LOCAL_ONLY",
+      "optional_dependencies": [
+        "c2patool",
+        "exiftool"
+      ],
+      "runtime_available": true,
+      "runtime_state": "AVAILABLE",
+      "supported_modes": [
+        "aggressive",
+        "balanced",
+        "safe"
+      ],
+      "verify_capabilities": []
+    },
+    "latex": {
+      "clean_capabilities": [
+        "homoglyph_normalize",
+        "invisible_unicode_remove",
+        "semantic_rewrite"
+      ],
+      "extensions": [
+        ".latex",
+        ".tex"
+      ],
+      "fidelity_requirements": [
+        "LEVEL_C"
+      ],
+      "format_name": "latex",
+      "inspect_capabilities": [
+        "c2pa",
+        "homoglyphs",
+        "invisible_unicode",
+        "stylometry"
+      ],
+      "network_policy": "LOCAL_ONLY",
+      "optional_dependencies": [],
+      "runtime_available": true,
+      "runtime_state": "AVAILABLE",
+      "supported_modes": [
+        "aggressive",
+        "balanced",
+        "safe"
+      ],
+      "verify_capabilities": []
+    },
+    "md": {
+      "clean_capabilities": [
+        "homoglyph_normalize",
+        "invisible_unicode_remove",
+        "semantic_rewrite"
+      ],
+      "extensions": [
+        ".markdown",
+        ".md"
+      ],
+      "fidelity_requirements": [
+        "LEVEL_C"
+      ],
+      "format_name": "md",
+      "inspect_capabilities": [
+        "c2pa",
+        "homoglyphs",
+        "invisible_unicode",
+        "stylometry"
+      ],
+      "network_policy": "OPTIONAL_REMOTE",
+      "optional_dependencies": [],
+      "runtime_available": true,
+      "runtime_state": "AVAILABLE",
+      "supported_modes": [
+        "aggressive",
+        "balanced",
+        "safe"
+      ],
+      "verify_capabilities": []
+    },
+    "odp": {
+      "clean_capabilities": [
+        "manifest_prune",
+        "meta_scrub",
+        "text_carrier_remove"
+      ],
+      "extensions": [
+        ".odp"
+      ],
+      "fidelity_requirements": [
+        "LEVEL_B",
+        "LEVEL_C"
+      ],
+      "format_name": "odp",
+      "inspect_capabilities": [
+        "manifest",
+        "metadata",
+        "text_runs"
+      ],
+      "network_policy": "LOCAL_ONLY",
+      "optional_dependencies": [],
+      "runtime_available": true,
+      "runtime_state": "AVAILABLE",
+      "supported_modes": [
+        "aggressive",
+        "balanced",
+        "safe"
+      ],
+      "verify_capabilities": []
+    },
+    "ods": {
+      "clean_capabilities": [
+        "manifest_prune",
+        "meta_scrub",
+        "text_carrier_remove"
+      ],
+      "extensions": [
+        ".ods"
+      ],
+      "fidelity_requirements": [
+        "LEVEL_B",
+        "LEVEL_C"
+      ],
+      "format_name": "ods",
+      "inspect_capabilities": [
+        "manifest",
+        "metadata",
+        "text_runs"
+      ],
+      "network_policy": "LOCAL_ONLY",
+      "optional_dependencies": [],
+      "runtime_available": true,
+      "runtime_state": "AVAILABLE",
+      "supported_modes": [
+        "aggressive",
+        "balanced",
+        "safe"
+      ],
+      "verify_capabilities": []
+    },
+    "odt": {
+      "clean_capabilities": [
+        "manifest_prune",
+        "meta_scrub",
+        "text_carrier_remove"
+      ],
+      "extensions": [
+        ".odt"
+      ],
+      "fidelity_requirements": [
+        "LEVEL_B",
+        "LEVEL_C"
+      ],
+      "format_name": "odt",
+      "inspect_capabilities": [
+        "manifest",
+        "metadata",
+        "text_runs"
+      ],
+      "network_policy": "LOCAL_ONLY",
+      "optional_dependencies": [],
+      "runtime_available": true,
+      "runtime_state": "AVAILABLE",
+      "supported_modes": [
+        "aggressive",
+        "balanced",
+        "safe"
+      ],
+      "verify_capabilities": []
+    },
+    "pdf": {
+      "clean_capabilities": [
+        "attachment_meta_clean",
+        "c2pa_strip",
+        "ghostscript_re-distill",
+        "info_scrub",
+        "xmp_strip"
+      ],
+      "extensions": [
+        ".pdf"
+      ],
+      "fidelity_requirements": [
+        "LEVEL_B",
+        "LEVEL_C"
+      ],
+      "format_name": "pdf",
+      "inspect_capabilities": [
+        "attachments",
+        "c2pa",
+        "deep_images",
+        "info_dict",
+        "xmp"
+      ],
+      "network_policy": "LOCAL_ONLY",
+      "optional_dependencies": [
+        "c2patool",
+        "ghostscript",
+        "qpdf"
+      ],
+      "runtime_available": false,
+      "runtime_state": "DEPENDENCY_SENSITIVE",
+      "supported_modes": [
+        "aggressive",
+        "balanced",
+        "safe"
+      ],
+      "verify_capabilities": []
+    },
+    "png": {
+      "clean_capabilities": [
+        "EXIF",
+        "XMP",
+        "c2pa_strip",
+        "metadata",
+        "metadata_strip",
+        "pixel_watermark_inpaint"
+      ],
+      "extensions": [
+        ".png"
+      ],
+      "fidelity_requirements": [
+        "LEVEL_C"
+      ],
+      "format_name": "png",
+      "inspect_capabilities": [
+        "C2PA",
+        "EXIF",
+        "IPTC",
+        "XMP",
+        "pixel_watermark"
+      ],
+      "network_policy": "LOCAL_ONLY",
+      "optional_dependencies": [
+        "c2patool",
+        "exiftool"
+      ],
+      "runtime_available": true,
+      "runtime_state": "AVAILABLE",
+      "supported_modes": [
+        "aggressive",
+        "balanced",
+        "safe"
+      ],
+      "verify_capabilities": []
+    },
+    "pptx": {
+      "clean_capabilities": [
+        "docProps_scrub",
+        "raw_opc_preservation",
+        "slide_carrier_remove",
+        "table_carrier_remove"
+      ],
+      "extensions": [
+        ".pptx"
+      ],
+      "fidelity_requirements": [
+        "LEVEL_A",
+        "LEVEL_B",
+        "LEVEL_C",
+        "LEVEL_D"
+      ],
+      "format_name": "pptx",
+      "inspect_capabilities": [
+        "docProps",
+        "metadata",
+        "slide_text",
+        "table_text"
+      ],
+      "network_policy": "LOCAL_ONLY",
+      "optional_dependencies": [],
+      "runtime_available": true,
+      "runtime_state": "AVAILABLE",
+      "supported_modes": [
+        "aggressive",
+        "balanced",
+        "safe"
+      ],
+      "verify_capabilities": [
+        "geometry_exact",
+        "raw_opc_invariants",
+        "run_structure_exact",
+        "shape_tree_exact",
+        "structural_invariants"
+      ]
+    },
+    "svg": {
+      "clean_capabilities": [
+        "meta_tags_drop",
+        "xml_comments_strip"
+      ],
+      "extensions": [
+        ".svg"
+      ],
+      "fidelity_requirements": [
+        "LEVEL_B",
+        "LEVEL_C"
+      ],
+      "format_name": "svg",
+      "inspect_capabilities": [
+        "c2pa",
+        "metadata_tags",
+        "xml_comments"
+      ],
+      "network_policy": "LOCAL_ONLY",
+      "optional_dependencies": [],
+      "runtime_available": true,
+      "runtime_state": "AVAILABLE",
+      "supported_modes": [
+        "safe"
+      ],
+      "verify_capabilities": []
+    },
+    "tiff": {
+      "clean_capabilities": [
+        "EXIF",
+        "XMP",
+        "c2pa_strip",
+        "metadata",
+        "metadata_strip",
+        "pixel_watermark_inpaint"
+      ],
+      "extensions": [
+        ".tif",
+        ".tiff"
+      ],
+      "fidelity_requirements": [
+        "LEVEL_C"
+      ],
+      "format_name": "tiff",
+      "inspect_capabilities": [
+        "C2PA",
+        "EXIF",
+        "IPTC",
+        "XMP",
+        "pixel_watermark"
+      ],
+      "network_policy": "LOCAL_ONLY",
+      "optional_dependencies": [
+        "c2patool",
+        "exiftool"
+      ],
+      "runtime_available": true,
+      "runtime_state": "AVAILABLE",
+      "supported_modes": [
+        "aggressive",
+        "balanced",
+        "safe"
+      ],
+      "verify_capabilities": []
+    },
+    "txt": {
+      "clean_capabilities": [
+        "homoglyph_normalize",
+        "invisible_unicode_remove",
+        "semantic_rewrite"
+      ],
+      "extensions": [
+        ".txt"
+      ],
+      "fidelity_requirements": [
+        "LEVEL_C"
+      ],
+      "format_name": "txt",
+      "inspect_capabilities": [
+        "c2pa",
+        "homoglyphs",
+        "invisible_unicode",
+        "stylometry"
+      ],
+      "network_policy": "OPTIONAL_REMOTE",
+      "optional_dependencies": [],
+      "runtime_available": true,
+      "runtime_state": "AVAILABLE",
+      "supported_modes": [
+        "aggressive",
+        "balanced",
+        "safe"
+      ],
+      "verify_capabilities": []
+    },
+    "video": {
+      "clean_capabilities": [
+        "audio_watermark_notch",
+        "c2pa_strip",
+        "tag_strip"
+      ],
+      "extensions": [
+        ".avi",
+        ".mkv",
+        ".mov",
+        ".mp4",
+        ".webm"
+      ],
+      "fidelity_requirements": [
+        "LEVEL_C"
+      ],
+      "format_name": "video",
+      "inspect_capabilities": [
+        "audio_watermark",
+        "c2pa",
+        "id3",
+        "tags",
+        "xmp"
+      ],
+      "network_policy": "LOCAL_ONLY",
+      "optional_dependencies": [
+        "ffmpeg"
+      ],
+      "runtime_available": true,
+      "runtime_state": "AVAILABLE",
+      "supported_modes": [
+        "aggressive",
+        "balanced",
+        "safe"
+      ],
+      "verify_capabilities": []
+    },
+    "webp": {
+      "clean_capabilities": [
+        "EXIF",
+        "XMP",
+        "c2pa_strip",
+        "metadata",
+        "metadata_strip",
+        "pixel_watermark_inpaint"
+      ],
+      "extensions": [
+        ".webp"
+      ],
+      "fidelity_requirements": [
+        "LEVEL_C"
+      ],
+      "format_name": "webp",
+      "inspect_capabilities": [
+        "C2PA",
+        "EXIF",
+        "IPTC",
+        "XMP",
+        "pixel_watermark"
+      ],
+      "network_policy": "LOCAL_ONLY",
+      "optional_dependencies": [
+        "c2patool",
+        "exiftool"
+      ],
+      "runtime_available": true,
+      "runtime_state": "AVAILABLE",
+      "supported_modes": [
+        "aggressive",
+        "balanced",
+        "safe"
+      ],
+      "verify_capabilities": []
+    },
+    "xlsx": {
+      "clean_capabilities": [
+        "docProps_scrub",
+        "inlineStrings_carrier_remove",
+        "raw_opc_preservation",
+        "sharedStrings_carrier_remove"
+      ],
+      "extensions": [
+        ".xlsx"
+      ],
+      "fidelity_requirements": [
+        "LEVEL_A",
+        "LEVEL_B",
+        "LEVEL_C",
+        "LEVEL_D"
+      ],
+      "format_name": "xlsx",
+      "inspect_capabilities": [
+        "docProps",
+        "inlineStrings",
+        "metadata",
+        "sharedStrings"
+      ],
+      "network_policy": "LOCAL_ONLY",
+      "optional_dependencies": [],
+      "runtime_available": true,
+      "runtime_state": "AVAILABLE",
+      "supported_modes": [
+        "aggressive",
+        "balanced",
+        "safe"
+      ],
+      "verify_capabilities": [
+        "formula_exact",
+        "raw_opc_invariants",
+        "shared_string_invariants",
+        "structural_invariants",
+        "style_invariants"
+      ]
+    }
+  },
+  "runtime_available_count": 22,
+  "runtime_available_policies": [
+    "audio",
+    "avif",
+    "bmp",
+    "docx",
+    "epub",
+    "gif",
+    "heic",
+    "html",
+    "jpeg",
+    "latex",
+    "md",
+    "odp",
+    "ods",
+    "odt",
+    "png",
+    "pptx",
+    "svg",
+    "tiff",
+    "txt",
+    "video",
+    "webp",
+    "xlsx"
+  ],
+  "safe_only_policies": [
+    "svg"
+  ],
+  "server_capabilities_parity": true,
+  "source": "service/scripts/format_policy.py",
+  "total_registered_extensions": 37,
+  "verify_supported_policies": [
+    "docx",
+    "pptx",
+    "xlsx"
+  ]
+}

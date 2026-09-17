@@ -1,0 +1,57 @@
+{
+  "file_count": 7,
+  "files": [
+    {
+      "path": "CAPABILITIES.json",
+      "purpose": "Generated release evidence artifact CAPABILITIES.json",
+      "schema_version": "1.0",
+      "sha256": "9d9248d0255db8f2610d52c61112956e4cd72ed6e3949d471d2cae3715d2bb5f",
+      "size_bytes": 19767
+    },
+    {
+      "path": "HASHES.json",
+      "purpose": "Generated release evidence artifact HASHES.json",
+      "schema_version": "1.0",
+      "sha256": "1348ef8774cde290dd5dc6ace92b2ac8d2a8576c9431ce5b69118ee582fe1e95",
+      "size_bytes": 3976
+    },
+    {
+      "path": "LIMITS.json",
+      "purpose": "Generated release evidence artifact LIMITS.json",
+      "schema_version": "1.0",
+      "sha256": "66e28e6a5c1fad2310feb2bc76084fadbbbd3d42a5df1096bb00791bd8023688",
+      "size_bytes": 3456
+    },
+    {
+      "path": "PROVENANCE.json",
+      "purpose": "Generated release evidence artifact PROVENANCE.json",
+      "schema_version": "1.0",
+      "sha256": "36eee30337d7c90589da40cc68a91901c60895975dbb08d8489f02249479110c",
+      "size_bytes": 2138
+    },
+    {
+      "path": "release_evidence.json",
+      "purpose": "Generated release evidence artifact release_evidence.json",
+      "schema_version": "1.0",
+      "sha256": "f8bd7863d354dbb8fd2aee8a0e99151e2809c77c52c65f5ebe29b0bca2c90be4",
+      "size_bytes": 39463
+    },
+    {
+      "path": "release_evidence.md",
+      "purpose": "Generated release evidence artifact release_evidence.md",
+      "schema_version": "1.0",
+      "sha256": "4a7c84dce8bb2f54e38c62d7d82b90fafb25625ee505a7ba9b33fd8c4c5366cb",
+      "size_bytes": 2206
+    },
+    {
+      "path": "TEST_RESULTS.json",
+      "purpose": "Generated release evidence artifact TEST_RESULTS.json",
+      "schema_version": "1.0",
+      "sha256": "ec42a4db2d2cb65fc9c0d69aec75bfea1fe241843d0be510919e1e7cfe2b3a14",
+      "size_bytes": 2892
+    }
+  ],
+  "generated_at_utc": "2026-09-17T14:46:42Z",
+  "schema_version": "1.0",
+  "target_release": "v2.1.0"
+}

@@ -1,0 +1,1420 @@
+{
+  "baseline": {
+    "target": "v2.1.0",
+    "v200_tag_commit": "758d3085b8868566209a82ea981a32aa61147a44"
+  },
+  "capabilities": {
+    "all_extensions": [
+      ".aac",
+      ".avi",
+      ".avif",
+      ".bmp",
+      ".docx",
+      ".epub",
+      ".flac",
+      ".gif",
+      ".heic",
+      ".htm",
+      ".html",
+      ".jpeg",
+      ".jpg",
+      ".latex",
+      ".m4a",
+      ".markdown",
+      ".md",
+      ".mkv",
+      ".mov",
+      ".mp3",
+      ".mp4",
+      ".odp",
+      ".ods",
+      ".odt",
+      ".ogg",
+      ".pdf",
+      ".png",
+      ".pptx",
+      ".svg",
+      ".tex",
+      ".tif",
+      ".tiff",
+      ".txt",
+      ".wav",
+      ".webm",
+      ".webp",
+      ".xlsx"
+    ],
+    "canonical_policies": [
+      "audio",
+      "avif",
+      "bmp",
+      "docx",
+      "epub",
+      "gif",
+      "heic",
+      "html",
+      "jpeg",
+      "latex",
+      "md",
+      "odp",
+      "ods",
+      "odt",
+      "pdf",
+      "png",
+      "pptx",
+      "svg",
+      "tiff",
+      "txt",
+      "video",
+      "webp",
+      "xlsx"
+    ],
+    "canonical_policy_count": 23,
+    "dependency_sensitive_policies": [
+      "pdf"
+    ],
+    "extension_aliases_count": 14,
+    "policies": {
+      "audio": {
+        "clean_capabilities": [
+          "audio_watermark_notch",
+          "c2pa_strip",
+          "tag_strip"
+        ],
+        "extensions": [
+          ".aac",
+          ".flac",
+          ".m4a",
+          ".mp3",
+          ".ogg",
+          ".wav"
+        ],
+        "fidelity_requirements": [
+          "LEVEL_C"
+        ],
+        "format_name": "audio",
+        "inspect_capabilities": [
+          "audio_watermark",
+          "c2pa",
+          "id3",
+          "tags",
+          "xmp"
+        ],
+        "network_policy": "LOCAL_ONLY",
+        "optional_dependencies": [
+          "ffmpeg"
+        ],
+        "runtime_available": true,
+        "runtime_state": "AVAILABLE",
+        "supported_modes": [
+          "aggressive",
+          "balanced",
+          "safe"
+        ],
+        "verify_capabilities": []
+      },
+      "avif": {
+        "clean_capabilities": [
+          "EXIF",
+          "XMP",
+          "c2pa_strip",
+          "metadata",
+          "metadata_strip",
+          "pixel_watermark_inpaint"
+        ],
+        "extensions": [
+          ".avif"
+        ],
+        "fidelity_requirements": [
+          "LEVEL_C"
+        ],
+        "format_name": "avif",
+        "inspect_capabilities": [
+          "C2PA",
+          "EXIF",
+          "IPTC",
+          "XMP",
+          "pixel_watermark"
+        ],
+        "network_policy": "LOCAL_ONLY",
+        "optional_dependencies": [
+          "c2patool",
+          "exiftool"
+        ],
+        "runtime_available": true,
+        "runtime_state": "AVAILABLE",
+        "supported_modes": [
+          "aggressive",
+          "balanced",
+          "safe"
+        ],
+        "verify_capabilities": []
+      },
+      "bmp": {
+        "clean_capabilities": [
+          "EXIF",
+          "XMP",
+          "c2pa_strip",
+          "metadata",
+          "metadata_strip",
+          "pixel_watermark_inpaint"
+        ],
+        "extensions": [
+          ".bmp"
+        ],
+        "fidelity_requirements": [
+          "LEVEL_C"
+        ],
+        "format_name": "bmp",
+        "inspect_capabilities": [
+          "C2PA",
+          "EXIF",
+          "IPTC",
+          "XMP",
+          "pixel_watermark"
+        ],
+        "network_policy": "LOCAL_ONLY",
+        "optional_dependencies": [
+          "c2patool",
+          "exiftool"
+        ],
+        "runtime_available": true,
+        "runtime_state": "AVAILABLE",
+        "supported_modes": [
+          "aggressive",
+          "balanced",
+          "safe"
+        ],
+        "verify_capabilities": []
+      },
+      "docx": {
+        "clean_capabilities": [
+          "customXml_drop",
+          "docProps_scrub",
+          "media_meta_strip",
+          "raw_opc_preservation",
+          "unicode_carrier_remove"
+        ],
+        "extensions": [
+          ".docx"
+        ],
+        "fidelity_requirements": [
+          "LEVEL_A",
+          "LEVEL_B",
+          "LEVEL_C",
+          "LEVEL_D"
+        ],
+        "format_name": "docx",
+        "inspect_capabilities": [
+          "customXml",
+          "docProps",
+          "media_c2pa",
+          "metadata",
+          "unicode_carriers"
+        ],
+        "network_policy": "LOCAL_ONLY",
+        "optional_dependencies": [],
+        "runtime_available": true,
+        "runtime_state": "AVAILABLE",
+        "supported_modes": [
+          "aggressive",
+          "balanced",
+          "safe"
+        ],
+        "verify_capabilities": [
+          "raw_opc_invariants",
+          "structural_invariants",
+          "visible_text_exact"
+        ]
+      },
+      "epub": {
+        "clean_capabilities": [
+          "manifest_prune",
+          "meta_scrub",
+          "text_carrier_remove"
+        ],
+        "extensions": [
+          ".epub"
+        ],
+        "fidelity_requirements": [
+          "LEVEL_B",
+          "LEVEL_C"
+        ],
+        "format_name": "epub",
+        "inspect_capabilities": [
+          "manifest",
+          "metadata",
+          "text_runs"
+        ],
+        "network_policy": "LOCAL_ONLY",
+        "optional_dependencies": [],
+        "runtime_available": true,
+        "runtime_state": "AVAILABLE",
+        "supported_modes": [
+          "aggressive",
+          "balanced",
+          "safe"
+        ],
+        "verify_capabilities": []
+      },
+      "gif": {
+        "clean_capabilities": [
+          "EXIF",
+          "XMP",
+          "c2pa_strip",
+          "metadata",
+          "metadata_strip",
+          "pixel_watermark_inpaint"
+        ],
+        "extensions": [
+          ".gif"
+        ],
+        "fidelity_requirements": [
+          "LEVEL_C"
+        ],
+        "format_name": "gif",
+        "inspect_capabilities": [
+          "C2PA",
+          "EXIF",
+          "IPTC",
+          "XMP",
+          "pixel_watermark"
+        ],
+        "network_policy": "LOCAL_ONLY",
+        "optional_dependencies": [
+          "c2patool",
+          "exiftool"
+        ],
+        "runtime_available": true,
+        "runtime_state": "AVAILABLE",
+        "supported_modes": [
+          "aggressive",
+          "balanced",
+          "safe"
+        ],
+        "verify_capabilities": []
+      },
+      "heic": {
+        "clean_capabilities": [
+          "EXIF",
+          "XMP",
+          "c2pa_strip",
+          "metadata",
+          "metadata_strip",
+          "pixel_watermark_inpaint"
+        ],
+        "extensions": [
+          ".heic"
+        ],
+        "fidelity_requirements": [
+          "LEVEL_C"
+        ],
+        "format_name": "heic",
+        "inspect_capabilities": [
+          "C2PA",
+          "EXIF",
+          "IPTC",
+          "XMP",
+          "pixel_watermark"
+        ],
+        "network_policy": "LOCAL_ONLY",
+        "optional_dependencies": [
+          "c2patool",
+          "exiftool"
+        ],
+        "runtime_available": true,
+        "runtime_state": "AVAILABLE",
+        "supported_modes": [
+          "aggressive",
+          "balanced",
+          "safe"
+        ],
+        "verify_capabilities": []
+      },
+      "html": {
+        "clean_capabilities": [
+          "homoglyph_normalize",
+          "invisible_unicode_remove",
+          "semantic_rewrite"
+        ],
+        "extensions": [
+          ".htm",
+          ".html"
+        ],
+        "fidelity_requirements": [
+          "LEVEL_C"
+        ],
+        "format_name": "html",
+        "inspect_capabilities": [
+          "c2pa",
+          "homoglyphs",
+          "invisible_unicode",
+          "stylometry"
+        ],
+        "network_policy": "LOCAL_ONLY",
+        "optional_dependencies": [],
+        "runtime_available": true,
+        "runtime_state": "AVAILABLE",
+        "supported_modes": [
+          "aggressive",
+          "balanced",
+          "safe"
+        ],
+        "verify_capabilities": []
+      },
+      "jpeg": {
+        "clean_capabilities": [
+          "EXIF",
+          "XMP",
+          "c2pa_strip",
+          "metadata",
+          "metadata_strip",
+          "pixel_watermark_inpaint"
+        ],
+        "extensions": [
+          ".jpeg",
+          ".jpg"
+        ],
+        "fidelity_requirements": [
+          "LEVEL_C"
+        ],
+        "format_name": "jpeg",
+        "inspect_capabilities": [
+          "C2PA",
+          "EXIF",
+          "IPTC",
+          "XMP",
+          "pixel_watermark"
+        ],
+        "network_policy": "LOCAL_ONLY",
+        "optional_dependencies": [
+          "c2patool",
+          "exiftool"
+        ],
+        "runtime_available": true,
+        "runtime_state": "AVAILABLE",
+        "supported_modes": [
+          "aggressive",
+          "balanced",
+          "safe"
+        ],
+        "verify_capabilities": []
+      },
+      "latex": {
+        "clean_capabilities": [
+          "homoglyph_normalize",
+          "invisible_unicode_remove",
+          "semantic_rewrite"
+        ],
+        "extensions": [
+          ".latex",
+          ".tex"
+        ],
+        "fidelity_requirements": [
+          "LEVEL_C"
+        ],
+        "format_name": "latex",
+        "inspect_capabilities": [
+          "c2pa",
+          "homoglyphs",
+          "invisible_unicode",
+          "stylometry"
+        ],
+        "network_policy": "LOCAL_ONLY",
+        "optional_dependencies": [],
+        "runtime_available": true,
+        "runtime_state": "AVAILABLE",
+        "supported_modes": [
+          "aggressive",
+          "balanced",
+          "safe"
+        ],
+        "verify_capabilities": []
+      },
+      "md": {
+        "clean_capabilities": [
+          "homoglyph_normalize",
+          "invisible_unicode_remove",
+          "semantic_rewrite"
+        ],
+        "extensions": [
+          ".markdown",
+          ".md"
+        ],
+        "fidelity_requirements": [
+          "LEVEL_C"
+        ],
+        "format_name": "md",
+        "inspect_capabilities": [
+          "c2pa",
+          "homoglyphs",
+          "invisible_unicode",
+          "stylometry"
+        ],
+        "network_policy": "OPTIONAL_REMOTE",
+        "optional_dependencies": [],
+        "runtime_available": true,
+        "runtime_state": "AVAILABLE",
+        "supported_modes": [
+          "aggressive",
+          "balanced",
+          "safe"
+        ],
+        "verify_capabilities": []
+      },
+      "odp": {
+        "clean_capabilities": [
+          "manifest_prune",
+          "meta_scrub",
+          "text_carrier_remove"
+        ],
+        "extensions": [
+          ".odp"
+        ],
+        "fidelity_requirements": [
+          "LEVEL_B",
+          "LEVEL_C"
+        ],
+        "format_name": "odp",
+        "inspect_capabilities": [
+          "manifest",
+          "metadata",
+          "text_runs"
+        ],
+        "network_policy": "LOCAL_ONLY",
+        "optional_dependencies": [],
+        "runtime_available": true,
+        "runtime_state": "AVAILABLE",
+        "supported_modes": [
+          "aggressive",
+          "balanced",
+          "safe"
+        ],
+        "verify_capabilities": []
+      },
+      "ods": {
+        "clean_capabilities": [
+          "manifest_prune",
+          "meta_scrub",
+          "text_carrier_remove"
+        ],
+        "extensions": [
+          ".ods"
+        ],
+        "fidelity_requirements": [
+          "LEVEL_B",
+          "LEVEL_C"
+        ],
+        "format_name": "ods",
+        "inspect_capabilities": [
+          "manifest",
+          "metadata",
+          "text_runs"
+        ],
+        "network_policy": "LOCAL_ONLY",
+        "optional_dependencies": [],
+        "runtime_available": true,
+        "runtime_state": "AVAILABLE",
+        "supported_modes": [
+          "aggressive",
+          "balanced",
+          "safe"
+        ],
+        "verify_capabilities": []
+      },
+      "odt": {
+        "clean_capabilities": [
+          "manifest_prune",
+          "meta_scrub",
+          "text_carrier_remove"
+        ],
+        "extensions": [
+          ".odt"
+        ],
+        "fidelity_requirements": [
+          "LEVEL_B",
+          "LEVEL_C"
+        ],
+        "format_name": "odt",
+        "inspect_capabilities": [
+          "manifest",
+          "metadata",
+          "text_runs"
+        ],
+        "network_policy": "LOCAL_ONLY",
+        "optional_dependencies": [],
+        "runtime_available": true,
+        "runtime_state": "AVAILABLE",
+        "supported_modes": [
+          "aggressive",
+          "balanced",
+          "safe"
+        ],
+        "verify_capabilities": []
+      },
+      "pdf": {
+        "clean_capabilities": [
+          "attachment_meta_clean",
+          "c2pa_strip",
+          "ghostscript_re-distill",
+          "info_scrub",
+          "xmp_strip"
+        ],
+        "extensions": [
+          ".pdf"
+        ],
+        "fidelity_requirements": [
+          "LEVEL_B",
+          "LEVEL_C"
+        ],
+        "format_name": "pdf",
+        "inspect_capabilities": [
+          "attachments",
+          "c2pa",
+          "deep_images",
+          "info_dict",
+          "xmp"
+        ],
+        "network_policy": "LOCAL_ONLY",
+        "optional_dependencies": [
+          "c2patool",
+          "ghostscript",
+          "qpdf"
+        ],
+        "runtime_available": false,
+        "runtime_state": "DEPENDENCY_SENSITIVE",
+        "supported_modes": [
+          "aggressive",
+          "balanced",
+          "safe"
+        ],
+        "verify_capabilities": []
+      },
+      "png": {
+        "clean_capabilities": [
+          "EXIF",
+          "XMP",
+          "c2pa_strip",
+          "metadata",
+          "metadata_strip",
+          "pixel_watermark_inpaint"
+        ],
+        "extensions": [
+          ".png"
+        ],
+        "fidelity_requirements": [
+          "LEVEL_C"
+        ],
+        "format_name": "png",
+        "inspect_capabilities": [
+          "C2PA",
+          "EXIF",
+          "IPTC",
+          "XMP",
+          "pixel_watermark"
+        ],
+        "network_policy": "LOCAL_ONLY",
+        "optional_dependencies": [
+          "c2patool",
+          "exiftool"
+        ],
+        "runtime_available": true,
+        "runtime_state": "AVAILABLE",
+        "supported_modes": [
+          "aggressive",
+          "balanced",
+          "safe"
+        ],
+        "verify_capabilities": []
+      },
+      "pptx": {
+        "clean_capabilities": [
+          "docProps_scrub",
+          "raw_opc_preservation",
+          "slide_carrier_remove",
+          "table_carrier_remove"
+        ],
+        "extensions": [
+          ".pptx"
+        ],
+        "fidelity_requirements": [
+          "LEVEL_A",
+          "LEVEL_B",
+          "LEVEL_C",
+          "LEVEL_D"
+        ],
+        "format_name": "pptx",
+        "inspect_capabilities": [
+          "docProps",
+          "metadata",
+          "slide_text",
+          "table_text"
+        ],
+        "network_policy": "LOCAL_ONLY",
+        "optional_dependencies": [],
+        "runtime_available": true,
+        "runtime_state": "AVAILABLE",
+        "supported_modes": [
+          "aggressive",
+          "balanced",
+          "safe"
+        ],
+        "verify_capabilities": [
+          "geometry_exact",
+          "raw_opc_invariants",
+          "run_structure_exact",
+          "shape_tree_exact",
+          "structural_invariants"
+        ]
+      },
+      "svg": {
+        "clean_capabilities": [
+          "meta_tags_drop",
+          "xml_comments_strip"
+        ],
+        "extensions": [
+          ".svg"
+        ],
+        "fidelity_requirements": [
+          "LEVEL_B",
+          "LEVEL_C"
+        ],
+        "format_name": "svg",
+        "inspect_capabilities": [
+          "c2pa",
+          "metadata_tags",
+          "xml_comments"
+        ],
+        "network_policy": "LOCAL_ONLY",
+        "optional_dependencies": [],
+        "runtime_available": true,
+        "runtime_state": "AVAILABLE",
+        "supported_modes": [
+          "safe"
+        ],
+        "verify_capabilities": []
+      },
+      "tiff": {
+        "clean_capabilities": [
+          "EXIF",
+          "XMP",
+          "c2pa_strip",
+          "metadata",
+          "metadata_strip",
+          "pixel_watermark_inpaint"
+        ],
+        "extensions": [
+          ".tif",
+          ".tiff"
+        ],
+        "fidelity_requirements": [
+          "LEVEL_C"
+        ],
+        "format_name": "tiff",
+        "inspect_capabilities": [
+          "C2PA",
+          "EXIF",
+          "IPTC",
+          "XMP",
+          "pixel_watermark"
+        ],
+        "network_policy": "LOCAL_ONLY",
+        "optional_dependencies": [
+          "c2patool",
+          "exiftool"
+        ],
+        "runtime_available": true,
+        "runtime_state": "AVAILABLE",
+        "supported_modes": [
+          "aggressive",
+          "balanced",
+          "safe"
+        ],
+        "verify_capabilities": []
+      },
+      "txt": {
+        "clean_capabilities": [
+          "homoglyph_normalize",
+          "invisible_unicode_remove",
+          "semantic_rewrite"
+        ],
+        "extensions": [
+          ".txt"
+        ],
+        "fidelity_requirements": [
+          "LEVEL_C"
+        ],
+        "format_name": "txt",
+        "inspect_capabilities": [
+          "c2pa",
+          "homoglyphs",
+          "invisible_unicode",
+          "stylometry"
+        ],
+        "network_policy": "OPTIONAL_REMOTE",
+        "optional_dependencies": [],
+        "runtime_available": true,
+        "runtime_state": "AVAILABLE",
+        "supported_modes": [
+          "aggressive",
+          "balanced",
+          "safe"
+        ],
+        "verify_capabilities": []
+      },
+      "video": {
+        "clean_capabilities": [
+          "audio_watermark_notch",
+          "c2pa_strip",
+          "tag_strip"
+        ],
+        "extensions": [
+          ".avi",
+          ".mkv",
+          ".mov",
+          ".mp4",
+          ".webm"
+        ],
+        "fidelity_requirements": [
+          "LEVEL_C"
+        ],
+        "format_name": "video",
+        "inspect_capabilities": [
+          "audio_watermark",
+          "c2pa",
+          "id3",
+          "tags",
+          "xmp"
+        ],
+        "network_policy": "LOCAL_ONLY",
+        "optional_dependencies": [
+          "ffmpeg"
+        ],
+        "runtime_available": true,
+        "runtime_state": "AVAILABLE",
+        "supported_modes": [
+          "aggressive",
+          "balanced",
+          "safe"
+        ],
+        "verify_capabilities": []
+      },
+      "webp": {
+        "clean_capabilities": [
+          "EXIF",
+          "XMP",
+          "c2pa_strip",
+          "metadata",
+          "metadata_strip",
+          "pixel_watermark_inpaint"
+        ],
+        "extensions": [
+          ".webp"
+        ],
+        "fidelity_requirements": [
+          "LEVEL_C"
+        ],
+        "format_name": "webp",
+        "inspect_capabilities": [
+          "C2PA",
+          "EXIF",
+          "IPTC",
+          "XMP",
+          "pixel_watermark"
+        ],
+        "network_policy": "LOCAL_ONLY",
+        "optional_dependencies": [
+          "c2patool",
+          "exiftool"
+        ],
+        "runtime_available": true,
+        "runtime_state": "AVAILABLE",
+        "supported_modes": [
+          "aggressive",
+          "balanced",
+          "safe"
+        ],
+        "verify_capabilities": []
+      },
+      "xlsx": {
+        "clean_capabilities": [
+          "docProps_scrub",
+          "inlineStrings_carrier_remove",
+          "raw_opc_preservation",
+          "sharedStrings_carrier_remove"
+        ],
+        "extensions": [
+          ".xlsx"
+        ],
+        "fidelity_requirements": [
+          "LEVEL_A",
+          "LEVEL_B",
+          "LEVEL_C",
+          "LEVEL_D"
+        ],
+        "format_name": "xlsx",
+        "inspect_capabilities": [
+          "docProps",
+          "inlineStrings",
+          "metadata",
+          "sharedStrings"
+        ],
+        "network_policy": "LOCAL_ONLY",
+        "optional_dependencies": [],
+        "runtime_available": true,
+        "runtime_state": "AVAILABLE",
+        "supported_modes": [
+          "aggressive",
+          "balanced",
+          "safe"
+        ],
+        "verify_capabilities": [
+          "formula_exact",
+          "raw_opc_invariants",
+          "shared_string_invariants",
+          "structural_invariants",
+          "style_invariants"
+        ]
+      }
+    },
+    "runtime_available_count": 22,
+    "runtime_available_policies": [
+      "audio",
+      "avif",
+      "bmp",
+      "docx",
+      "epub",
+      "gif",
+      "heic",
+      "html",
+      "jpeg",
+      "latex",
+      "md",
+      "odp",
+      "ods",
+      "odt",
+      "png",
+      "pptx",
+      "svg",
+      "tiff",
+      "txt",
+      "video",
+      "webp",
+      "xlsx"
+    ],
+    "safe_only_policies": [
+      "svg"
+    ],
+    "server_capabilities_parity": true,
+    "source": "service/scripts/format_policy.py",
+    "total_registered_extensions": 37,
+    "verify_supported_policies": [
+      "docx",
+      "pptx",
+      "xlsx"
+    ]
+  },
+  "contracts": {
+    "aliases": {
+      "BATCH_PARTIAL_SUCCESS": 7,
+      "alias_of": "BATCH_PARTIAL_FAILURE (code 7)"
+    },
+    "exit_codes": {
+      "BATCH_PARTIAL_FAILURE": 7,
+      "BATCH_PARTIAL_SUCCESS": 7,
+      "DEPENDENCY_MISSING": 5,
+      "INTERNAL_ERROR": 10,
+      "INVALID_INPUT": 4,
+      "LIMIT_EXCEEDED": 6,
+      "SUCCESS": 0,
+      "UNSUPPORTED": 2,
+      "VALIDATION_FAILED": 3
+    },
+    "http_status_mappings": {
+      "INTERNAL_ERROR": 500,
+      "INVALID_CONTAINER": 400,
+      "OPTIONAL_DEPENDENCY_MISSING": 424,
+      "PROCESSING_LIMIT_EXCEEDED": 413,
+      "UNSUPPORTED_ARCHIVE_FEATURE": 422,
+      "UNSUPPORTED_FORMAT": 415,
+      "VALIDATION_FAILED": 422
+    },
+    "status": "PASS"
+  },
+  "documentation": {
+    "broken_markdown_links": 0,
+    "consistency_test_suite": "tests/test_docs_capabilities_consistency.py",
+    "documentation_implementation_commit": "c6a4b3afbc1d58e30d39202746449f089735bb3d",
+    "private_paths_count": 0,
+    "prohibited_claims_count": 0,
+    "report_path": "docs/v2.1/PHASE12_DOCUMENTATION_REPORT.md",
+    "semantic_truthfulness_closure_commit": "02cd1e75525ca0ce238e87413a96860d5dd14d10",
+    "status": "PASS"
+  },
+  "frozen_core": {
+    "baseline_tag": "v2.0.0",
+    "changed_files_count": 0,
+    "changed_lines_count": 0,
+    "diff_empty": true,
+    "status": "PASS",
+    "target_path": "service/scripts/docx/"
+  },
+  "generated_at_utc": "2026-09-17T14:46:42Z",
+  "git": {
+    "allow_dirty": false,
+    "base_commit_v200": "758d3085b8868566209a82ea981a32aa61147a44",
+    "branch": "v2.1-dev",
+    "head": "3d3657a783a3a511502b5bcad2dba6dd263ba504",
+    "is_clean": true,
+    "modified_files": [],
+    "untracked_files": []
+  },
+  "hashes": {
+    "critical_files": {
+      "01_GOLDEN_ORIGINAL_UNTOUCHED.docx": {
+        "exists": true,
+        "path": "01_GOLDEN_ORIGINAL_UNTOUCHED.docx",
+        "sha256": "c05ca5c1be3b020b75d5763cf22061879a255b3c4f57b0455ae562b54809f58d",
+        "size_bytes": 49959
+      },
+      "04_CANDIDATE_LOSSLESS_OUTPUT.docx": {
+        "exists": true,
+        "path": "04_CANDIDATE_LOSSLESS_OUTPUT.docx",
+        "sha256": "7aa5549f6a0e0b78fa39245c0e79503b2cc9defd6cffbfa5c8a833072d430297",
+        "size_bytes": 49395
+      },
+      "README.md": {
+        "exists": true,
+        "path": "README.md",
+        "sha256": "6b06c7df7d807f683b0dedbd6c78bce250079aca6c6795a48189596a4a3b3ec5",
+        "size_bytes": 11629
+      },
+      "artifacts/v2.1/baseline.json": {
+        "exists": true,
+        "path": "artifacts/v2.1/baseline.json",
+        "sha256": "9ede381a7258f32b01b3ec3e2d645861f2ec3c887a0b1b4594cd0043f7c6e2ba",
+        "size_bytes": 1822
+      },
+      "artifacts/v2.1/phase11_benchmark.json": {
+        "exists": true,
+        "path": "artifacts/v2.1/phase11_benchmark.json",
+        "sha256": "f18781435a565033e2e394c011a0d5acddcaa5f477f118b21c3201fd93f68e50",
+        "size_bytes": 118159
+      },
+      "artifacts/v2.1/phase11_closure_guardrails.json": {
+        "exists": true,
+        "path": "artifacts/v2.1/phase11_closure_guardrails.json",
+        "sha256": "02de32bf19ffc01f5e9044167fc30efdb944f7981f47b064f3b2e5ee34df0999",
+        "size_bytes": 7579
+      },
+      "docs/capabilities.md": {
+        "exists": true,
+        "path": "docs/capabilities.md",
+        "sha256": "286eaa4cdda261392859a429f76bdda36f2801ca46a1d34df984fde84f663d07",
+        "size_bytes": 18057
+      },
+      "docs/format_guarantees.md": {
+        "exists": true,
+        "path": "docs/format_guarantees.md",
+        "sha256": "b043adee6ad1e3ef40a99cb8bd8705cc7fed731c968c7ddac33755fed51ff9dc",
+        "size_bytes": 12285
+      },
+      "docs/v2.1/PHASE10_IDEMPOTENCE_REPORT.md": {
+        "exists": true,
+        "path": "docs/v2.1/PHASE10_IDEMPOTENCE_REPORT.md",
+        "sha256": "c9d3e6797fe4ea6b02fbfdce91237bb3af75aadbbc094fdd50e941a1d07c98e9",
+        "size_bytes": 23021
+      },
+      "docs/v2.1/PHASE11_PERFORMANCE_REPORT.md": {
+        "exists": true,
+        "path": "docs/v2.1/PHASE11_PERFORMANCE_REPORT.md",
+        "sha256": "64e3750f04555a5cd205d266101f82f454e741db8ef141f3350be8f4b80317b6",
+        "size_bytes": 34003
+      },
+      "docs/v2.1/PHASE12_DOCUMENTATION_REPORT.md": {
+        "exists": true,
+        "path": "docs/v2.1/PHASE12_DOCUMENTATION_REPORT.md",
+        "sha256": "949bb4c7e125950a73d0de4b464b7a47b9fd2a053feff360d058acc58651b991",
+        "size_bytes": 12548
+      },
+      "docs/v2.1/PHASE4_CONTRACT_CLOSURE_REPORT.md": {
+        "exists": true,
+        "path": "docs/v2.1/PHASE4_CONTRACT_CLOSURE_REPORT.md",
+        "sha256": "2925e7e160957bed5ea406484516d77b357df122786cf1187b4ec96eb6fbfe8e",
+        "size_bytes": 15416
+      },
+      "docs/v2.1/PHASE9_SECURITY_REPORT.md": {
+        "exists": true,
+        "path": "docs/v2.1/PHASE9_SECURITY_REPORT.md",
+        "sha256": "2e1d47911457842f0bb4b5624bdebf024fb3edd8fce8ece6cb315c3859b599c3",
+        "size_bytes": 24267
+      },
+      "docs/v2.1/ROADMAP.md": {
+        "exists": true,
+        "path": "docs/v2.1/ROADMAP.md",
+        "sha256": "47527c6a37ae7342eb5ffe04d954968fd8b2e229755e5705165aee460394670a",
+        "size_bytes": 36324
+      }
+    },
+    "fixtures": {
+      "candidate_docx": {
+        "actual_sha256": "7aa5549f6a0e0b78fa39245c0e79503b2cc9defd6cffbfa5c8a833072d430297",
+        "expected_sha256": "7aa5549f6a0e0b78fa39245c0e79503b2cc9defd6cffbfa5c8a833072d430297",
+        "match": true,
+        "path": "04_CANDIDATE_LOSSLESS_OUTPUT.docx"
+      },
+      "golden_docx": {
+        "actual_sha256": "c05ca5c1be3b020b75d5763cf22061879a255b3c4f57b0455ae562b54809f58d",
+        "expected_sha256": "c05ca5c1be3b020b75d5763cf22061879a255b3c4f57b0455ae562b54809f58d",
+        "match": true,
+        "path": "01_GOLDEN_ORIGINAL_UNTOUCHED.docx"
+      },
+      "status": "PASS"
+    }
+  },
+  "idempotence": {
+    "canonical_policy_denominator": 22,
+    "fixed_point_contract": "C(C(x)) == C(x) verified across bytes, SHA-256, size, and mutation plan",
+    "implementation_commit": "c13b02a0110a783d3fb8382bf11070ed41ef9799",
+    "property_testing_generator": "DeterministicUnicodePropertyGenerator (seed 0xDEADBEEF, 100 cases)",
+    "report_path": "docs/v2.1/PHASE10_IDEMPOTENCE_REPORT.md",
+    "second_pass_status": "NO_CHANGE_REQUIRED (changed=False, would_change=False, empty plan)",
+    "status": "PASS"
+  },
+  "limits": {
+    "batch_cli_vs_http_distinction": {
+      "cli_max_batch_files": 100,
+      "http_max_batch_files": 50,
+      "scope": "CLI batch engine defaults to 100 files; HTTP server defaults to 50 files for bounded latency"
+    },
+    "limits": {
+      "batch_processor.MAX_BATCH_FILES": {
+        "display": "100 files",
+        "enforcement": "CLI batch queue item ceiling (exit 6)",
+        "raw_count": 100
+      },
+      "batch_processor.MAX_BATCH_INLINE_OUTPUT_BYTES": {
+        "display": "32 MiB",
+        "enforcement": "Batch inline output switch ceiling",
+        "raw_bytes": 33554432
+      },
+      "batch_processor.MAX_BATCH_TOTAL_BYTES": {
+        "display": "200 MiB",
+        "enforcement": "Batch aggregate payload ceiling (exit 6 / HTTP 413)",
+        "raw_bytes": 209715200
+      },
+      "batch_processor.MAX_INPUT_BYTES": {
+        "display": "32 MiB",
+        "enforcement": "Batch single-file ceiling (item error LIMIT_EXCEEDED)",
+        "raw_bytes": 33554432
+      },
+      "common.MAX_INPUT_BYTES": {
+        "display": "256 MiB",
+        "enforcement": "Top-level input byte size ceiling (exit 6 / HTTP 413)",
+        "raw_bytes": 268435456
+      },
+      "common.MAX_STDIN_BYTES": {
+        "display": "64 MiB",
+        "enforcement": "CLI stdin stream byte limit (exit 6)",
+        "raw_bytes": 67108864
+      },
+      "security.SecurityLimits.max_compression_ratio": {
+        "display": "100.0x",
+        "enforcement": "ZIP decompression ratio bomb protection (exit 6 / HTTP 413)",
+        "raw_ratio": 100.0
+      },
+      "security.SecurityLimits.max_member_count": {
+        "display": "10,000 entries",
+        "enforcement": "ZIP member count preflight ceiling (exit 6 / HTTP 413)",
+        "raw_count": 10000
+      },
+      "security.SecurityLimits.max_member_uncompressed_bytes": {
+        "display": "64 MiB",
+        "enforcement": "ZIP member uncompressed size ceiling (exit 6 / HTTP 413)",
+        "raw_bytes": 67108864
+      },
+      "security.SecurityLimits.max_total_uncompressed_bytes": {
+        "display": "128 MiB",
+        "enforcement": "ZIP total uncompressed size ceiling (exit 6 / HTTP 413)",
+        "raw_bytes": 134217728
+      },
+      "security.SecurityLimits.max_total_xml_bytes": {
+        "display": "128 MiB",
+        "enforcement": "XML package aggregate byte size ceiling (exit 6 / HTTP 413)",
+        "raw_bytes": 134217728
+      },
+      "security.SecurityLimits.max_xml_depth": {
+        "display": "100 levels",
+        "enforcement": "XML element nesting depth ceiling (exit 6 / HTTP 413)",
+        "raw_count": 100
+      },
+      "security.SecurityLimits.max_xml_elements": {
+        "display": "500,000 elements",
+        "enforcement": "XML element count expansion ceiling (exit 6 / HTTP 413)",
+        "raw_count": 500000
+      },
+      "security.SecurityLimits.max_xml_part_bytes": {
+        "display": "32 MiB",
+        "enforcement": "XML document part byte size ceiling (exit 6 / HTTP 413)",
+        "raw_bytes": 33554432
+      },
+      "server.MAX_BATCH_FILES": {
+        "display": "50 files",
+        "enforcement": "HTTP /batch request item ceiling (HTTP 413)",
+        "raw_count": 50
+      },
+      "server.MAX_BODY_BYTES": {
+        "display": "384 MiB",
+        "enforcement": "HTTP multipart/JSON request body limit (HTTP 413)",
+        "raw_bytes": 402653184
+      },
+      "server.MAX_INPUT_BYTES": {
+        "display": "256 MiB",
+        "enforcement": "HTTP input payload limit (HTTP 413)",
+        "raw_bytes": 268435456
+      }
+    },
+    "status": "PASS"
+  },
+  "mode": "full",
+  "overall_status": "PASS",
+  "performance": {
+    "artifacts": {
+      "phase11_benchmark_json": "artifacts/v2.1/phase11_benchmark.json",
+      "phase11_closure_guardrails_json": "artifacts/v2.1/phase11_closure_guardrails.json"
+    },
+    "breadth_count": 0,
+    "canonical_execution_classification": {
+      "audio_video_standard_clean": "100% in-process byte parser via clean_av(); zero subprocesses; no ffmpeg",
+      "external_destructors": "Standalone purifiers executed on explicit option remove_audio_watermark only"
+    },
+    "classification": "HISTORICAL_MEASURED_EVIDENCE",
+    "memory_caveat": "Historical measurements on Windows development host (i7-13700H, 32GB RAM). Standalone purifiers are external transcoders; canonical Pipeline cleaning is 100% in-process.",
+    "profile_count": 14,
+    "status": "PASS",
+    "text_throughput_caveat": "Regex-based text homoglyph/stylometry normalization is CPU-bound on large single text files >50 MiB."
+  },
+  "phases": {
+    "phase_0": {
+      "baseline_commit": "758d3085b8868566209a82ea981a32aa61147a44",
+      "status": "PASS",
+      "title": "Environment & Baseline Hygiene"
+    },
+    "phase_1": {
+      "extensions": 37,
+      "policies": 23,
+      "status": "PASS",
+      "title": "Deterministic Scope Audit"
+    },
+    "phase_10": {
+      "canonical_commit_verified": true,
+      "implementation_commit": "c13b02a0110a783d3fb8382bf11070ed41ef9799",
+      "status": "PASS",
+      "title": "Idempotence & Property Testing"
+    },
+    "phase_11": {
+      "canonical_commit_verified": true,
+      "closure_commit": "6d2c24a4189e54c0e4d1803ebf2bdeac43a9d8f7",
+      "status": "PASS",
+      "title": "Large File Performance Benchmarking"
+    },
+    "phase_12": {
+      "canonical_commit_verified": true,
+      "closure_commit": "02cd1e75525ca0ce238e87413a96860d5dd14d10",
+      "documentation_commit": "c6a4b3afbc1d58e30d39202746449f089735bb3d",
+      "status": "PASS",
+      "title": "Documentation & Capabilities Directory"
+    },
+    "phase_13": {
+      "status": "PASS",
+      "title": "Release Evidence Automation"
+    },
+    "phase_2": {
+      "status": "PASS",
+      "title": "Inspection & Dry-Run Parity"
+    },
+    "phase_3": {
+      "status": "PASS",
+      "title": "CLI & API Subsystem Integration"
+    },
+    "phase_4": {
+      "canonical_closure_commit": "1fb5cba5ef243021bf53ef4f1498aedf76ccfa16",
+      "canonical_commit_verified": true,
+      "historical_pre_amend_commit": "3370fcc7b0ef0002c30748d410293e32cd790dd0",
+      "status": "PASS",
+      "title": "Batch Processing Engine"
+    },
+    "phase_5": {
+      "status": "PASS",
+      "title": "Web UI Security & Invariant Enforcement"
+    },
+    "phase_6": {
+      "status": "PASS",
+      "title": "DOCX Body Carrier Cleaning & XML Security"
+    },
+    "phase_7": {
+      "status": "PASS",
+      "title": "XLSX Lossless Subsystem"
+    },
+    "phase_8": {
+      "status": "PASS",
+      "title": "PPTX Lossless Subsystem"
+    },
+    "phase_9": {
+      "canonical_commit_verified": true,
+      "implementation_commit": "73a5c24b47842c8e68e1a1fc40622db70eec3c0d",
+      "status": "PASS",
+      "title": "Security Hardening & Fuzz/Threat Verification"
+    }
+  },
+  "privacy": {
+    "body_sentinels_protected": true,
+    "canonical_zero_egress": true,
+    "document_body_scrubbed_from_evidence": true,
+    "network_used_false_verified": true,
+    "reports_metadata_only": true,
+    "status": "PASS"
+  },
+  "release_ready": true,
+  "repository_state": {
+    "architecture": "AMD64",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "python_version": "3.12.14"
+  },
+  "schema_version": "1.0",
+  "security": {
+    "status": "PASS",
+    "threat_matrix_report": "docs/v2.1/PHASE9_SECURITY_REPORT.md",
+    "threats_verified_count": 38,
+    "xml_hardening": {
+      "depth_limited": true,
+      "element_limited": true,
+      "entity_doctype_rejected": true,
+      "max_depth": 100,
+      "max_elements": 500000,
+      "streaming_expat": true,
+      "zero_disk_writes": true,
+      "zero_network": true
+    },
+    "zero_network_enforced": true,
+    "zip64_policy": "FAIL_CLOSED (rejects records 0x0606, locators 0x0607, sentinels 0xFFFFFFFF, extra field ID 0x0001)",
+    "zip_slip_protection": "FAIL_CLOSED across relative, absolute Unix, Windows drive, UNC, and backslash paths"
+  },
+  "target_release": "v2.1.0",
+  "tests": {
+    "all_tests_passed": true,
+    "suites": {
+      "canonical_full_pytest": {
+        "duration_seconds": 113.02,
+        "elapsed_wall_seconds": 113.67,
+        "errors": 0,
+        "failed": 0,
+        "passed": 1968,
+        "returncode": 0,
+        "skipped": 152,
+        "success": true,
+        "summary_line": "1968 passed, 152 skipped in 113.02s (0:01:53)",
+        "warnings": 0,
+        "xfailed": 0,
+        "xpassed": 0
+      },
+      "capabilities_and_api_contract": {
+        "duration_seconds": 5.12,
+        "elapsed_wall_seconds": 5.66,
+        "errors": 0,
+        "failed": 0,
+        "passed": 44,
+        "returncode": 0,
+        "skipped": 0,
+        "success": true,
+        "summary_line": "44 passed in 5.12s",
+        "warnings": 0,
+        "xfailed": 0,
+        "xpassed": 0
+      },
+      "format_lossless_regressions": {
+        "duration_seconds": 12.33,
+        "elapsed_wall_seconds": 12.85,
+        "errors": 0,
+        "failed": 0,
+        "passed": 135,
+        "returncode": 0,
+        "skipped": 0,
+        "success": true,
+        "summary_line": "135 passed in 12.33s",
+        "warnings": 0,
+        "xfailed": 0,
+        "xpassed": 0
+      },
+      "performance_harness": {
+        "duration_seconds": 22.23,
+        "elapsed_wall_seconds": 22.74,
+        "errors": 0,
+        "failed": 0,
+        "passed": 11,
+        "returncode": 0,
+        "skipped": 0,
+        "success": true,
+        "summary_line": "11 passed in 22.23s",
+        "warnings": 0,
+        "xfailed": 0,
+        "xpassed": 0
+      },
+      "phase10_idempotence": {
+        "duration_seconds": 6.13,
+        "elapsed_wall_seconds": 6.68,
+        "errors": 0,
+        "failed": 0,
+        "passed": 139,
+        "returncode": 0,
+        "skipped": 0,
+        "success": true,
+        "summary_line": "139 passed in 6.13s",
+        "warnings": 0,
+        "xfailed": 0,
+        "xpassed": 0
+      },
+      "phase12_docs_consistency": {
+        "duration_seconds": 0.16,
+        "elapsed_wall_seconds": 0.72,
+        "errors": 0,
+        "failed": 0,
+        "passed": 17,
+        "returncode": 0,
+        "skipped": 0,
+        "success": true,
+        "summary_line": "17 passed in 0.16s",
+        "warnings": 0,
+        "xfailed": 0,
+        "xpassed": 0
+      },
+      "phase4_batch_contract": {
+        "duration_seconds": 2.39,
+        "elapsed_wall_seconds": 2.91,
+        "errors": 0,
+        "failed": 0,
+        "passed": 23,
+        "returncode": 0,
+        "skipped": 0,
+        "success": true,
+        "summary_line": "23 passed in 2.39s",
+        "warnings": 0,
+        "xfailed": 0,
+        "xpassed": 0
+      },
+      "phase9_security": {
+        "duration_seconds": 1.36,
+        "elapsed_wall_seconds": 1.89,
+        "errors": 0,
+        "failed": 0,
+        "passed": 141,
+        "returncode": 0,
+        "skipped": 0,
+        "success": true,
+        "summary_line": "141 passed in 1.36s",
+        "warnings": 0,
+        "xfailed": 0,
+        "xpassed": 0
+      }
+    }
+  }
+}

@@ -1,0 +1,103 @@
+{
+  "critical_files": {
+    "01_GOLDEN_ORIGINAL_UNTOUCHED.docx": {
+      "exists": true,
+      "path": "01_GOLDEN_ORIGINAL_UNTOUCHED.docx",
+      "sha256": "c05ca5c1be3b020b75d5763cf22061879a255b3c4f57b0455ae562b54809f58d",
+      "size_bytes": 49959
+    },
+    "04_CANDIDATE_LOSSLESS_OUTPUT.docx": {
+      "exists": true,
+      "path": "04_CANDIDATE_LOSSLESS_OUTPUT.docx",
+      "sha256": "7aa5549f6a0e0b78fa39245c0e79503b2cc9defd6cffbfa5c8a833072d430297",
+      "size_bytes": 49395
+    },
+    "README.md": {
+      "exists": true,
+      "path": "README.md",
+      "sha256": "6b06c7df7d807f683b0dedbd6c78bce250079aca6c6795a48189596a4a3b3ec5",
+      "size_bytes": 11629
+    },
+    "artifacts/v2.1/baseline.json": {
+      "exists": true,
+      "path": "artifacts/v2.1/baseline.json",
+      "sha256": "9ede381a7258f32b01b3ec3e2d645861f2ec3c887a0b1b4594cd0043f7c6e2ba",
+      "size_bytes": 1822
+    },
+    "artifacts/v2.1/phase11_benchmark.json": {
+      "exists": true,
+      "path": "artifacts/v2.1/phase11_benchmark.json",
+      "sha256": "f18781435a565033e2e394c011a0d5acddcaa5f477f118b21c3201fd93f68e50",
+      "size_bytes": 118159
+    },
+    "artifacts/v2.1/phase11_closure_guardrails.json": {
+      "exists": true,
+      "path": "artifacts/v2.1/phase11_closure_guardrails.json",
+      "sha256": "02de32bf19ffc01f5e9044167fc30efdb944f7981f47b064f3b2e5ee34df0999",
+      "size_bytes": 7579
+    },
+    "docs/capabilities.md": {
+      "exists": true,
+      "path": "docs/capabilities.md",
+      "sha256": "286eaa4cdda261392859a429f76bdda36f2801ca46a1d34df984fde84f663d07",
+      "size_bytes": 18057
+    },
+    "docs/format_guarantees.md": {
+      "exists": true,
+      "path": "docs/format_guarantees.md",
+      "sha256": "b043adee6ad1e3ef40a99cb8bd8705cc7fed731c968c7ddac33755fed51ff9dc",
+      "size_bytes": 12285
+    },
+    "docs/v2.1/PHASE10_IDEMPOTENCE_REPORT.md": {
+      "exists": true,
+      "path": "docs/v2.1/PHASE10_IDEMPOTENCE_REPORT.md",
+      "sha256": "c9d3e6797fe4ea6b02fbfdce91237bb3af75aadbbc094fdd50e941a1d07c98e9",
+      "size_bytes": 23021
+    },
+    "docs/v2.1/PHASE11_PERFORMANCE_REPORT.md": {
+      "exists": true,
+      "path": "docs/v2.1/PHASE11_PERFORMANCE_REPORT.md",
+      "sha256": "64e3750f04555a5cd205d266101f82f454e741db8ef141f3350be8f4b80317b6",
+      "size_bytes": 34003
+    },
+    "docs/v2.1/PHASE12_DOCUMENTATION_REPORT.md": {
+      "exists": true,
+      "path": "docs/v2.1/PHASE12_DOCUMENTATION_REPORT.md",
+      "sha256": "949bb4c7e125950a73d0de4b464b7a47b9fd2a053feff360d058acc58651b991",
+      "size_bytes": 12548
+    },
+    "docs/v2.1/PHASE4_CONTRACT_CLOSURE_REPORT.md": {
+      "exists": true,
+      "path": "docs/v2.1/PHASE4_CONTRACT_CLOSURE_REPORT.md",
+      "sha256": "2925e7e160957bed5ea406484516d77b357df122786cf1187b4ec96eb6fbfe8e",
+      "size_bytes": 15416
+    },
+    "docs/v2.1/PHASE9_SECURITY_REPORT.md": {
+      "exists": true,
+      "path": "docs/v2.1/PHASE9_SECURITY_REPORT.md",
+      "sha256": "2e1d47911457842f0bb4b5624bdebf024fb3edd8fce8ece6cb315c3859b599c3",
+      "size_bytes": 24267
+    },
+    "docs/v2.1/ROADMAP.md": {
+      "exists": true,
+      "path": "docs/v2.1/ROADMAP.md",
+      "sha256": "47527c6a37ae7342eb5ffe04d954968fd8b2e229755e5705165aee460394670a",
+      "size_bytes": 36324
+    }
+  },
+  "fixtures": {
+    "candidate_docx": {
+      "actual_sha256": "7aa5549f6a0e0b78fa39245c0e79503b2cc9defd6cffbfa5c8a833072d430297",
+      "expected_sha256": "7aa5549f6a0e0b78fa39245c0e79503b2cc9defd6cffbfa5c8a833072d430297",
+      "match": true,
+      "path": "04_CANDIDATE_LOSSLESS_OUTPUT.docx"
+    },
+    "golden_docx": {
+      "actual_sha256": "c05ca5c1be3b020b75d5763cf22061879a255b3c4f57b0455ae562b54809f58d",
+      "expected_sha256": "c05ca5c1be3b020b75d5763cf22061879a255b3c4f57b0455ae562b54809f58d",
+      "match": true,
+      "path": "01_GOLDEN_ORIGINAL_UNTOUCHED.docx"
+    },
+    "status": "PASS"
+  }
+}
