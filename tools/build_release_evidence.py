@@ -1015,6 +1015,7 @@ def build_release_evidence(
 
     if mode == "full":
         suites_to_run = [
+            ("release_evidence_unit_tests", py_prefix + ["tests/test_release_evidence.py", "-ra"], 30.0),
             ("phase4_batch_contract", py_prefix + ["tests/test_batch_contract_closure.py", "-ra"], 60.0),
             ("phase9_security", py_prefix + ["tests/test_malformed_archives.py", "-ra"], 60.0),
             ("phase10_idempotence", py_prefix + ["tests/test_idempotence.py", "tests/test_property_unicode.py", "-ra"], 60.0),
@@ -1027,6 +1028,7 @@ def build_release_evidence(
     else:
         # Quick mode: run targeted consistency and contract tests
         suites_to_run = [
+            ("release_evidence_unit_tests", py_prefix + ["tests/test_release_evidence.py", "-ra"], 30.0),
             ("phase12_docs_consistency", py_prefix + ["tests/test_docs_capabilities_consistency.py", "-ra"], 30.0),
             ("phase4_batch_contract", py_prefix + ["tests/test_batch_contract_closure.py", "-ra"], 30.0),
             ("capabilities_contract", py_prefix + ["tests/test_capabilities_endpoint.py", "tests/test_cli_v21.py", "-ra"], 30.0),
