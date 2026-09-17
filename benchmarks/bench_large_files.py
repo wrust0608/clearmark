@@ -83,6 +83,47 @@ QUICK_SIZES = [SIZE_1_MIB, SIZE_10_MIB]
 FIXED_SEED = 0xCAFEBABE
 FIXED_DATETIME = (2026, 1, 1, 0, 0, 0)
 
+# Section 10: Explicit post-measurement closure memory guardrails
+CLOSURE_GUARDRAILS = {
+    "TEXT_WHOLE_BUFFER": {
+        "multiplier": 12.0,
+        "base_bytes": 96 * 1024 * 1024,
+        "metric": "parent_delta",
+        "rationale": "CPython UTF-8 decode, character lists, frequency counting, and output buffers",
+    },
+    "DOCX_OPC_TREE": {
+        "multiplier": 10.0,
+        "base_bytes": 96 * 1024 * 1024,
+        "metric": "parent_delta",
+        "rationale": "In-memory zip stream, member byte copying, and MSVCRT heap allocation retention",
+    },
+    "XLSX_OPC_TREE": {
+        "multiplier": 10.0,
+        "base_bytes": 96 * 1024 * 1024,
+        "metric": "parent_delta",
+        "rationale": "In-memory zip stream, member byte copying, and MSVCRT heap allocation retention",
+    },
+    "ODF_PACKAGE": {
+        "multiplier": 8.0,
+        "base_bytes": 96 * 1024 * 1024,
+        "metric": "parent_delta",
+        "rationale": "ZIP container member streaming, XML manipulation, and CPython buffer retention",
+    },
+    "CHUNKED_IMAGE": {
+        "multiplier": 5.0,
+        "base_bytes": 96 * 1024 * 1024,
+        "metric": "parent_delta",
+        "rationale": "Streaming chunk filtering with full output byte assembly",
+    },
+    "EXTERNAL_AV": {
+        "multiplier": 4.0,
+        "base_bytes": 256 * 1024 * 1024,
+        "metric": "tree_delta",
+        "rationale": "Subprocess tree RSS for external audio/video toolchain",
+    },
+}
+
+
 
 # ==============================================================================
 # DETERMINISTIC DATA GENERATOR
@@ -140,6 +181,7 @@ class ProcessTreeMemorySampler:
         self.tree_baseline_rss = 0
         self.parent_peak_rss = 0
         self.tree_peak_rss = 0
+        self.max_child_rss_bytes = 0
 
     def start(self) -> None:
         if not self.parent_proc:
@@ -152,6 +194,7 @@ class ProcessTreeMemorySampler:
             self.tree_baseline_rss = p_rss + c_rss
             self.parent_peak_rss = self.parent_baseline_rss
             self.tree_peak_rss = self.tree_baseline_rss
+            self.max_child_rss_bytes = c_rss
         except Exception:
             pass
 
@@ -176,6 +219,8 @@ class ProcessTreeMemorySampler:
                         self.parent_peak_rss = p_rss
                     if total_tree > self.tree_peak_rss:
                         self.tree_peak_rss = total_tree
+                    if c_rss > self.max_child_rss_bytes:
+                        self.max_child_rss_bytes = c_rss
             except Exception:
                 pass
             time.sleep(self.interval_sec)
@@ -193,6 +238,8 @@ class ProcessTreeMemorySampler:
                 total_tree = p_rss + c_rss
                 self.parent_peak_rss = max(self.parent_peak_rss, p_rss)
                 self.tree_peak_rss = max(self.tree_peak_rss, total_tree)
+                if c_rss > self.max_child_rss_bytes:
+                    self.max_child_rss_bytes = c_rss
         except Exception:
             pass
 
@@ -509,6 +556,19 @@ class BenchmarkEngine:
             budget_limit = (96 * 1024 * 1024) + int(2.5 * target_size_bytes)
             return "PASS" if delta_parent_rss_bytes <= budget_limit else "INVESTIGATE"
 
+    @staticmethod
+    def evaluate_closure_guardrail(
+        execution_class: str,
+        target_size_bytes: int,
+        delta_parent_rss_bytes: int,
+        delta_tree_rss_bytes: int,
+    ) -> str:
+        """Evaluate post-measurement calibrated memory guardrail (Section 10)."""
+        rule = CLOSURE_GUARDRAILS.get(execution_class, CLOSURE_GUARDRAILS.get("DOCX_OPC_TREE"))
+        limit = rule["base_bytes"] + int(rule["multiplier"] * target_size_bytes)
+        tested_delta = delta_tree_rss_bytes if rule["metric"] == "tree_delta" else delta_parent_rss_bytes
+        return "PASS" if tested_delta <= limit else "INVESTIGATE"
+
     def run_clean_operation(
         self,
         fixture_bytes: bytes,
@@ -622,7 +682,7 @@ class BenchmarkEngine:
         # Statistical calculations
         latencies = [r.wall_ms for r in raw_runs]
         latencies.sort()
-        median_ms = latencies[len(latencies) // 2]
+        median_ms = self.compute_median(latencies)
         throughput = ((actual_size / (1024 * 1024)) / (median_ms / 1000.0)) if median_ms > 0 else 0.0
 
         max_parent_peak = max(r.parent_peak_rss_bytes for r in raw_runs)
@@ -873,6 +933,51 @@ class BenchmarkEngine:
             "leak_detected": leak_detected,
             "status": "PASS" if not leak_detected else "INVESTIGATE",
         }
+
+    def run_closure_guardrails(self) -> dict[str, Any]:
+        """Run representative 50 and 100 MiB closure measurements under Section 10 guardrails."""
+        print("\n---> Running Memory Budget Closure Workload (Section 10 & 12)")
+        closure_specs = [
+            ("txt", [SIZE_50_MIB], "TEXT_WHOLE_BUFFER"),
+            ("docx", [SIZE_50_MIB, SIZE_100_MIB], "DOCX_OPC_TREE"),
+            ("xlsx", [SIZE_50_MIB, SIZE_100_MIB], "XLSX_OPC_TREE"),
+            ("odt", [SIZE_50_MIB, SIZE_100_MIB], "ODF_PACKAGE"),
+            ("png", [SIZE_50_MIB, SIZE_100_MIB], "CHUNKED_IMAGE"),
+        ]
+        results = {}
+        for ext, sizes, eclass in closure_specs:
+            for pos in (True, False):
+                profile_id = f"{ext}_{'positive' if pos else 'nochange'}"
+                for sz in sizes:
+                    sz_name = f"{sz // (1024 * 1024)}MiB"
+                    key = f"{profile_id}_{sz_name}"
+                    fixture = self.generate_fixture(ext, sz, positive=pos)
+                    cleaned, rep, meas = self.run_clean_operation(fixture, ext)
+                    guardrail_res = self.evaluate_closure_guardrail(
+                        execution_class=eclass,
+                        target_size_bytes=sz,
+                        delta_parent_rss_bytes=meas.parent_delta_rss_bytes,
+                        delta_tree_rss_bytes=meas.tree_delta_rss_bytes,
+                    )
+                    rule = CLOSURE_GUARDRAILS[eclass]
+                    limit_bytes = rule["base_bytes"] + int(rule["multiplier"] * sz)
+                    results[key] = {
+                        "format": ext,
+                        "is_positive": pos,
+                        "execution_class": eclass,
+                        "target_size_bytes": sz,
+                        "size_label": sz_name,
+                        "wall_ms": round(meas.wall_ms, 2),
+                        "parent_peak_rss_bytes": meas.parent_peak_rss_bytes,
+                        "tree_peak_rss_bytes": meas.tree_peak_rss_bytes,
+                        "parent_delta_rss_bytes": meas.parent_delta_rss_bytes,
+                        "tree_delta_rss_bytes": meas.tree_delta_rss_bytes,
+                        "guardrail_limit_bytes": limit_bytes,
+                        "guardrail_status": guardrail_res,
+                        "pipeline_status": rep.status.value,
+                    }
+                    print(f"     [{key}] Delta RSS: {meas.parent_delta_rss_bytes / (1024*1024):.1f} MiB / Allowed: {limit_bytes / (1024*1024):.1f} MiB -> {guardrail_res}")
+        return results
 
 
 # ==============================================================================

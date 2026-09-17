@@ -29,7 +29,11 @@ for p in (SCRIPTS_DIR, BENCHMARKS_DIR, REPO_ROOT):
     if str(p) not in sys.path:
         sys.path.insert(0, str(p))
 
+import subprocess
+import time
+
 from bench_large_files import (
+    CLOSURE_GUARDRAILS,
     FIXED_SEED,
     SIZE_1_MIB,
     SIZE_10_MIB,
@@ -37,6 +41,7 @@ from bench_large_files import (
     SIZE_100_MIB,
     BenchmarkEngine,
     DeterministicDataGenerator,
+    ProcessTreeMemorySampler,
     collect_runtime_limits,
     collect_system_metadata,
     validate_benchmark_results,
@@ -218,3 +223,92 @@ def test_quick_mode_single_profile_smoke(tmp_path):
     assert res1.median_wall_ms > 0
     assert res1.throughput_mib_s > 0
     assert res1.idempotence_pass is True
+
+
+def test_process_tree_child_witness():
+    """Prove ProcessTreeMemorySampler captures child subprocess RSS (Section 16)."""
+    sampler = ProcessTreeMemorySampler(interval_sec=0.01)
+    sampler.start()
+
+    child_code = (
+        "import time, sys\n"
+        "data = bytearray(48 * 1024 * 1024)\n"
+        "sys.stdout.write('READY\\n')\n"
+        "sys.stdout.flush()\n"
+        "time.sleep(0.25)\n"
+    )
+
+    proc = subprocess.Popen(
+        [sys.executable, "-c", child_code],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+
+    line = proc.stdout.readline()
+    assert "READY" in line, f"Child process startup failed: {proc.stderr.read()}"
+
+    # Allow sampler loop to observe the active child
+    time.sleep(0.12)
+    proc.wait(timeout=2.0)
+
+    p_peak, t_peak, p_delta, t_delta = sampler.stop()
+
+    assert t_peak > p_peak, f"Expected tree peak ({t_peak}) > parent peak ({p_peak})"
+    assert sampler.max_child_rss_bytes >= 20 * 1024 * 1024, (
+        f"Expected child contribution >= 20 MiB, got {sampler.max_child_rss_bytes} bytes"
+    )
+    assert (t_peak - p_peak) >= 20 * 1024 * 1024
+
+
+def test_cleanup_invariants(tmp_path):
+    """Temporary test fixtures and outputs must not leave orphaned files behind."""
+    json_path = tmp_path / "cleanup_test.json"
+    engine = BenchmarkEngine(output_json=json_path, quick=True)
+
+    # Count files in tmp_path before
+    initial_files = set(tmp_path.iterdir())
+
+    # Generate and clean a temporary fixture
+    fixture = engine.generate_fixture("txt", SIZE_1_MIB, positive=True)
+    assert len(fixture) == SIZE_1_MIB
+
+    cleaned, rep, meas = engine.run_clean_operation(fixture, "txt", is_cli=False)
+    assert len(cleaned) > 0
+    assert rep.status.value in ("CLEANED", "NO_CHANGE_REQUIRED")
+
+    # Verify no persistent temporary files leaked into parent temp directory
+    current_files = set(tmp_path.iterdir())
+    assert current_files == initial_files
+
+
+def test_closure_guardrail_evaluation():
+    """Closure memory guardrails must validate across all six execution classes (Section 10)."""
+    engine = BenchmarkEngine(quick=True)
+
+    # 1. TEXT_WHOLE_BUFFER: limit = 96 MiB + 12.0 * size
+    # 50 MiB: limit = 96 + 600 = 696 MiB
+    assert engine.evaluate_closure_guardrail("TEXT_WHOLE_BUFFER", SIZE_50_MIB, 550 * 1024 * 1024, 550 * 1024 * 1024) == "PASS"
+    assert engine.evaluate_closure_guardrail("TEXT_WHOLE_BUFFER", SIZE_50_MIB, 750 * 1024 * 1024, 750 * 1024 * 1024) == "INVESTIGATE"
+
+    # 2. DOCX_OPC_TREE: limit = 96 MiB + 10.0 * size
+    # 100 MiB: limit = 96 + 1000 = 1096 MiB
+    assert engine.evaluate_closure_guardrail("DOCX_OPC_TREE", SIZE_100_MIB, 900 * 1024 * 1024, 900 * 1024 * 1024) == "PASS"
+    assert engine.evaluate_closure_guardrail("DOCX_OPC_TREE", SIZE_100_MIB, 1200 * 1024 * 1024, 1200 * 1024 * 1024) == "INVESTIGATE"
+
+    # 3. XLSX_OPC_TREE: limit = 96 MiB + 10.0 * size
+    assert engine.evaluate_closure_guardrail("XLSX_OPC_TREE", SIZE_100_MIB, 700 * 1024 * 1024, 700 * 1024 * 1024) == "PASS"
+
+    # 4. ODF_PACKAGE: limit = 96 MiB + 8.0 * size
+    # 100 MiB: limit = 96 + 800 = 896 MiB
+    assert engine.evaluate_closure_guardrail("ODF_PACKAGE", SIZE_100_MIB, 415 * 1024 * 1024, 415 * 1024 * 1024) == "PASS"
+
+    # 5. CHUNKED_IMAGE: limit = 96 MiB + 5.0 * size
+    # 100 MiB: limit = 96 + 500 = 596 MiB
+    assert engine.evaluate_closure_guardrail("CHUNKED_IMAGE", SIZE_100_MIB, 400 * 1024 * 1024, 400 * 1024 * 1024) == "PASS"
+
+    # 6. EXTERNAL_AV: limit = 256 MiB + 4.0 * size
+    # 100 MiB: limit = 256 + 400 = 656 MiB
+    assert engine.evaluate_closure_guardrail("EXTERNAL_AV", SIZE_100_MIB, 50 * 1024 * 1024, 500 * 1024 * 1024) == "PASS"
+    assert engine.evaluate_closure_guardrail("EXTERNAL_AV", SIZE_100_MIB, 50 * 1024 * 1024, 700 * 1024 * 1024) == "INVESTIGATE"
+
