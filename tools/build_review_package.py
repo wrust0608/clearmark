@@ -44,9 +44,23 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 TARGET_PRODUCT = "ClearMark"
 TARGET_VERSION = "2.1.0"
 RELEASE_LABEL = "v2.1.0-RC1"
-PACKAGE_ROOT_DIR = "ClearMark-v2.1.0-RC1"
-PACKAGE_FILENAME = "FINAL_REVIEW_PACKAGE_v2.1.0-RC1.zip"
-OUTPUT_DIR = REPO_ROOT / "artifacts" / "v2.1" / "release_candidate"
+
+# Release Candidate package constants
+RC_RELEASE_LABEL = "v2.1.0-RC1"
+RC_PACKAGE_ROOT_DIR = "ClearMark-v2.1.0-RC1"
+RC_PACKAGE_FILENAME = "FINAL_REVIEW_PACKAGE_v2.1.0-RC1.zip"
+RC_OUTPUT_DIR = REPO_ROOT / "artifacts" / "v2.1" / "release_candidate"
+
+# Stable package constants
+STABLE_RELEASE_LABEL = "v2.1.0"
+STABLE_PACKAGE_ROOT_DIR = "ClearMark-v2.1.0"
+STABLE_PACKAGE_FILENAME = "FINAL_RELEASE_PACKAGE_v2.1.0.zip"
+STABLE_OUTPUT_DIR = REPO_ROOT / "artifacts" / "v2.1" / "stable"
+
+# Defaults (RC1)
+PACKAGE_ROOT_DIR = RC_PACKAGE_ROOT_DIR
+PACKAGE_FILENAME = RC_PACKAGE_FILENAME
+OUTPUT_DIR = RC_OUTPUT_DIR
 CANONICAL_ZIP_PATH = OUTPUT_DIR / PACKAGE_FILENAME
 CANONICAL_SHA256_PATH = OUTPUT_DIR / f"{PACKAGE_FILENAME}.sha256"
 CANONICAL_AUDIT_PATH = OUTPUT_DIR / "PACKAGE_AUDIT.json"
@@ -329,6 +343,9 @@ def build_review_package_archive(
     source_commit: str,
     evidence_closure_commit: str,
     cwd: Path = REPO_ROOT,
+    package_root_dir: str = PACKAGE_ROOT_DIR,
+    package_filename: str = PACKAGE_FILENAME,
+    release_stage: str = "RC1",
 ) -> dict[str, Any]:
     """Build review package ZIP atomically into target_zip_path using Git objects only."""
     # Audit source tree structure
@@ -405,10 +422,10 @@ def build_review_package_archive(
     # Generate PACKAGE_MANIFEST.json
     manifest_data = {
         "schema_version": SCHEMA_VERSION,
-        "package_name": PACKAGE_FILENAME,
+        "package_name": package_filename,
         "product": TARGET_PRODUCT,
         "release": TARGET_VERSION,
-        "release_stage": "RC1",
+        "release_stage": release_stage,
         "source_commit": source_commit,
         "source_commit_time_utc": source_commit_time_utc,
         "evidence_closure_commit": evidence_closure_commit,
@@ -438,10 +455,10 @@ def build_review_package_archive(
         content = payload_data[path]
         git_mode = git_tree[path][0]
         posix_perm = 0o755 if git_mode == "100755" else 0o644
-        all_zip_entries.append((f"{PACKAGE_ROOT_DIR}/{path}", posix_perm, content))
+        all_zip_entries.append((f"{package_root_dir}/{path}", posix_perm, content))
 
-    all_zip_entries.append((f"{PACKAGE_ROOT_DIR}/PACKAGE_MANIFEST.json", 0o644, manifest_bytes))
-    all_zip_entries.append((f"{PACKAGE_ROOT_DIR}/SHA256SUMS", 0o644, sha256sums_bytes))
+    all_zip_entries.append((f"{package_root_dir}/PACKAGE_MANIFEST.json", 0o644, manifest_bytes))
+    all_zip_entries.append((f"{package_root_dir}/SHA256SUMS", 0o644, sha256sums_bytes))
     all_zip_entries.sort(key=lambda item: item[0])
 
     # Build ZIP deterministically
@@ -489,6 +506,8 @@ def audit_review_package_archive(
     zip_path: Path,
     expected_source_commit: str | None = None,
     cwd: Path = REPO_ROOT,
+    expected_root_dir: str | None = None,
+    expected_stage: str | None = None,
 ) -> dict[str, Any]:
     """Perform completely independent audit of review package ZIP from disk."""
     if not zip_path.is_file():
@@ -502,6 +521,17 @@ def audit_review_package_archive(
     with zipfile.ZipFile(zip_path, mode="r") as zf:
         infolist = zf.infolist()
         member_names = [zi.filename for zi in infolist]
+
+        # Auto-detect expected root dir if not specified
+        if expected_root_dir is None:
+            if member_names and "/" in member_names[0]:
+                root_candidate = member_names[0].split("/")[0]
+                if root_candidate in (PACKAGE_ROOT_DIR, STABLE_PACKAGE_ROOT_DIR):
+                    expected_root_dir = root_candidate
+                else:
+                    expected_root_dir = PACKAGE_ROOT_DIR
+            else:
+                expected_root_dir = PACKAGE_ROOT_DIR
 
         # Check duplicate member names
         if len(member_names) != len(set(member_names)):
@@ -518,7 +548,7 @@ def audit_review_package_archive(
 
         # Check member paths
         for name in member_names:
-            validate_path_safety(name, under_root=PACKAGE_ROOT_DIR)
+            validate_path_safety(name, under_root=expected_root_dir)
 
         # Check case collisions
         collisions = detect_case_collisions(member_names)
@@ -546,9 +576,9 @@ def audit_review_package_archive(
                 dest_path.parent.mkdir(parents=True, exist_ok=True)
                 dest_path.write_bytes(zf.read(zi))
 
-        pkg_root = temp_extract_dir / PACKAGE_ROOT_DIR
+        pkg_root = temp_extract_dir / expected_root_dir
         if not pkg_root.is_dir():
-            raise PackageSecurityError(f"Package root directory {PACKAGE_ROOT_DIR} missing after extraction")
+            raise PackageSecurityError(f"Package root directory {expected_root_dir} missing after extraction")
 
         manifest_path = pkg_root / "PACKAGE_MANIFEST.json"
         sums_path = pkg_root / "SHA256SUMS"
@@ -568,6 +598,10 @@ def audit_review_package_archive(
         if expected_source_commit and manifest_source_commit != expected_source_commit:
             raise PackageSecurityError(
                 f"Source commit mismatch: expected {expected_source_commit}, got {manifest_source_commit}"
+            )
+        if expected_stage and manifest_data.get("release_stage") != expected_stage:
+            raise PackageSecurityError(
+                f"Release stage mismatch: expected {expected_stage}, got {manifest_data.get('release_stage')}"
             )
 
         manifest_members = manifest_data.get("members", [])
@@ -715,6 +749,7 @@ def audit_review_package_archive(
     finally:
         shutil.rmtree(temp_extract_dir, ignore_errors=True)
 
+    is_stable = (expected_root_dir == STABLE_PACKAGE_ROOT_DIR) or (expected_stage == "stable")
     return {
         "overall_status": "PASS",
         "crc_status": "PASS",
@@ -738,7 +773,9 @@ def audit_review_package_archive(
         "payload_total_bytes": payload_bytes_sum,
         "source_commit": manifest_source_commit,
         "evidence_closure_commit": manifest_closure_commit,
-        "rc_ready": True,
+        "rc_ready": not is_stable,
+        "stable_ready": is_stable,
+        "internal_root": f"{expected_root_dir}/",
     }
 
 
@@ -832,20 +869,251 @@ def build_and_publish_rc(
         shutil.rmtree(temp_staging_b, ignore_errors=True)
 
 
+def build_and_publish_stable(
+    output_dir: Path = STABLE_OUTPUT_DIR,
+    cwd: Path = REPO_ROOT,
+) -> tuple[Path, dict[str, Any]]:
+    """Build canonical stable release package with reproducibility check and independent audit."""
+    source_commit, evidence_closure_commit, evidence_data = verify_source_commit_state(cwd=cwd)
+
+    temp_staging_a = Path(tempfile.mkdtemp(prefix="clearmark_stable_build_a_"))
+    temp_staging_b = Path(tempfile.mkdtemp(prefix="clearmark_stable_build_b_"))
+
+    try:
+        zip_a = temp_staging_a / STABLE_PACKAGE_FILENAME
+        zip_b = temp_staging_b / STABLE_PACKAGE_FILENAME
+
+        # Build A
+        meta_a = build_review_package_archive(
+            zip_a,
+            source_commit,
+            evidence_closure_commit,
+            cwd=cwd,
+            package_root_dir=STABLE_PACKAGE_ROOT_DIR,
+            package_filename=STABLE_PACKAGE_FILENAME,
+            release_stage="stable",
+        )
+        # Build B (reproducibility check)
+        meta_b = build_review_package_archive(
+            zip_b,
+            source_commit,
+            evidence_closure_commit,
+            cwd=cwd,
+            package_root_dir=STABLE_PACKAGE_ROOT_DIR,
+            package_filename=STABLE_PACKAGE_FILENAME,
+            release_stage="stable",
+        )
+
+        sha_a = meta_a["zip_sha256"]
+        sha_b = meta_b["zip_sha256"]
+
+        if sha_a != sha_b:
+            raise PackageSecurityError(
+                f"Reproducibility check failed: Build A ({sha_a}) != Build B ({sha_b})"
+            )
+
+        # Independent audit of Build A
+        audit_res = audit_review_package_archive(
+            zip_a,
+            expected_source_commit=source_commit,
+            cwd=cwd,
+            expected_root_dir=STABLE_PACKAGE_ROOT_DIR,
+            expected_stage="stable",
+        )
+
+        # Atomic publish
+        output_dir.mkdir(parents=True, exist_ok=True)
+        final_zip = output_dir / STABLE_PACKAGE_FILENAME
+        final_sha = output_dir / f"{STABLE_PACKAGE_FILENAME}.sha256"
+        final_audit = output_dir / "PACKAGE_AUDIT.json"
+        final_contents = output_dir / "PACKAGE_CONTENTS.txt"
+
+        # Copy archive to destination atomically
+        tmp_final_zip = output_dir / f"{STABLE_PACKAGE_FILENAME}.tmp"
+        shutil.copy2(zip_a, tmp_final_zip)
+        tmp_final_zip.replace(final_zip)
+
+        # Write .zip.sha256
+        final_sha.write_text(f"{sha_a}  {STABLE_PACKAGE_FILENAME}\n", encoding="utf-8")
+
+        # Write PACKAGE_CONTENTS.txt
+        with zipfile.ZipFile(final_zip, "r") as zf:
+            member_list = sorted(zf.namelist())
+            final_contents.write_text("\n".join(member_list) + "\n", encoding="utf-8")
+
+        # Prepare and write PACKAGE_AUDIT.json
+        audit_doc = {
+            "schema_version": SCHEMA_VERSION,
+            "release": "ClearMark v2.1.0",
+            "promotion_mode": "DETERMINISTIC_STABLE_REPACKAGE",
+            "rc1_package_name": RC_PACKAGE_FILENAME,
+            "rc1_sha256": "33616f74730a0e026efa751d1fb5d86d5f310e2d66f6de3d34afec3635d716d9",
+            "package_name": STABLE_PACKAGE_FILENAME,
+            "stable_package_name": STABLE_PACKAGE_FILENAME,
+            "stable_sha256": sha_a,
+            "package_sha256": sha_a,
+            "stable_internal_root": f"{STABLE_PACKAGE_ROOT_DIR}/",
+            "source_commit": source_commit,
+            "evidence_closure_commit": evidence_closure_commit,
+            "package_size_bytes": meta_a["zip_size_bytes"],
+            "member_count": meta_a["member_count"],
+            "payload_file_count": meta_a["payload_file_count"],
+            "payload_total_bytes": meta_a["payload_total_bytes"],
+            "crc_status": audit_res["crc_status"],
+            "path_safety": audit_res["path_safety"],
+            "duplicate_status": audit_res["duplicate_status"],
+            "encryption_status": audit_res["encryption_status"],
+            "zip64_status": audit_res["zip64_status"],
+            "manifest_status": audit_res["manifest_status"],
+            "sha256sums_status": audit_res["sha256sums_status"],
+            "git_blob_identity": audit_res["git_blob_identity"],
+            "phase13_evidence_status": audit_res["phase13_evidence_status"],
+            "privacy_status": audit_res["privacy_status"],
+            "network_status": audit_res["network_status"],
+            "docx_frozen_status": audit_res["docx_frozen_status"],
+            "golden_hash_status": audit_res["golden_hash_status"],
+            "candidate_hash_status": audit_res["candidate_hash_status"],
+            "reproducible": True,
+            "build_a_sha256": sha_a,
+            "build_b_sha256": sha_b,
+            "overall_status": "PASS",
+            "stable_ready": True,
+        }
+        final_audit.write_text(json.dumps(audit_doc, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+        return final_zip, audit_doc
+
+    finally:
+        shutil.rmtree(temp_staging_a, ignore_errors=True)
+        shutil.rmtree(temp_staging_b, ignore_errors=True)
+
+
+def compare_stable_vs_rc(
+    rc1_zip_path: Path = RC_OUTPUT_DIR / RC_PACKAGE_FILENAME,
+    stable_zip_path: Path = STABLE_OUTPUT_DIR / STABLE_PACKAGE_FILENAME,
+    output_diff_path: Path | None = STABLE_OUTPUT_DIR / "STABLE_VS_RC1_DIFF.json",
+) -> dict[str, Any]:
+    """Construct a path-normalized comparison between RC1 and Stable ZIP packages."""
+    if not rc1_zip_path.is_file():
+        raise FileNotFoundError(f"RC1 package not found: {rc1_zip_path}")
+    if not stable_zip_path.is_file():
+        raise FileNotFoundError(f"Stable package not found: {stable_zip_path}")
+
+    with zipfile.ZipFile(rc1_zip_path, "r") as zf_rc, zipfile.ZipFile(stable_zip_path, "r") as zf_st:
+        rc_infolist = {zi.filename: zi for zi in zf_rc.infolist()}
+        st_infolist = {zi.filename: zi for zi in zf_st.infolist()}
+
+        total_rc1_members = len(rc_infolist)
+        total_stable_members = len(st_infolist)
+
+        # Strip root directories
+        rc_normalized: dict[str, tuple[str, int]] = {}
+        for fname, zi in rc_infolist.items():
+            parts = fname.split("/")
+            rel = "/".join(parts[1:])
+            content = zf_rc.read(zi)
+            sha = hashlib.sha256(content).hexdigest()
+            rc_normalized[rel] = (sha, len(content))
+
+        st_normalized: dict[str, tuple[str, int]] = {}
+        for fname, zi in st_infolist.items():
+            parts = fname.split("/")
+            rel = "/".join(parts[1:])
+            content = zf_st.read(zi)
+            sha = hashlib.sha256(content).hexdigest()
+            st_normalized[rel] = (sha, len(content))
+
+        matching_paths = sorted(set(rc_normalized.keys()) & set(st_normalized.keys()))
+        missing_in_stable = sorted(set(rc_normalized.keys()) - set(st_normalized.keys()))
+        extra_in_stable = sorted(set(st_normalized.keys()) - set(rc_normalized.keys()))
+
+        byte_identical: list[str] = []
+        intentional_metadata_diffs: list[dict[str, Any]] = []
+        unexpected_diffs: list[dict[str, Any]] = []
+
+        # Explicitly approved stable metadata files
+        approved_metadata_files = {"PACKAGE_MANIFEST.json", "SHA256SUMS"}
+
+        for rel in matching_paths:
+            rc_sha, rc_size = rc_normalized[rel]
+            st_sha, st_size = st_normalized[rel]
+
+            if rc_sha == st_sha:
+                byte_identical.append(rel)
+            elif rel in approved_metadata_files:
+                intentional_metadata_diffs.append({
+                    "path": rel,
+                    "rc1_sha256": rc_sha,
+                    "stable_sha256": st_sha,
+                    "rc1_size": rc_size,
+                    "stable_size": st_size,
+                    "classification": "stable release metadata difference",
+                })
+            else:
+                unexpected_diffs.append({
+                    "path": rel,
+                    "rc1_sha256": rc_sha,
+                    "stable_sha256": st_sha,
+                    "rc1_size": rc_size,
+                    "stable_size": st_size,
+                    "classification": "unexpected production difference",
+                })
+
+        for m in missing_in_stable:
+            unexpected_diffs.append({
+                "path": m,
+                "issue": "missing in stable",
+                "classification": "unexpected structural difference",
+            })
+        for e in extra_in_stable:
+            unexpected_diffs.append({
+                "path": e,
+                "issue": "extra in stable",
+                "classification": "unexpected structural difference",
+            })
+
+        diff_data = {
+            "total_rc1_members": total_rc1_members,
+            "total_stable_members": total_stable_members,
+            "path_normalized_matching_members": len(matching_paths),
+            "byte_identical_members": len(byte_identical),
+            "intentional_stable_metadata_differences": len(intentional_metadata_diffs),
+            "intentional_differences_detail": intentional_metadata_diffs,
+            "unexpected_differences": len(unexpected_diffs),
+            "unexpected_differences_detail": unexpected_diffs,
+            "rc1_root": f"{RC_PACKAGE_ROOT_DIR}/",
+            "stable_root": f"{STABLE_PACKAGE_ROOT_DIR}/",
+            "payload_identity_status": "PASS" if len(unexpected_diffs) == 0 else "FAIL",
+        }
+
+        if output_diff_path is not None:
+            output_diff_path.parent.mkdir(parents=True, exist_ok=True)
+            output_diff_path.write_text(json.dumps(diff_data, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+        return diff_data
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Phase 14 Review Package Builder & Auditor")
     parser.add_argument("--build", action="store_true", help="Build and audit review package")
+    parser.add_argument("--stable", action="store_true", help="Build and audit canonical stable package")
+    parser.add_argument("--diff", action="store_true", help="Compare stable package against RC1 package")
     parser.add_argument("--audit", type=str, metavar="ZIP_PATH", help="Audit an existing review package")
+    parser.add_argument("--root", type=str, default=None, help="Override expected root directory for audit")
     parser.add_argument("--source-commit", type=str, help="Override expected source commit")
-    parser.add_argument("--output-dir", type=str, default=str(OUTPUT_DIR), help="Output directory")
+    parser.add_argument("--output-dir", type=str, help="Output directory")
 
     args = parser.parse_args()
 
     if args.audit:
         zip_path = Path(args.audit)
-        print(f"Auditing review package: {zip_path}")
+        print(f"Auditing package: {zip_path}")
         try:
-            res = audit_review_package_archive(zip_path, expected_source_commit=args.source_commit)
+            res = audit_review_package_archive(
+                zip_path,
+                expected_source_commit=args.source_commit,
+                expected_root_dir=args.root,
+            )
             print("Audit completed successfully:")
             print(json.dumps(res, indent=2))
             return 0
@@ -853,10 +1121,40 @@ def main() -> int:
             print(f"Audit FAIL: {exc}", file=sys.stderr)
             return 1
 
+    if args.diff:
+        print("Comparing stable package against RC1 package...")
+        try:
+            diff_res = compare_stable_vs_rc()
+            print("Comparison completed successfully:")
+            print(json.dumps(diff_res, indent=2))
+            return 0
+        except Exception as exc:
+            print(f"Comparison FAIL: {exc}", file=sys.stderr)
+            return 1
+
+    if args.stable:
+        print("Building and auditing ClearMark v2.1.0 canonical stable package...")
+        try:
+            out_dir = Path(args.output_dir) if args.output_dir else STABLE_OUTPUT_DIR
+            final_zip, audit_doc = build_and_publish_stable(output_dir=out_dir)
+            diff_res = compare_stable_vs_rc(stable_zip_path=final_zip)
+            print("Stable build, audit, and diff completed successfully:")
+            print(f"  Package: {final_zip}")
+            print(f"  SHA256:  {audit_doc['package_sha256']}")
+            print(f"  Size:    {audit_doc['package_size_bytes']} bytes")
+            print(f"  Members: {audit_doc['member_count']}")
+            print(f"  Status:  {audit_doc['overall_status']}")
+            print(f"  stable_ready: {audit_doc['stable_ready']}")
+            print(f"  unexpected_diffs: {diff_res['unexpected_differences']}")
+            return 0
+        except Exception as exc:
+            print(f"Stable build FAIL: {exc}", file=sys.stderr)
+            return 1
+
     if args.build or not len(sys.argv) > 1:
         print("Building and auditing ClearMark v2.1.0 RC1 review package...")
         try:
-            out_dir = Path(args.output_dir)
+            out_dir = Path(args.output_dir) if args.output_dir else OUTPUT_DIR
             final_zip, audit_doc = build_and_publish_rc(output_dir=out_dir)
             print("Build and audit completed successfully:")
             print(f"  Package: {final_zip}")

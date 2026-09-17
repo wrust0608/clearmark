@@ -26,8 +26,11 @@ from tools.build_review_package import (
     CANDIDATE_DOCX_HASH,
     PACKAGE_FILENAME,
     PACKAGE_ROOT_DIR,
+    STABLE_PACKAGE_FILENAME,
+    STABLE_PACKAGE_ROOT_DIR,
     PackageSecurityError,
     audit_review_package_archive,
+    compare_stable_vs_rc,
     compute_source_tree_digest,
     detect_case_collisions,
     scan_content_privacy,
@@ -386,3 +389,53 @@ def test_canonical_review_package_audit_passes() -> None:
     assert audit_result["docx_frozen_status"] == "PASS"
     assert audit_result["golden_hash_status"] == "PASS"
     assert audit_result["candidate_hash_status"] == "PASS"
+
+
+# ---------------------------------------------------------------------------
+# Canonical Stable Package Acceptance Test
+# ---------------------------------------------------------------------------
+
+def test_canonical_stable_package_audit_passes() -> None:
+    """The canonical stable release package on disk must pass the complete independent audit."""
+    canonical_stable_zip = Path(f"artifacts/v2.1/stable/{STABLE_PACKAGE_FILENAME}")
+    assert canonical_stable_zip.is_file(), "Canonical stable package ZIP does not exist on disk"
+
+    audit_result = audit_review_package_archive(
+        canonical_stable_zip,
+        expected_root_dir=STABLE_PACKAGE_ROOT_DIR,
+        expected_stage="stable",
+    )
+    assert audit_result["overall_status"] == "PASS"
+    assert audit_result["stable_ready"] is True
+    assert audit_result["rc_ready"] is False
+    assert audit_result["crc_status"] == "PASS"
+    assert audit_result["path_safety"] == "PASS"
+    assert audit_result["duplicate_status"] == "PASS"
+    assert audit_result["encryption_status"] == "PASS"
+    assert audit_result["zip64_status"] == "PASS"
+    assert audit_result["manifest_status"] == "PASS"
+    assert audit_result["sha256sums_status"] == "PASS"
+    assert audit_result["git_blob_identity"] == "PASS"
+    assert audit_result["phase13_evidence_status"] == "PASS"
+    assert audit_result["privacy_status"] == "PASS"
+    assert audit_result["network_status"] == "PASS"
+    assert audit_result["docx_frozen_status"] == "PASS"
+    assert audit_result["golden_hash_status"] == "PASS"
+    assert audit_result["candidate_hash_status"] == "PASS"
+    assert audit_result["internal_root"] == f"{STABLE_PACKAGE_ROOT_DIR}/"
+
+
+def test_canonical_stable_vs_rc1_diff_passes() -> None:
+    """The stable vs RC1 diff must prove 0 unexpected differences and 525 byte-identical payload files."""
+    diff_json_path = Path("artifacts/v2.1/stable/STABLE_VS_RC1_DIFF.json")
+    assert diff_json_path.is_file(), "STABLE_VS_RC1_DIFF.json does not exist on disk"
+
+    diff_data = json.loads(diff_json_path.read_text(encoding="utf-8"))
+    assert diff_data["unexpected_differences"] == 0
+    assert diff_data["payload_identity_status"] == "PASS"
+    assert diff_data["byte_identical_members"] == 525
+    assert diff_data["intentional_stable_metadata_differences"] == 2
+    assert diff_data["path_normalized_matching_members"] == 527
+    assert diff_data["rc1_root"] == f"{PACKAGE_ROOT_DIR}/"
+    assert diff_data["stable_root"] == f"{STABLE_PACKAGE_ROOT_DIR}/"
+

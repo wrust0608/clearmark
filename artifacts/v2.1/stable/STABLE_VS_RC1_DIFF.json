@@ -1,0 +1,30 @@
+{
+  "byte_identical_members": 525,
+  "intentional_differences_detail": [
+    {
+      "classification": "stable release metadata difference",
+      "path": "PACKAGE_MANIFEST.json",
+      "rc1_sha256": "f1f12c575acb41e524a4c282d427138af85c2259016016d8203e92e7f8b2c175",
+      "rc1_size": 108748,
+      "stable_sha256": "2bc060c0cc02f59b2b95b39c717a0002d7509e5e25b1dde4ca508f996f67a9cb",
+      "stable_size": 108748
+    },
+    {
+      "classification": "stable release metadata difference",
+      "path": "SHA256SUMS",
+      "rc1_sha256": "ec2bced2247af21b6966b5b6a2eea9dd9597213e1e10e30b5915df7c72e7f559",
+      "rc1_size": 55179,
+      "stable_sha256": "1f5be9438298b647550b204771732dc8d1311b044efaefa5b00f773752e5a4c0",
+      "stable_size": 55179
+    }
+  ],
+  "intentional_stable_metadata_differences": 2,
+  "path_normalized_matching_members": 527,
+  "payload_identity_status": "PASS",
+  "rc1_root": "ClearMark-v2.1.0-RC1/",
+  "stable_root": "ClearMark-v2.1.0/",
+  "total_rc1_members": 527,
+  "total_stable_members": 527,
+  "unexpected_differences": 0,
+  "unexpected_differences_detail": []
+}
