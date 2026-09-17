@@ -4,18 +4,25 @@
 | :--- | :--- |
 | **Release Candidate** | ClearMark v2.1.0-RC1 |
 | **Release-Engineering HEAD at handoff preparation** | `6868391270d0dc0981363ae379851be63126c719` |
-| **Release-Engineering Tag Target** | Tag `v2.1.0-rc1` (resolves to finalized release commit) |
+| **Release-Engineering Tag Target** | `9ecfea135f7b871f226313bfc7f101d07f578d3b` (`v2.1.0-rc1`) |
+| **Repository** | `wrust0608/clearmark` |
+| **Visibility** | `PRIVATE` |
+| **Repository Type** | `INDEPENDENT` |
+| **Original Upstream** | `guillaumemeyer/watermarks-remover` |
 | **Source Commit** | `32e1a2c3afae7d6b738630787ce4d2f7b3640c56` |
 | **Phase 14 Full Audit Closure Hash** | `89e34d113182a04ab48005796d45f9714d69eb7e` |
 | **Package Filename** | `FINAL_REVIEW_PACKAGE_v2.1.0-RC1.zip` |
 | **Package SHA256** | `33616f74730a0e026efa751d1fb5d86d5f310e2d66f6de3d34afec3635d716d9` |
+| **Published ZIP SHA** | `33616f74730a0e026efa751d1fb5d86d5f310e2d66f6de3d34afec3635d716d9` |
+| **Transport Verification** | `PASS` |
 | **Source Tree Digest** | `bfdf802606ea645af299578c43f269bb5c3665835836b07bba12c493f55f6910` |
 | **Payload / Member Counts** | 525 payload files / 527 ZIP members |
 | **Payload / ZIP Bytes** | 4,979,482 payload bytes / 2,043,966 ZIP bytes |
-| **Canonical Pytest** | 1990 passed, 152 skipped, 0 failed, 0 warnings (124.99s) |
+| **Canonical Pytest** | 1990 passed, 152 skipped, 0 failed, 0 warnings (179.56s) |
 | **rc_ready** | `true` |
 | **READY_TO_TAG** | `true` |
-| **Remote Publish Status** | AUTHORIZED / IN PROGRESS |
+| **Remote Publish Status** | `PUBLISHED / VERIFIED` |
+| **Release URL** | `https://github.com/wrust0608/clearmark/releases/tag/v2.1.0-rc1` |
 
 ---
 
@@ -36,5 +43,7 @@
    - SHA256 match verified against `FINAL_REVIEW_PACKAGE_v2.1.0-RC1.zip.sha256`.
 
 4. **Tag & Publish Status**:
-   - Annotated tag `v2.1.0-rc1` prepared and authorized.
-   - Remote publish to GitHub Releases authorized.
+   - Annotated tag `v2.1.0-rc1` points to `9ecfea135f7b871f226313bfc7f101d07f578d3b`.
+   - Remote branch `v2.1-dev` and tag `v2.1.0-rc1` pushed to private repository `wrust0608/clearmark`.
+   - Private GitHub Pre-Release created at `https://github.com/wrust0608/clearmark/releases/tag/v2.1.0-rc1`.
+   - Downloaded transport hash verified byte-for-byte against audited package SHA256.
