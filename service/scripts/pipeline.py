@@ -582,7 +582,7 @@ class Pipeline:
                     error_code=ErrorCode.INTERNAL_ERROR,
                     error_message=f"Text inspection failure: {e}",
                 )
-        elif fmt in ("pdf", "odt", "ods", "odp", "epub"):
+        elif fmt in ("pdf", "odt", "ods", "odp", "epub", "svg"):
             try:
                 from container_meta import inspect_container
 
@@ -629,6 +629,54 @@ class Pipeline:
                     performance_elapsed_ms=(time.perf_counter() - t0) * 1000.0,
                     error_code=ErrorCode.INVALID_CONTAINER,
                     error_message=f"Container inspection failure: {e}",
+                )
+        elif fmt in ("mp4", "mov", "m4a", "m4v", "wav", "mp3", "flac", "audio", "video"):
+            try:
+                from av_meta import inspect_av
+
+                detectors_run.append("AVMetaInspector")
+                av_report = inspect_av(Path(name), data=data)
+                for f in getattr(av_report, "findings", []):
+                    findings.append(
+                        Finding(
+                            detector_id="AVMetaInspector",
+                            category="av_metadata",
+                            metadata_key=f,
+                            reason=f,
+                        )
+                    )
+                if getattr(av_report, "has_c2pa", False):
+                    findings.append(
+                        Finding(
+                            detector_id="AVMetaInspector",
+                            category="c2pa",
+                            reason="C2PA manifest detected in audio/video container",
+                        )
+                    )
+                if getattr(av_report, "has_ai_metadata", False):
+                    findings.append(
+                        Finding(
+                            detector_id="AVMetaInspector",
+                            category="ai_metadata",
+                            reason="AI metadata detected in audio/video container",
+                        )
+                    )
+            except Exception as e:
+                return CleaningReport(
+                    status=PipelineStatus.ERROR,
+                    input=ident,
+                    inspection=InspectionData(
+                        detectors_run=detectors_run,
+                        detection_status=DetectionStatus.UNAVAILABLE,
+                    ),
+                    policy=PolicySelection(mode=mode, format_policy=fmt),
+                    mutation_plan=MutationRecord(),
+                    validation=ValidationOutcome(status="FAIL", warnings=[str(e)]),
+                    output=OutputRecord(changed=False, would_change=False, size=size, sha256=sha),
+                    privacy=PrivacySummary(network_used=False),
+                    performance_elapsed_ms=(time.perf_counter() - t0) * 1000.0,
+                    error_code=ErrorCode.INVALID_CONTAINER,
+                    error_message=f"Audio/video inspection failure: {e}",
                 )
         else:
             detectors_run.append("GenericContainerInspector")
@@ -789,7 +837,12 @@ class Pipeline:
                 mutations = plan.to_mutations_list()
                 changed_parts = sorted(plan.changed_parts())
                 plan_is_empty = plan.is_empty()
-            elif fmt in ("png", "jpeg", "jpg", "webp", "gif", "bmp", "tiff", "avif", "heic", "txt", "md", "html", "latex", "pdf", "odt", "ods", "odp", "epub"):
+            elif fmt in (
+                "png", "jpeg", "jpg", "webp", "gif", "bmp", "tiff", "avif", "heic",
+                "txt", "md", "html", "latex",
+                "pdf", "odt", "ods", "odp", "epub", "svg",
+                "mp4", "mov", "m4a", "m4v", "wav", "mp3", "flac", "audio", "video",
+            ):
                 # For non-docx formats, check if inspection detected actionable markers
                 plan_is_empty = insp_report.inspection.detection_status == DetectionStatus.NOT_DETECTED
                 if not plan_is_empty:
@@ -1016,8 +1069,9 @@ class Pipeline:
                 if out_f.exists():
                     cleaned_bytes = out_f.read_bytes()
                 for a in res.get("actions", []):
-                    mutations_applied.append({"action": "image_clean", "desc": str(a)})
-        elif fmt in ("pdf", "odt", "ods", "odp", "epub"):
+                    if not str(a).lower().startswith("no "):
+                        mutations_applied.append({"action": "image_clean", "desc": str(a)})
+        elif fmt in ("pdf", "odt", "ods", "odp", "epub", "svg"):
             import tempfile
             from container_meta import clean_container
             with tempfile.TemporaryDirectory(prefix="wm-pipe-cnt-") as tmpdir:
@@ -1026,16 +1080,39 @@ class Pipeline:
                 in_f = tmppath / f"in{ext}"
                 out_f = tmppath / f"out{ext}"
                 in_f.write_bytes(data)
-                res = clean_container(in_f, out_f, also_layer_a_text=True)
+                res = clean_container(in_f, out_f, fmt=fmt if fmt == "svg" else None, also_layer_a_text=True)
                 if out_f.exists():
                     cleaned_bytes = out_f.read_bytes()
                 for a in res.get("actions", []):
-                    mutations_applied.append({"action": "container_clean", "desc": str(a)})
+                    if not str(a).lower().startswith("no "):
+                        mutations_applied.append({"action": "container_clean", "desc": str(a)})
+        elif fmt in ("mp4", "mov", "m4a", "m4v", "wav", "mp3", "flac", "audio", "video"):
+            import tempfile
+            from av_meta import clean_av
+            with tempfile.TemporaryDirectory(prefix="wm-pipe-av-") as tmpdir:
+                tmppath = Path(tmpdir)
+                ext = f".{fmt}" if fmt not in ("audio", "video") else ".wav"
+                in_f = tmppath / f"in{ext}"
+                out_f = tmppath / f"out{ext}"
+                in_f.write_bytes(data)
+                res = clean_av(in_f, out_f)
+                if out_f.exists():
+                    cleaned_bytes = out_f.read_bytes()
+                for a in res.get("actions", []):
+                    if not str(a).lower().startswith("no "):
+                        mutations_applied.append({"action": "av_clean", "desc": str(a)})
 
         # 4. Invariant & Output Status Check
         out_size = len(cleaned_bytes)
         out_sha = _compute_sha256(cleaned_bytes)
         is_changed = out_sha != sha
+
+        if not is_changed:
+            mutations_applied = []
+            parts_changed = []
+            cleaned_bytes = data
+            out_size = size
+            out_sha = sha
 
         final_status = PipelineStatus.CLEANED if is_changed else PipelineStatus.NO_CHANGE_REQUIRED
         would_change = is_changed

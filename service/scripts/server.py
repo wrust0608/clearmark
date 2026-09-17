@@ -2005,7 +2005,19 @@ class Handler(BaseHTTPRequestHandler):
             report_dict["format"] = report.input.format
 
         if kind == "container":
-            report_dict["still_has_c2pa"] = any(f.get("category") == "c2pa" for f in report_dict.get("inspection", {}).get("findings", []))
+            if legacy_res and "report" in legacy_res and "still_has_c2pa" in legacy_res["report"]:
+                report_dict["still_has_c2pa"] = legacy_res["report"]["still_has_c2pa"]
+            else:
+                try:
+                    from container_meta import inspect_container
+                    with tempfile.TemporaryDirectory() as _tmpdir:
+                        _ext = f".{report.input.format}" if report.input.format else ".bin"
+                        _tmp_f = Path(_tmpdir) / f"cleaned{_ext}"
+                        _tmp_f.write_bytes(cleaned_bytes)
+                        _after = inspect_container(_tmp_f, fmt=report.input.format if report.input.format == "svg" else None)
+                        report_dict["still_has_c2pa"] = getattr(_after, "has_c2pa", False)
+                except Exception:
+                    report_dict["still_has_c2pa"] = False
 
         self._respond(HTTPStatus.OK, {
             "ok": True,
