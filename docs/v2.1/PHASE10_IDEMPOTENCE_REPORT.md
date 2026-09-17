@@ -5,7 +5,8 @@
 **Property Testing Framework**: Seeded deterministic generative/property-style testing (`DeterministicUnicodePropertyGenerator`, seed `0xDEADBEEF`, 100 bounded examples)  
 **Hypothesis Availability**: **NO** (`ModuleNotFoundError: No module named 'hypothesis'`; custom deterministic generator selected; minimal deterministic regressions added manually when issues are found)  
 **Phase 10 Implementation/Test Commit**: `c13b02a0110a783d3fb8382bf11070ed41ef9799`  
-**Phase 10 Capability & Provenance Closure Commit**: *To be committed upon closure completion*  
+**Phase 10 Capability & Provenance Closure Commit**: `15e856f0ead38d69ce2959e1d510ab55e6f1c9be`  
+**Phase 10 Final Public-Contract Closure Commit**: *To be committed upon contract closure completion*  
 **DOCX Frozen Core Gate**: `git diff v2.0.0 -- service/scripts/docx/` **EMPTY** (0 lines changed)  
 **Golden & Candidate DOCX Hashes**: **MATCH**  
 - Golden SHA256: `c05ca5c1be3b020b75d5763cf22061879a255b3c4f57b0455ae562b54809f58d`  
@@ -186,7 +187,17 @@ Every available canonical policy and acceptance claim is mapped to exact pytest 
    - `test_idempotence_properties_a_through_g_on_positive_input`: Verifies pass 1 eliminates all authorized targets, and pass 2 produces an empty mutation plan.
    - `test_property_unicode_multi_carrier_single_pass_convergence`: Verifies that texts with multiple mixed, adjacent, and boundary carriers converge in exactly one pass.
 6. **Truly Unsupported Format Stability (Section 21)**:
-   - `test_unsupported_format_stability`: Verifies repeated inspection and cleaning of `data.xyz` returns `PipelineStatus.UNSUPPORTED` with `ErrorCode.UNSUPPORTED_FORMAT`, 0 disk writes (verified via monkeypatching `safe_write_bytes` and `os.replace`), and 0 network attempts (verified via monkeypatching `socket.socket`).
+   - `test_unsupported_format_stability`: Verifies repeated inspection and cleaning of `data.xyz` returns `PipelineStatus.UNSUPPORTED` with `ErrorCode.UNSUPPORTED_FORMAT`, CLI Exit 2, HTTP 415, 0 disk writes (verified via monkeypatching `safe_write_bytes` and `os.replace`), and 0 network attempts (verified via monkeypatching `socket.socket`).
+
+### 5.3 Canonical Public Exit & HTTP Contract Parity
+
+| Semantic Category | Canonical Pipeline ErrorCode | CLI Exit Code | HTTP Status Code | Description / Behavior |
+| :--- | :--- | :---: | :---: | :--- |
+| **Unsupported Format** | `ErrorCode.UNSUPPORTED_FORMAT` | **`2`** (`ExitCode.UNSUPPORTED`) | **`415`** (`HTTPStatus.UNSUPPORTED_MEDIA_TYPE`) | Unrecognized / unregistered file extension (e.g., `.xyz`). 0 disk writes, 0 network. |
+| **Invalid / Malformed Container** | `ErrorCode.INVALID_CONTAINER`<br>`ErrorCode.UNSUPPORTED_ARCHIVE_FEATURE` | **`4`** (`ExitCode.INVALID_INPUT`) | **`400`** (`HTTPStatus.BAD_REQUEST`) | Malformed archive, ZipSlip, binary disguised as text, invalid processing mode. |
+| **Dependency Unavailable** | `ErrorCode.OPTIONAL_DEPENDENCY_MISSING` | **`5`** (`ExitCode.DEPENDENCY_MISSING`) | **`424`** (`HTTPStatus.FAILED_DEPENDENCY`) | Supported format (e.g., PDF) containing uncleaned markers requiring unavailable external tools. |
+| **Processing Limit Exceeded** | `ErrorCode.PROCESSING_LIMIT_EXCEEDED` | **`6`** (`ExitCode.LIMIT_EXCEEDED`) | **`413`** (`HTTPStatus.REQUEST_ENTITY_TOO_LARGE`) | Input exceeds security limits (size, decompression ratio, XML depth). |
+| **Validation Failed** | `ErrorCode.VALIDATION_FAILED` | **`3`** (`ExitCode.VALIDATION_FAILED`) | **`422`** (`HTTPStatus.UNPROCESSABLE_ENTITY`) | Post-cleaning structural fidelity invariant failure. |
 
 ---
 
@@ -197,7 +208,7 @@ Every available canonical policy and acceptance claim is mapped to exact pytest 
 | **Focused Phase 10** | `tests/test_idempotence.py`<br>`tests/test_property_unicode.py` | 91 passed | **139 passed in 7.54s** (132 idempotence + 7 property) | **PASS** |
 | **Phase 9 Security** | `tests/test_malformed_archives.py` | 141 passed | **141 passed in 1.34s** | **PASS** |
 | **Format Regression** | `tests/test_docx_body_carriers.py`<br>`tests/test_xlsx_lossless.py`<br>`tests/test_pptx_lossless.py` | 135 passed (DOCX 49, XLSX 40, PPTX 46) | **135 passed in 14.43s** | **PASS** |
-| **Contract Regression** | 8 contract test modules | 86 passed | **86 passed in 10.15s** | **PASS** |
+| **Contract Regression** | 8 contract test modules | 86 passed | **88 passed in 10.09s** | **PASS** |
 | **DOCX Frozen Core Diff**| `git diff v2.0.0 -- service/scripts/docx/` | Empty | **0 lines changed** | **PASS** |
 | **Cryptographic Golden/Candidate Hashes** | SHA256 verification | Match | **MATCH** | **PASS** |
-| **Canonical Full Regression** | `pytest -ra` (Full Repository Suite) | 1850 passed, 152 skipped | **1898 passed, 152 skipped, 0 failed, 0 warnings in 108.81s** | **PASS** |
+| **Canonical Full Regression** | `pytest -ra` (Full Repository Suite) | 1850 passed, 152 skipped | **1900 passed, 152 skipped, 0 failed, 0 warnings in 121.09s** | **PASS** |

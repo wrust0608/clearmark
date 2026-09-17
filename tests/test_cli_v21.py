@@ -160,8 +160,39 @@ def test_cli_unsupported_format_exit_code(tmp_path: Path, capsys):
     bad_file = tmp_path / "archive.xyz"
     bad_file.write_bytes(b"\x00\x01\x02\x03\x04")
 
-    code, out, err = _run_cli(["inspect", str(bad_file)], capsys)
-    assert code == ExitCode.UNSUPPORTED
+    # Both inspect and clean must return ExitCode.UNSUPPORTED (2)
+    code_insp, out_insp, err_insp = _run_cli(["inspect", str(bad_file), "--json"], capsys)
+    assert code_insp == ExitCode.UNSUPPORTED
+    data_insp = json.loads(out_insp)
+    assert data_insp["status"] == "UNSUPPORTED"
+    assert data_insp["error_code"] == "UNSUPPORTED_FORMAT"
+
+    code_clean, out_clean, err_clean = _run_cli(["clean", str(bad_file), "--json"], capsys)
+    assert code_clean == ExitCode.UNSUPPORTED
+    data_clean = json.loads(out_clean)
+    assert data_clean["status"] == "UNSUPPORTED"
+    assert data_clean["error_code"] == "UNSUPPORTED_FORMAT"
+
+
+def test_cli_dependency_missing_exit_code(tmp_path: Path, capsys):
+    """Section 7: Positive PDF witness with uncleaned /Info watermark exits with 5."""
+    pdf_with_info = (
+        b"%PDF-1.4\n"
+        b"1 0 obj\n"
+        b"<< /Author (AI generated) /Title (AIGC) >>\n"
+        b"endobj\n"
+        b"trailer\n"
+        b"<< /Info 1 0 R >>\n"
+        b"%%EOF\n"
+    )
+    pdf_file = tmp_path / "witness.pdf"
+    pdf_file.write_bytes(pdf_with_info)
+
+    code, out, err = _run_cli(["clean", str(pdf_file), "--json"], capsys)
+    assert code == ExitCode.DEPENDENCY_MISSING
+    data = json.loads(out)
+    assert data["status"] == "ERROR"
+    assert data["error_code"] == "OPTIONAL_DEPENDENCY_MISSING"
 
 
 def test_cli_file_not_found_exit_code(tmp_path: Path, capsys):

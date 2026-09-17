@@ -231,13 +231,48 @@ def test_api_capabilities_format_registry_parity(conn):
 
 # 6. HTTP Error Code Mapping
 def test_api_error_mapping_unsupported_format(conn):
-    status, body = _post(
+    # Both /inspect and /clean must return 415 Unsupported Media Type
+    status_insp, body_insp = _post(
         conn,
         "/inspect",
         {"file": _b64(b"binary data"), "name": "unsupported.xyz"},
     )
-    assert status == 415
+    assert status_insp == 415
+    assert body_insp["ok"] is False
+    assert body_insp["report"]["status"] == "UNSUPPORTED"
+    assert body_insp["report"]["error_code"] == "UNSUPPORTED_FORMAT"
+
+    status_clean, body_clean = _post(
+        conn,
+        "/clean",
+        {"file": _b64(b"binary data"), "name": "unsupported.xyz"},
+    )
+    assert status_clean == 415
+    assert body_clean["ok"] is False
+    assert body_clean["report"]["status"] == "UNSUPPORTED"
+    assert body_clean["report"]["error_code"] == "UNSUPPORTED_FORMAT"
+
+
+def test_api_error_mapping_dependency_missing(conn):
+    """Section 7: Positive PDF witness with uncleaned /Info watermark returns 424."""
+    pdf_with_info = (
+        b"%PDF-1.4\n"
+        b"1 0 obj\n"
+        b"<< /Author (AI generated) /Title (AIGC) >>\n"
+        b"endobj\n"
+        b"trailer\n"
+        b"<< /Info 1 0 R >>\n"
+        b"%%EOF\n"
+    )
+    status, body = _post(
+        conn,
+        "/clean",
+        {"file": _b64(pdf_with_info), "name": "witness.pdf"},
+    )
+    assert status == 424
     assert body["ok"] is False
+    assert body["report"]["status"] == "ERROR"
+    assert body["report"]["error_code"] == "OPTIONAL_DEPENDENCY_MISSING"
 
 
 def test_api_error_mapping_invalid_container(conn):

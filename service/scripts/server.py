@@ -1931,7 +1931,8 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         kind = classify_bytes(data, Path(name).suffix)
-        if kind == "unknown":
+        ext = Path(name).suffix.lower().lstrip(".")
+        if not ext and kind == "unknown":
             self._respond(HTTPStatus.BAD_REQUEST, {
                 "ok": False,
                 "error": "unrecognized file format; use a filename with a known extension (e.g. notes.txt) or a supported image/container name"
