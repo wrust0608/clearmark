@@ -97,7 +97,7 @@ def test_cli_batch_human_output(tmp_path: Path, capsys):
     assert "CLEANED" in out
 
 
-# 3. CLI Batch Exit Code: Partial Success (Code 1)
+# 3. CLI Batch Exit Code: Partial Failure (Code 7)
 def test_cli_batch_partial_success_exit_code(tmp_path: Path, capsys):
     valid_doc = tmp_path / "valid.docx"
     valid_doc.write_bytes(GOLDEN_DOCX.read_bytes())
@@ -112,8 +112,9 @@ def test_cli_batch_partial_success_exit_code(tmp_path: Path, capsys):
         capsys,
     )
 
-    # Section 15: exit code 1 for partial success
-    assert code == ExitCode.BATCH_PARTIAL_SUCCESS
+    # Additive Phase 4: exit code 7 for partial batch failure
+    assert code == ExitCode.BATCH_PARTIAL_FAILURE
+    assert code == 7
     data = json.loads(out)
     assert data["summary"]["cleaned"] == 1
     assert data["summary"]["errors"] == 1
@@ -121,7 +122,7 @@ def test_cli_batch_partial_success_exit_code(tmp_path: Path, capsys):
     assert Path(data["items"][0]["output_path"]).exists()
 
 
-# 4. CLI Batch Exit Code: Fatal Setup / Limit Exceeded (Code 2)
+# 4. CLI Batch Exit Code: Resource Limit Exceeded (Code 6)
 def test_cli_batch_limit_exceeded_exit_code(tmp_path: Path, monkeypatch, capsys):
     files = []
     for i in range(4):
@@ -136,7 +137,8 @@ def test_cli_batch_limit_exceeded_exit_code(tmp_path: Path, monkeypatch, capsys)
     monkeypatch.setattr(batch_processor, "MAX_BATCH_FILES", 2)
 
     code, out, err = _run_cli(["batch"] + files + ["--json"], capsys)
-    assert code == ExitCode.UNSUPPORTED  # Value 2 (BATCH_FATAL_SETUP)
+    assert code == ExitCode.LIMIT_EXCEEDED  # Value 6 (LIMIT_EXCEEDED)
+    assert code == 6
     data = json.loads(out)
     assert data["ok"] is False
     assert data["error_code"] == "LIMIT_EXCEEDED"

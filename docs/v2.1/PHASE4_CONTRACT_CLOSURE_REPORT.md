@@ -1,8 +1,9 @@
 # Phase 4 Batch Contract Closure Report
 
 > **Historical Implementation Commit**: `085176ace00a776b91ece01621c23b15195e0418` (`feat(batch): complete Phase 4 isolated batch processing engine`)  
-> **Production Defect Fix Commit (Commit A)**: `dfa948da73f5e000eb564f35415968242e338845` (`fix(batch): enforce Phase 4 batch contract invariants`)  
-> **Evidence & Documentation Closure Commit (Commit B)**: `1ce5aeb8f73f9a4c7383f4baa6bd9fa9c3eb76bc` (`test(batch): close Phase 4 batch contract evidence`)  
+> **Production Filesystem Fix Commit (Commit A)**: `dfa948da73f5e000eb564f35415968242e338845` (`fix(batch): enforce Phase 4 batch contract invariants`)  
+> **Production Exit-Contract Fix Commit (Commit B)**: `2e1fa3b3161626b6cae7d2a143311fa1b480d7ac` (`fix(batch): preserve canonical CLI exit namespace`)  
+> **Evidence & Documentation Closure Commit (Commit C)**: `3370fcc7b0ef0002c30748d410293e32cd790dd0` (`test(batch): finalize pre-Phase12 public contract`)  
 > **Gate Status**: **APPROVED / PASS**  
 > **Canonical Golden DOCX SHA256**: `c05ca5c1be3b020b75d5763cf22061879a255b3c4f57b0455ae562b54809f58d` (VERIFIED)  
 > **Canonical Candidate DOCX SHA256**: `7aa5549f6a0e0b78fa39245c0e79503b2cc9defd6cffbfa5c8a833072d430297` (VERIFIED)  
@@ -14,11 +15,19 @@
 
 This report documents the final closure of the historical Phase 4 batch-contract evidence debt prior to Phase 12. A comprehensive audit of `service/scripts/batch_processor.py`, `service/scripts/cli.py`, `service/scripts/server.py`, and existing batch tests was conducted to verify three critical invariants:
 
-1. **Stable Batch Exit/Status Contract**: Preserving the frozen Phase 3 public CLI exit codes (`0` = success, `2` = unsupported, `3` = validation failed, `4` = invalid/malformed, `5` = dependency missing, `6` = limit exceeded, `10` = internal) without repurposing `2` for partial batch failure. Batch exit semantics are explicitly defined and enforced (`0` = all succeeded/no-change, `1` = `BATCH_PARTIAL_SUCCESS`, `2` = `BATCH_FATAL_SETUP` / zero inputs, `4` = `INVALID_INPUT` for configuration/mode errors).
+1. **Stable Batch Exit/Status Contract**: Preserving the frozen Phase 3 public CLI exit codes (`0` = success, `2` = unsupported, `3` = validation failed, `4` = invalid/malformed, `5` = dependency missing, `6` = limit exceeded, `10` = internal) without repurposing `2` for partial batch failure, zero inputs, or resource limits. Batch exit semantics are explicitly defined and enforced:
+   - `0` = `SUCCESS` (100% of discovered items succeeded / cleaned or no change required).
+   - `2` = `UNSUPPORTED` (all discovered items unsupported format; code 2 strictly retains the `UNSUPPORTED` family semantics and is never used for limits, setup, or partial failure).
+   - `3` = `VALIDATION_FAILED` (homogeneous validation failures across batch).
+   - `4` = `INVALID_INPUT` (malformed arguments, invalid mode, Policy B identical directory configuration, or zero inputs discovered).
+   - `5` = `DEPENDENCY_MISSING` (homogeneous missing dependency across batch).
+   - `6` = `LIMIT_EXCEEDED` (batch `MAX_FILES`, batch `MAX_TOTAL_BYTES`, or homogeneous item limit exceeded).
+   - `7` = `BATCH_PARTIAL_FAILURE` (additive Phase 4 code for mixed outcomes; `BATCH_PARTIAL_SUCCESS` retained as alias).
+   - `10` = `INTERNAL_ERROR` (unhandled internal exception).
 2. **Batch Dry-Run Zero-Write Contract**: In dry-run mode (`--dry-run`), zero persistent writes occur across the filesystem. Specifically, nonexistent `--output-dir` and `--reports-dir` are never created, no per-file JSON reports or `batch_report.json` are written to disk, and input files remain byte-for-byte and timestamp immutable (`sha256`, `size`, `mtime_ns`).
 3. **Recursive Directory Self-Ingestion Prevention**: In recursive directory batches (`-r`), generated outputs and reports (including nested `input_root/generated/output` and `input_root/generated/reports`) are deterministically excluded from input discovery. Re-running the exact same batch command on a live tree never ingests previously generated `.cleaned.*` files or reports, preventing multiplicative artifact growth. Explicit Policy B rejection is enforced: configuring `--output-dir` or `--reports-dir` identical to the input root raises a configuration error and exits with code `4` (`INVALID_INPUT`).
 
-Two production defects were identified during audit and remediated in minimal Commit A (`dfa948da73f5e000eb564f35415968242e338845`). Permanent executable evidence is captured in `tests/test_batch_contract_closure.py` (16 passed).
+Two production defect areas were remediated in Commit A (`dfa948da73f5e000eb564f35415968242e338845` - filesystem invariants) and Commit B (`2e1fa3b3161626b6cae7d2a143311fa1b480d7ac` - canonical exit namespace). Permanent executable evidence is captured in `tests/test_batch_contract_closure.py` (23 passed).
 
 ---
 
@@ -36,22 +45,51 @@ Two production defects were identified during audit and remediated in minimal Co
   3. Passed `exclude_dirs=[out_dir_path, rep_dir_path]` to `discover_input_files()`. During recursive `os.walk`, subdirectories matching excluded paths or symlinks/junctions are pruned in-place (`dirs[:] = [...]`), preventing directory descent.
   4. Added `_is_link_or_junction()` to reject following symbolic links, junctions, and reparse points during discovery and per-item inspection.
 
+### Defect 3: Batch Exit Namespace Consistency & Resource Limit Mapping
+- **Root Cause**: In `service/scripts/cli.py`, `BatchLimitExceededError` was previously unhandled separately from general errors and previously documented/mapped inconsistently. Additionally, empty batches previously lacked an explicit status check, and partial failure lacked a dedicated non-colliding exit code.
+- **Fix**:
+  1. Preserved Phase 3 exit code semantics: `ExitCode.UNSUPPORTED` (2) strictly retains the unsupported format family semantics and is never used for limits, setup errors, or partial failures.
+  2. Explicitly mapped `BatchLimitExceededError` (`MAX_FILES`, `MAX_TOTAL_BYTES`) to `ExitCode.LIMIT_EXCEEDED` (6).
+  3. Mapped zero inputs discovered to `ExitCode.INVALID_INPUT` (4) with structured `error_code="NO_INPUTS"`.
+  4. Introduced additive non-colliding `ExitCode.BATCH_PARTIAL_FAILURE` (7) for mixed batch outcomes, preserving `BATCH_PARTIAL_SUCCESS = 7` as alias.
+  5. Implemented homogeneous all-failure propagation for batches where all items fail with the same canonical failure category.
+
 ---
 
-## 3. Public Exit Contract Specification
+## 3. Authoritative Public Exit Contract Specification
 
-The public exit contract is strictly maintained across single-file and batch modes:
+### CLI Exit Codes
 
 | Exit Code | Identifier | Scope | Semantics |
 |---|---|---|---|
-| **0** | `SUCCESS` | CLI / Batch | Single file: cleaned / no change / inspected.<br>Batch: 100% of discovered items succeeded (cleaned or no change required). |
-| **1** | `BATCH_PARTIAL_SUCCESS` | Batch | Aggregate batch completed, but at least 1 item failed (corrupt, validation failed, unsupported format, or processing error). |
-| **2** | `UNSUPPORTED` / `BATCH_FATAL_SETUP` | CLI / Batch | Single file: unsupported format/capability.<br>Batch: zero inputs discovered, or batch limits exceeded before processing. **Never repurposed for partial batch failure.** |
-| **3** | `VALIDATION_FAILED` | CLI | Output validation check failed post-clean (loss of content or corrupt structure). |
-| **4** | `INVALID_INPUT` | CLI / Batch | Malformed arguments, invalid mode string, unresolvable path syntax, or identical input/output directory configuration (Policy B). |
-| **5** | `DEPENDENCY_MISSING` | CLI | Required external dependency unavailable (e.g. PyMuPDF for PDF). |
-| **6** | `LIMIT_EXCEEDED` | CLI | Single-file processing/resource limit exceeded. |
-| **10** | `INTERNAL_ERROR` | CLI / Batch | Unhandled internal exception. |
+| **0** | `SUCCESS` | CLI / Batch | Single file: cleaned / no change / inspected.<br>Batch: 100% of discovered items succeeded (cleaned, no change, or inspected). |
+| **2** | `UNSUPPORTED` | CLI / Batch | Single file: unsupported format/capability.<br>Batch: 100% of discovered items unsupported format. **Never repurposed for limits, setup, zero inputs, or partial failure.** |
+| **3** | `VALIDATION_FAILED` | CLI / Batch | Single file: output validation check failed post-clean (structural/fidelity loss).<br>Batch: 100% of items failed validation. |
+| **4** | `INVALID_INPUT` | CLI / Batch | Malformed arguments, invalid mode string, unresolvable syntax, Policy B identical directory rejection, or zero inputs discovered (`NO_INPUTS`). |
+| **5** | `DEPENDENCY_MISSING` | CLI / Batch | Required external dependency unavailable (e.g. PyMuPDF for PDF).<br>Batch: 100% of items failed due to missing dependency. |
+| **6** | `LIMIT_EXCEEDED` | CLI / Batch | Single file: processing/resource limit exceeded.<br>Batch: batch `MAX_FILES` exceeded, batch `MAX_TOTAL_BYTES` exceeded, or 100% of items failed due to processing limit. |
+| **7** | `BATCH_PARTIAL_FAILURE` | Batch | Aggregate batch completed, but at least 1 item failed (mixed cleaned, corrupt, unsupported, or error). Aliased to `BATCH_PARTIAL_SUCCESS`. |
+| **10** | `INTERNAL_ERROR` | CLI / Batch | Unhandled internal exception during execution or batch setup. |
+
+### Aggregate Batch Result Decision Table
+
+| Batch Scenario | Aggregate State | CLI Exit Code | Rationale |
+|---|---|---|---|
+| All items cleaned / no change / inspected | `total == cleaned + no_change + inspected` | **0** (`SUCCESS`) | Full batch success |
+| Zero input files found/discovered | `total == 0` | **4** (`INVALID_INPUT`) | Explicit `NO_INPUTS` policy; exit 2 strictly forbidden |
+| Invalid configuration / syntax / Policy B | Setup error (`ValueError`, `FileNotFoundError`) | **4** (`INVALID_INPUT`) | User configuration error |
+| Batch `MAX_FILES` exceeded | `BatchLimitExceededError` | **6** (`LIMIT_EXCEEDED`) | Batch ceiling resource limit |
+| Batch `MAX_TOTAL_BYTES` exceeded | `BatchLimitExceededError` | **6** (`LIMIT_EXCEEDED`) | Batch ceiling resource limit |
+| Internal setup exception | Unhandled `Exception` | **10** (`INTERNAL_ERROR`) | Unexpected internal failure |
+| All items unsupported | `total == unsupported` | **2** (`UNSUPPORTED`) | Homogeneous unsupported family |
+| Mixed success + unsupported | Partial batch | **7** (`BATCH_PARTIAL_FAILURE`) | Additive partial code; items retain `UNSUPPORTED_FORMAT` |
+| Mixed success + malformed | Partial batch | **7** (`BATCH_PARTIAL_FAILURE`) | Additive partial code; items retain `INVALID_CONTAINER` |
+| Mixed success + dependency missing | Partial batch | **7** (`BATCH_PARTIAL_FAILURE`) | Additive partial code; items retain `OPTIONAL_DEPENDENCY_MISSING` |
+| Mixed success + limit exceeded | Partial batch | **7** (`BATCH_PARTIAL_FAILURE`) | Additive partial code; items retain `PROCESSING_LIMIT_EXCEEDED` |
+| Homogeneous all validation failed | `total == validation_failed` | **3** (`VALIDATION_FAILED`) | Canonical category propagation |
+| Homogeneous all single-file limits | `total == errors` (all limit) | **6** (`LIMIT_EXCEEDED`) | Canonical category propagation |
+| Homogeneous all dependency missing | `total == errors` (all missing dep) | **5** (`DEPENDENCY_MISSING`) | Canonical category propagation |
+| Homogeneous all malformed/invalid | `total == errors` (all container error) | **4** (`INVALID_INPUT`) | Canonical category propagation |
 
 ---
 
@@ -104,14 +142,14 @@ The public exit contract is strictly maintained across single-file and batch mod
 
 | Suite | Scope | Baseline | Post-Closure Result | Status |
 |---|---|---|---|---|
-| **Focused Closure** | `tests/test_batch_contract_closure.py` | New (16 tests) | **16 passed in 2.29s** | **PASS** |
+| **Focused Closure** | `tests/test_batch_contract_closure.py` | New (23 tests) | **23 passed in 2.36s** | **PASS** |
 | **Existing Batch Suites** | `test_batch_processor.py`, `test_batch_cli.py`, `test_batch_api.py` | 32 tests | **32 passed in 5.94s** | **PASS** |
 | **Phase 9 Security** | `tests/test_malformed_archives.py` | 141 tests | **141 passed in 1.50s** | **PASS** |
 | **Phase 10 Idempotence** | `tests/test_idempotence.py`, `tests/test_property_unicode.py` | 139 tests | **139 passed in 6.63s** | **PASS** |
 | **Format Regression** | `tests/test_docx_body_carriers.py`, `tests/test_xlsx_lossless.py`, `tests/test_pptx_lossless.py` | 135 tests | **135 passed in 16.57s** | **PASS** |
 | **Existing Contracts** | 8 contract test modules | 88 tests | **88 passed in 8.35s** | **PASS** |
 | **Performance Harness** | `tests/test_performance_harness.py` | 11 tests | **11 passed in 39.85s** | **PASS** |
-| **Canonical Full Regression** | Full repository test suite | 1912 passed, 152 skipped | **1928 passed, 152 skipped in 185.96s** | **PASS** |
+| **Canonical Full Regression** | Full repository test suite | 1912 passed, 152 skipped | **1935 passed, 152 skipped in 123.70s** | **PASS** |
 | **DOCX Frozen Core Diff** | `git diff v2.0.0 -- service/scripts/docx/` | EMPTY | **EMPTY (0 lines)** | **PASS** |
 | **Golden DOCX SHA256** | `01_GOLDEN_ORIGINAL_UNTOUCHED.docx` | `c05ca5c1...` | **MATCH (`c05ca5c1...`)** | **PASS** |
 | **Candidate DOCX SHA256** | Pipeline cleaned output | `7aa5549f...` | **MATCH (`7aa5549f...`)** | **PASS** |

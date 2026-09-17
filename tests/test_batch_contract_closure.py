@@ -1,8 +1,16 @@
 """Phase 4 Batch Contract Closure Evidence Tests.
 
 Durable executable evidence verifying:
-1. Stable batch exit and status contract (0 = success, 1 = partial failure, 2 = fatal setup / zero inputs, 4 = invalid configuration).
-2. Phase 3 exit code preservation (0, 2, 3, 4, 5, 6, 10 preserved; 2 is never repurposed for partial failure).
+1. Stable batch exit and status contract:
+   - 0 = SUCCESS (all items cleaned or no change required)
+   - 2 = UNSUPPORTED (all items unsupported; code 2 is strictly reserved for UNSUPPORTED family)
+   - 3 = VALIDATION_FAILED (all items validation failed)
+   - 4 = INVALID_INPUT (invalid configuration, syntax error, or zero inputs discovered)
+   - 5 = DEPENDENCY_MISSING (all items missing required dependency)
+   - 6 = LIMIT_EXCEEDED (resource limits: MAX_FILES, MAX_TOTAL_BYTES, or item limit)
+   - 7 = BATCH_PARTIAL_FAILURE (additive Phase 4 code for mixed success/failure batches)
+   - 10 = INTERNAL_ERROR (unhandled internal error)
+2. Phase 3 exit code preservation: 0, 2, 3, 4, 5, 6, 10 preserved; 2 is NEVER repurposed for partial failure, zero inputs, or resource limits.
 3. Batch dry-run zero-write contract: nonexistent output-dir and reports-dir are never created.
 4. Input tree immutability: SHA256, size, and mtime_ns remain strictly unchanged.
 5. Recursive directory batch self-ingestion prevention: nested output and reports directories are excluded from input discovery.
@@ -77,11 +85,11 @@ def test_batch_exit_code_all_success_and_no_change(tmp_path: Path, capsys):
     assert data["summary"]["unsupported"] == 0
 
 
-def test_batch_exit_code_partial_failure_is_code_1(tmp_path: Path, capsys):
-    """Exit code is 1 (BATCH_PARTIAL_SUCCESS) on mixed success and failure.
+def test_batch_exit_code_partial_failure_is_code_7(tmp_path: Path, capsys):
+    """Exit code is 7 (BATCH_PARTIAL_FAILURE) on mixed success and failure.
 
-    Section 7/9: ExitCode 2 must NEVER be repurposed for partial batch failure.
-    ExitCode 1 is the canonical stable partial batch failure code.
+    Section 2/5/9: ExitCode 2 must NEVER be repurposed for partial batch failure.
+    ExitCode 7 is the canonical additive partial batch failure code.
     """
     valid = tmp_path / "valid.docx"
     valid.write_bytes(GOLDEN_DOCX.read_bytes())
@@ -98,7 +106,8 @@ def test_batch_exit_code_partial_failure_is_code_1(tmp_path: Path, capsys):
         ["batch", str(valid), str(corrupt), str(unsupported), "-o", str(out_dir), "--json"],
         capsys,
     )
-    assert code == ExitCode.BATCH_PARTIAL_SUCCESS  # 1
+    assert code == ExitCode.BATCH_PARTIAL_FAILURE  # 7
+    assert code == 7
     assert code != ExitCode.UNSUPPORTED  # NOT 2
     data = json.loads(out)
     assert data["summary"]["cleaned"] == 1
@@ -106,8 +115,11 @@ def test_batch_exit_code_partial_failure_is_code_1(tmp_path: Path, capsys):
     assert data["summary"]["unsupported"] == 1
 
 
-def test_batch_exit_code_zero_inputs_is_code_2(tmp_path: Path, capsys):
-    """Exit code is 2 (BATCH_FATAL_SETUP) when zero inputs are discovered."""
+def test_batch_exit_code_zero_inputs_is_code_4(tmp_path: Path, capsys):
+    """Exit code is 4 (INVALID_INPUT) when zero inputs are discovered.
+
+    Section 2/4: Exit 2 must NEVER be used for zero inputs.
+    """
     empty_dir = tmp_path / "empty_dir"
     empty_dir.mkdir()
 
@@ -115,7 +127,109 @@ def test_batch_exit_code_zero_inputs_is_code_2(tmp_path: Path, capsys):
         ["batch", str(empty_dir), "--json"],
         capsys,
     )
-    assert code == ExitCode.BATCH_FATAL_SETUP  # 2
+    assert code == ExitCode.INVALID_INPUT  # 4
+    assert code == 4
+    assert code != ExitCode.UNSUPPORTED  # NOT 2
+    data = json.loads(out)
+    assert data["ok"] is False
+    assert data["error_code"] == "NO_INPUTS"
+
+
+def test_batch_exit_code_limit_exceeded_is_code_6(tmp_path: Path, monkeypatch, capsys):
+    """Exit code is 6 (LIMIT_EXCEEDED) when batch resource ceilings are exceeded.
+
+    Section 2/3: Exit 2 must NEVER be used for resource limits.
+    """
+    files = []
+    for i in range(4):
+        f = tmp_path / f"file_{i}.txt"
+        f.write_text("text", encoding="utf-8")
+        files.append(str(f))
+
+    monkeypatch.setenv("WATERMARKS_MAX_BATCH_FILES", "2")
+    try:
+        import batch_processor
+        monkeypatch.setattr(batch_processor, "MAX_BATCH_FILES", 2)
+    except ImportError:
+        pass
+
+    code, out, err = _run_cli(["batch"] + files + ["--json"], capsys)
+    assert code == ExitCode.LIMIT_EXCEEDED  # 6
+    assert code == 6
+    assert code != ExitCode.UNSUPPORTED  # NOT 2
+    data = json.loads(out)
+    assert data["ok"] is False
+    assert data["error_code"] == "LIMIT_EXCEEDED"
+
+
+def test_batch_exit_code_max_total_bytes_is_code_6(tmp_path: Path, monkeypatch, capsys):
+    """Exit code is 6 (LIMIT_EXCEEDED) when MAX_BATCH_TOTAL_BYTES is exceeded.
+
+    Section 2/3: MAX_TOTAL_BYTES must map to LIMIT_EXCEEDED (ExitCode 6).
+    """
+    f1 = tmp_path / "file1.txt"
+    f1.write_bytes(b"A" * 100)
+
+    monkeypatch.setenv("WATERMARKS_MAX_BATCH_TOTAL_BYTES", "50")
+    try:
+        import batch_processor
+        monkeypatch.setattr(batch_processor, "MAX_BATCH_TOTAL_BYTES", 50)
+    except ImportError:
+        pass
+
+    code, out, err = _run_cli(["batch", str(f1), "--json"], capsys)
+    assert code == ExitCode.LIMIT_EXCEEDED  # 6
+    assert code == 6
+    assert code != ExitCode.UNSUPPORTED  # NOT 2
+    data = json.loads(out)
+    assert data["ok"] is False
+    assert data["error_code"] == "LIMIT_EXCEEDED"
+
+
+def test_batch_exit_code_all_unsupported_is_code_2(tmp_path: Path, capsys):
+    """Exit code is 2 (UNSUPPORTED) when ALL items in the batch are unsupported format.
+
+    Section 2/6: Code 2 is strictly reserved for the UNSUPPORTED family.
+    """
+    f1 = tmp_path / "u1.xyz_unknown"
+    f1.write_bytes(b"unknown 1")
+    f2 = tmp_path / "u2.xyz_unknown"
+    f2.write_bytes(b"unknown 2")
+
+    code, out, err = _run_cli(
+        ["batch", str(f1), str(f2), "--json"],
+        capsys,
+    )
+    assert code == ExitCode.UNSUPPORTED  # 2
+    assert code == 2
+    data = json.loads(out)
+    assert data["summary"]["unsupported"] == 2
+    assert data["summary"]["cleaned"] == 0
+    assert data["summary"]["errors"] == 0
+
+
+def test_batch_exit_code_mixed_success_and_unsupported_is_code_7(tmp_path: Path, capsys):
+    """Exit code is 7 (BATCH_PARTIAL_FAILURE) when mixing success and unsupported.
+
+    Section 2/6/7: Mixing success with unsupported must NOT return code 2.
+    Per-item status retains UNSUPPORTED / UNSUPPORTED_FORMAT, while aggregate returns 7.
+    """
+    doc = tmp_path / "valid.docx"
+    doc.write_bytes(GOLDEN_DOCX.read_bytes())
+    uns = tmp_path / "unsupported.bin"
+    uns.write_bytes(b"binary")
+    out_dir = tmp_path / "out"
+
+    code, out, err = _run_cli(
+        ["batch", str(doc), str(uns), "-o", str(out_dir), "--json"],
+        capsys,
+    )
+    assert code == ExitCode.BATCH_PARTIAL_FAILURE  # 7
+    assert code == 7
+    assert code != ExitCode.UNSUPPORTED  # NOT 2
+    data = json.loads(out)
+    assert data["items"][1]["status"] == "UNSUPPORTED"
+    assert data["items"][1]["error_code"] == "UNSUPPORTED_FORMAT"
 
 
 def test_batch_exit_code_invalid_arguments_is_code_4(tmp_path: Path, capsys):
@@ -125,6 +239,73 @@ def test_batch_exit_code_invalid_arguments_is_code_4(tmp_path: Path, capsys):
         capsys,
     )
     assert code == ExitCode.INVALID_INPUT  # 4
+    assert code == 4
+
+
+def test_batch_exit_code_internal_setup_error_is_code_10(tmp_path: Path, monkeypatch, capsys):
+    """Exit code is 10 (INTERNAL_ERROR) on unhandled internal setup exception.
+
+    Section 6/9: Internal setup exceptions must map to INTERNAL_ERROR (10), never 2.
+    """
+    doc = tmp_path / "valid.docx"
+    doc.write_bytes(GOLDEN_DOCX.read_bytes())
+
+    import batch_processor
+
+    def _boom(*args, **kwargs):
+        raise RuntimeError("Unexpected internal crash during batch initialization")
+
+    monkeypatch.setattr(batch_processor.BatchProcessor, "process_paths", _boom)
+    if "service.scripts.batch_processor" in sys.modules:
+        monkeypatch.setattr(sys.modules["service.scripts.batch_processor"].BatchProcessor, "process_paths", _boom)
+
+    code, out, err = _run_cli(["batch", str(doc), "--json"], capsys)
+    assert code == ExitCode.INTERNAL_ERROR  # 10
+    assert code == 10
+    assert code != ExitCode.UNSUPPORTED  # NOT 2
+    data = json.loads(out)
+    assert data["ok"] is False
+    assert data["error_code"] == "INTERNAL_ERROR"
+
+
+def test_batch_exit_code_mixed_success_and_malformed_is_code_7(tmp_path: Path, capsys):
+    """Exit code is 7 (BATCH_PARTIAL_FAILURE) when mixing success and malformed container.
+
+    Section 6/7: Aggregate exit is 7, while per-item retains INVALID_CONTAINER error_code.
+    """
+    doc = tmp_path / "valid.docx"
+    doc.write_bytes(GOLDEN_DOCX.read_bytes())
+    mal = tmp_path / "malformed.docx"
+    mal.write_bytes(b"PK\x03\x04\x00\x00corrupt_payload")
+    out_dir = tmp_path / "out"
+
+    code, out, err = _run_cli(
+        ["batch", str(doc), str(mal), "-o", str(out_dir), "--json"],
+        capsys,
+    )
+    assert code == ExitCode.BATCH_PARTIAL_FAILURE  # 7
+    assert code == 7
+    data = json.loads(out)
+    assert data["items"][0]["status"] == "CLEANED"
+    assert data["items"][1]["status"] == "ERROR"
+    assert data["items"][1]["error_code"] == "INVALID_CONTAINER"
+
+
+def test_batch_exit_code_all_malformed_is_code_4(tmp_path: Path, capsys):
+    """Exit code is 4 (INVALID_INPUT) when all items in batch fail security/container preflight.
+
+    Section 6: Homogeneous all-failure batches propagate canonical category.
+    """
+    m1 = tmp_path / "m1.docx"
+    m1.write_bytes(b"PK\x03\x04corrupt1")
+    m2 = tmp_path / "m2.docx"
+    m2.write_bytes(b"PK\x03\x04corrupt2")
+
+    code, out, err = _run_cli(["batch", str(m1), str(m2), "--json"], capsys)
+    assert code == ExitCode.INVALID_INPUT  # 4
+    assert code == 4
+    data = json.loads(out)
+    assert data["summary"]["errors"] == 2
 
 
 # ============================================================================
@@ -466,7 +647,8 @@ def test_batch_json_stdout_purity_success_and_failure(tmp_path: Path, capsys):
         ["batch", str(valid), str(corrupt), "-o", str(out_dir), "--json"],
         capsys,
     )
-    assert code_f == ExitCode.BATCH_PARTIAL_SUCCESS
+    assert code_f == ExitCode.BATCH_PARTIAL_FAILURE
+    assert code_f == 7
     data_f = json.loads(out_f)  # Must parse cleanly without warning or progress prefix
     assert data_f["summary"]["errors"] == 1
 
