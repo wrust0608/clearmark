@@ -110,7 +110,7 @@ The generator asserts semantic parity between CLI, HTTP, and Security subsystems
 
 ### 4.5 Atomic Publication & Self-Hashing Invariant
 - **Atomic Swap**: The evidence bundle is constructed in a temporary sibling directory on the same filesystem (`artifacts/v2.1/release_evidence_tmp_*`), fully validated, and swapped into place atomically. A failed run never leaves a partial or corrupt bundle.
-- **Self-Hashing Rule**: `MANIFEST.json` lists SHA-256 hashes of all files in the bundle except itself; `MANIFEST.sha256` records the hash of `MANIFEST.json`.
+- **Self-Hashing Rule**: `MANIFEST.json` inventories/hash-verifies canonical payload evidence files, excluding `MANIFEST.json` itself and `MANIFEST.sha256`. `MANIFEST.sha256` independently hashes `MANIFEST.json`.
 
 ---
 
