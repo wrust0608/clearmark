@@ -1,0 +1,26 @@
+{
+  "timestamp": "2026-09-17T21:29:07.502716+00:00",
+  "decision": "PROMOTE_TO_V2.1.0",
+  "release_candidate": "v2.1.0-rc1",
+  "repository": "wrust0608/clearmark",
+  "tag_target": "9ecfea135f7b871f226313bfc7f101d07f578d3b",
+  "package_source_commit": "32e1a2c3afae7d6b738630787ce4d2f7b3640c56",
+  "package_sha256": "33616f74730a0e026efa751d1fb5d86d5f310e2d66f6de3d34afec3635d716d9",
+  "open_blockers_s0": 0,
+  "open_majors_s1": 0,
+  "open_moderates_s2": 0,
+  "open_minors_s3": 0,
+  "automated_gates": {
+    "V0_freeze_and_environment": "PASS",
+    "V1_artifact_identity_clean_room": "PASS",
+    "V2_cli_api_acceptance": "PASS",
+    "V3_capability_matrix_23_policies": "PASS",
+    "V4_real_world_corpus": "PASS",
+    "V5_office_lossless_fidelity": "PASS",
+    "V6_negative_security_corpus": "PASS",
+    "V7_batch_and_stress": "PASS",
+    "V8_ux_and_docs_consistency": "PASS",
+    "V9_soak_stability": "PASS"
+  },
+  "total_elapsed_seconds": 134.57
+}

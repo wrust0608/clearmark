@@ -1,0 +1,14 @@
+{
+  "timestamp": "2026-09-17T21:26:53.056917+00:00",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "python_version": "3.12.14 (main, Sep  1 2026, 14:17:39) [MSC v.1944 64 bit (AMD64)]",
+  "cpu_count": 8,
+  "ram_total_gb": 15.73,
+  "branch": "v2.1-dev",
+  "head_commit": "b29d1ebd6c7a83c68467eed9754f41e4a80dab8b",
+  "tag_target_v210_rc1": "9ecfea135f7b871f226313bfc7f101d07f578d3b",
+  "docx_frozen_core_diff": "EMPTY",
+  "golden_fixture_sha256": "c05ca5c1be3b020b75d5763cf22061879a255b3c4f57b0455ae562b54809f58d",
+  "candidate_fixture_sha256": "7aa5549f6a0e0b78fa39245c0e79503b2cc9defd6cffbfa5c8a833072d430297",
+  "status": "PASS"
+}

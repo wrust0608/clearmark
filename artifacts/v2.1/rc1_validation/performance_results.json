@@ -1,0 +1,42 @@
+[
+  {
+    "filename": "001MiB_text.txt",
+    "size_bytes": 1048576,
+    "size_mib": 1.0,
+    "pipeline_status": "NO_CHANGE_REQUIRED",
+    "error_code": null,
+    "limit_enforcement": "WITHIN_LIMITS",
+    "elapsed_ms": 10463.88,
+    "status": "PASS"
+  },
+  {
+    "filename": "010MiB_text.txt",
+    "size_bytes": 10485760,
+    "size_mib": 10.0,
+    "pipeline_status": "NO_CHANGE_REQUIRED",
+    "error_code": null,
+    "limit_enforcement": "WITHIN_LIMITS",
+    "elapsed_ms": 111144.62,
+    "status": "PASS"
+  },
+  {
+    "filename": "050MiB_text.txt",
+    "size_bytes": 52428800,
+    "size_mib": 50.0,
+    "pipeline_status": "ERROR",
+    "error_code": "PROCESSING_LIMIT_EXCEEDED",
+    "limit_enforcement": "LIMIT_EXCEEDED_REJECTED",
+    "elapsed_ms": 0.76,
+    "status": "PASS"
+  },
+  {
+    "filename": "100MiB_text.txt",
+    "size_bytes": 104857600,
+    "size_mib": 100.0,
+    "pipeline_status": "ERROR",
+    "error_code": "PROCESSING_LIMIT_EXCEEDED",
+    "limit_enforcement": "LIMIT_EXCEEDED_REJECTED",
+    "elapsed_ms": 0.54,
+    "status": "PASS"
+  }
+]

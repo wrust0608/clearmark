@@ -1,0 +1,22 @@
+{
+  "valid100": {
+    "input_count": 100,
+    "cleaned_count": 0,
+    "no_change_count": 100,
+    "errors_count": 0,
+    "reconciled": true,
+    "elapsed_ms": 341.92,
+    "status": "PASS"
+  },
+  "mixed": {
+    "input_count": 8,
+    "cleaned_count": 3,
+    "no_change_count": 3,
+    "errors_count": 1,
+    "unsupported_count": 1,
+    "fault_isolation_verified": true,
+    "reconciled": true,
+    "elapsed_ms": 618.59,
+    "status": "PASS"
+  }
+}

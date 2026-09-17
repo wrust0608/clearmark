@@ -1,0 +1,33 @@
+{
+  "package_path": "E:\\wartermark_remove\\artifacts\\v2.1\\release_candidate\\FINAL_REVIEW_PACKAGE_v2.1.0-RC1.zip",
+  "package_sha256": "33616f74730a0e026efa751d1fb5d86d5f310e2d66f6de3d34afec3635d716d9",
+  "expected_sha256": "33616f74730a0e026efa751d1fb5d86d5f310e2d66f6de3d34afec3635d716d9",
+  "sha256_match": true,
+  "package_size_bytes": 2043966,
+  "independent_audit": {
+    "overall_status": "PASS",
+    "crc_status": "PASS",
+    "path_safety": "PASS",
+    "duplicate_status": "PASS",
+    "encryption_status": "PASS",
+    "zip64_status": "PASS",
+    "manifest_status": "PASS",
+    "sha256sums_status": "PASS",
+    "git_blob_identity": "PASS",
+    "phase13_evidence_status": "PASS",
+    "privacy_status": "PASS",
+    "network_status": "PASS",
+    "docx_frozen_status": "PASS",
+    "golden_hash_status": "PASS",
+    "candidate_hash_status": "PASS",
+    "package_sha256": "33616f74730a0e026efa751d1fb5d86d5f310e2d66f6de3d34afec3635d716d9",
+    "package_size_bytes": 2043966,
+    "payload_file_count": 525,
+    "member_count": 527,
+    "payload_total_bytes": 4979482,
+    "source_commit": "32e1a2c3afae7d6b738630787ce4d2f7b3640c56",
+    "evidence_closure_commit": "4321724ceadb3d699c826bb1115c6189c5f620ad",
+    "rc_ready": true
+  },
+  "status": "PASS"
+}
