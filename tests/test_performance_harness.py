@@ -312,3 +312,9 @@ def test_closure_guardrail_evaluation():
     assert engine.evaluate_closure_guardrail("EXTERNAL_AV", SIZE_100_MIB, 50 * 1024 * 1024, 500 * 1024 * 1024) == "PASS"
     assert engine.evaluate_closure_guardrail("EXTERNAL_AV", SIZE_100_MIB, 50 * 1024 * 1024, 700 * 1024 * 1024) == "INVESTIGATE"
 
+    # 7. AUDIO_RIFF_IN_PROCESS: limit = 96 MiB + 5.0 * size
+    # 100 MiB: limit = 96 + 500 = 596 MiB
+    assert engine.evaluate_closure_guardrail("AUDIO_RIFF_IN_PROCESS", SIZE_100_MIB, 300 * 1024 * 1024, 300 * 1024 * 1024) == "PASS"
+    assert engine.evaluate_closure_guardrail("AUDIO_RIFF_IN_PROCESS", SIZE_100_MIB, 650 * 1024 * 1024, 650 * 1024 * 1024) == "INVESTIGATE"
+
+

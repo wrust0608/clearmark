@@ -36,7 +36,9 @@
   },
   "memory_budgets": {
     "in_process": "delta_parent_rss <= 96 MiB + 2.5 * input_size",
-    "external_process": "delta_tree_rss <= 256 MiB + 4.0 * input_size"
+    "external_process": "delta_tree_rss <= 256 MiB + 4.0 * input_size",
+    "in_process_audio_riff": "delta_parent_rss <= 96 MiB + 5.0 * input_size",
+    "in_process_chunked_image": "delta_parent_rss <= 96 MiB + 5.0 * input_size"
   },
   "profiles": [
     {
@@ -1681,11 +1683,11 @@
               "tree_delta_rss_bytes": 3182592
             }
           ],
-          "median_wall_ms": 114.11,
-          "throughput_mib_s": 8.76,
+          "median_wall_ms": 62.66,
+          "throughput_mib_s": 15.96,
           "max_parent_peak_rss_bytes": 32980992,
           "max_tree_peak_rss_bytes": 32980992,
-          "max_parent_delta_rss_bytes": 3182592,
+          "max_parent_delta_rss_bytes": 2129920,
           "max_tree_delta_rss_bytes": 3182592,
           "input_sha256": "2be3cc76e0717000029e666846e673d21b0c8bc52b618145181762ee918ab958",
           "first_output_sha256": "814c183d29b521122d8d9911b07f83c070921c05909852d300ca38e025fb9768",
@@ -1694,7 +1696,8 @@
           "idempotence_pass": true,
           "fidelity_checked": false,
           "fidelity_pass": false,
-          "budget_pass": true
+          "budget_pass": true,
+          "cleaned_size_bytes": 1048532
         },
         "10MiB": {
           "target_size_bytes": 10485760,
@@ -1726,11 +1729,11 @@
               "tree_delta_rss_bytes": 41979904
             }
           ],
-          "median_wall_ms": 427.33,
-          "throughput_mib_s": 23.4,
+          "median_wall_ms": 165.18,
+          "throughput_mib_s": 60.54,
           "max_parent_peak_rss_bytes": 90656768,
           "max_tree_peak_rss_bytes": 90656768,
-          "max_parent_delta_rss_bytes": 41984000,
+          "max_parent_delta_rss_bytes": 31498240,
           "max_tree_delta_rss_bytes": 41984000,
           "input_sha256": "3488a34d7719ef220598a0aec164d65900e76e028ccfc9260ebae211cde392bb",
           "first_output_sha256": "f1ff2c2eeba5852b3fb7bac11f62eafe5e45672a314e938b99170e0b98fcc153",
@@ -1739,7 +1742,8 @@
           "idempotence_pass": true,
           "fidelity_checked": false,
           "fidelity_pass": false,
-          "budget_pass": true
+          "budget_pass": true,
+          "cleaned_size_bytes": 10485716
         },
         "50MiB": {
           "target_size_bytes": 52428800,
@@ -1771,11 +1775,11 @@
               "tree_delta_rss_bytes": 209756160
             }
           ],
-          "median_wall_ms": 1754.36,
-          "throughput_mib_s": 28.5,
+          "median_wall_ms": 568.88,
+          "throughput_mib_s": 87.89,
           "max_parent_peak_rss_bytes": 342315008,
           "max_tree_peak_rss_bytes": 342315008,
-          "max_parent_delta_rss_bytes": 209756160,
+          "max_parent_delta_rss_bytes": 157376512,
           "max_tree_delta_rss_bytes": 209756160,
           "input_sha256": "972f6fbc205aea67a39957ebeb19ef342218944afc6a21c89fc0ca230063d253",
           "first_output_sha256": "e0daf37ab0140d0c8b87c855facb3588b93a4272fc8b670d136b5e5a3116439d",
@@ -1784,7 +1788,8 @@
           "idempotence_pass": true,
           "fidelity_checked": false,
           "fidelity_pass": false,
-          "budget_pass": true
+          "budget_pass": true,
+          "cleaned_size_bytes": 52428756
         },
         "100MiB": {
           "target_size_bytes": 104857600,
@@ -1816,27 +1821,28 @@
               "tree_delta_rss_bytes": 419454976
             }
           ],
-          "median_wall_ms": 1738.8,
-          "throughput_mib_s": 57.51,
+          "median_wall_ms": 1559.8,
+          "throughput_mib_s": 64.11,
           "max_parent_peak_rss_bytes": 552013824,
           "max_tree_peak_rss_bytes": 552013824,
-          "max_parent_delta_rss_bytes": 419459072,
+          "max_parent_delta_rss_bytes": 419467264,
           "max_tree_delta_rss_bytes": 419459072,
           "input_sha256": "ef34db4041dd8800cdbb73ec4445151beadf288371dba9e6ed3404d88379dfd9",
-          "first_output_sha256": "bf6e855b67618763d38f0cd8c2ab5ea9aed7b28f4475939f040e4e3ac016bedc",
-          "second_output_sha256": "",
-          "idempotence_checked": false,
-          "idempotence_pass": false,
+          "first_output_sha256": "d92c29ed6f643f954eb5b37afe6f42f44d55211320ee18c2af25b98ed60d03fa",
+          "second_output_sha256": "d92c29ed6f643f954eb5b37afe6f42f44d55211320ee18c2af25b98ed60d03fa",
+          "idempotence_checked": true,
+          "idempotence_pass": true,
           "fidelity_checked": false,
           "fidelity_pass": false,
-          "budget_pass": false
+          "budget_pass": true,
+          "cleaned_size_bytes": 104857556
         }
       },
-      "time_scaling_alpha": 0.633,
-      "memory_scaling_alpha": 1.06,
-      "ratio_50_to_100_time": 0.99,
-      "ratio_50_to_100_rss": 2.0,
-      "overall_budget_status": "INVESTIGATE"
+      "time_scaling_alpha": 0.668,
+      "memory_scaling_alpha": 1.128,
+      "ratio_50_to_100_time": 2.74,
+      "ratio_50_to_100_rss": 2.67,
+      "overall_budget_status": "PASS"
     },
     {
       "benchmark_id": "png_nochange",
@@ -2045,8 +2051,8 @@
       "benchmark_id": "wav_positive",
       "canonical_policy": "audio",
       "extension": "wav",
-      "execution_class": "EXTERNAL_AV",
-      "streaming_classification": "EXTERNAL_PROCESS",
+      "execution_class": "AUDIO_RIFF_IN_PROCESS",
+      "streaming_classification": "STREAMING_INPUT_FULL_OUTPUT",
       "is_positive": true,
       "is_cli": false,
       "sizes_successful": [
@@ -2248,8 +2254,8 @@
       "benchmark_id": "wav_nochange",
       "canonical_policy": "audio",
       "extension": "wav",
-      "execution_class": "EXTERNAL_AV",
-      "streaming_classification": "EXTERNAL_PROCESS",
+      "execution_class": "AUDIO_RIFF_IN_PROCESS",
+      "streaming_classification": "STREAMING_INPUT_FULL_OUTPUT",
       "is_positive": false,
       "is_cli": false,
       "sizes_successful": [
@@ -2813,5 +2819,215 @@
     "growth_bytes": -4096,
     "leak_detected": false,
     "status": "PASS"
-  }
+  },
+  "external_process_status": "NOT_APPLICABLE_TO_CANONICAL_CLEAN_PATHS",
+  "historical_profiles": [
+    {
+      "profile": {
+        "benchmark_id": "png_positive",
+        "canonical_policy": "png",
+        "extension": "png",
+        "execution_class": "IMAGE_CHUNK",
+        "streaming_classification": "STREAMING_INPUT_FULL_OUTPUT",
+        "is_positive": true,
+        "is_cli": false,
+        "sizes_successful": [
+          1048576,
+          10485760,
+          52428800,
+          104857600
+        ],
+        "sizes_rejected": [],
+        "results_by_size": {
+          "1MiB": {
+            "target_size_bytes": 1048576,
+            "actual_size_bytes": 1048576,
+            "production_allowed": true,
+            "status": "PASS",
+            "error_code": null,
+            "repetitions": 3,
+            "raw_runs": [
+              {
+                "wall_ms": 150.2247,
+                "parent_peak_rss_bytes": 31928320,
+                "tree_peak_rss_bytes": 31928320,
+                "parent_delta_rss_bytes": 3182592,
+                "tree_delta_rss_bytes": 3182592
+              },
+              {
+                "wall_ms": 114.1113,
+                "parent_peak_rss_bytes": 32980992,
+                "tree_peak_rss_bytes": 32980992,
+                "parent_delta_rss_bytes": 3182592,
+                "tree_delta_rss_bytes": 3182592
+              },
+              {
+                "wall_ms": 109.9891,
+                "parent_peak_rss_bytes": 32980992,
+                "tree_peak_rss_bytes": 32980992,
+                "parent_delta_rss_bytes": 3182592,
+                "tree_delta_rss_bytes": 3182592
+              }
+            ],
+            "median_wall_ms": 114.11,
+            "throughput_mib_s": 8.76,
+            "max_parent_peak_rss_bytes": 32980992,
+            "max_tree_peak_rss_bytes": 32980992,
+            "max_parent_delta_rss_bytes": 3182592,
+            "max_tree_delta_rss_bytes": 3182592,
+            "input_sha256": "2be3cc76e0717000029e666846e673d21b0c8bc52b618145181762ee918ab958",
+            "first_output_sha256": "814c183d29b521122d8d9911b07f83c070921c05909852d300ca38e025fb9768",
+            "second_output_sha256": "814c183d29b521122d8d9911b07f83c070921c05909852d300ca38e025fb9768",
+            "idempotence_checked": true,
+            "idempotence_pass": true,
+            "fidelity_checked": false,
+            "fidelity_pass": false,
+            "budget_pass": true
+          },
+          "10MiB": {
+            "target_size_bytes": 10485760,
+            "actual_size_bytes": 10485760,
+            "production_allowed": true,
+            "status": "PASS",
+            "error_code": null,
+            "repetitions": 3,
+            "raw_runs": [
+              {
+                "wall_ms": 439.5755,
+                "parent_peak_rss_bytes": 80166912,
+                "tree_peak_rss_bytes": 80166912,
+                "parent_delta_rss_bytes": 41984000,
+                "tree_delta_rss_bytes": 41984000
+              },
+              {
+                "wall_ms": 377.8316,
+                "parent_peak_rss_bytes": 90656768,
+                "tree_peak_rss_bytes": 90656768,
+                "parent_delta_rss_bytes": 41984000,
+                "tree_delta_rss_bytes": 41984000
+              },
+              {
+                "wall_ms": 427.3266,
+                "parent_peak_rss_bytes": 90652672,
+                "tree_peak_rss_bytes": 90652672,
+                "parent_delta_rss_bytes": 41979904,
+                "tree_delta_rss_bytes": 41979904
+              }
+            ],
+            "median_wall_ms": 427.33,
+            "throughput_mib_s": 23.4,
+            "max_parent_peak_rss_bytes": 90656768,
+            "max_tree_peak_rss_bytes": 90656768,
+            "max_parent_delta_rss_bytes": 41984000,
+            "max_tree_delta_rss_bytes": 41984000,
+            "input_sha256": "3488a34d7719ef220598a0aec164d65900e76e028ccfc9260ebae211cde392bb",
+            "first_output_sha256": "f1ff2c2eeba5852b3fb7bac11f62eafe5e45672a314e938b99170e0b98fcc153",
+            "second_output_sha256": "f1ff2c2eeba5852b3fb7bac11f62eafe5e45672a314e938b99170e0b98fcc153",
+            "idempotence_checked": true,
+            "idempotence_pass": true,
+            "fidelity_checked": false,
+            "fidelity_pass": false,
+            "budget_pass": true
+          },
+          "50MiB": {
+            "target_size_bytes": 52428800,
+            "actual_size_bytes": 52428800,
+            "production_allowed": true,
+            "status": "PASS",
+            "error_code": null,
+            "repetitions": 3,
+            "raw_runs": [
+              {
+                "wall_ms": 1692.5976,
+                "parent_peak_rss_bytes": 289882112,
+                "tree_peak_rss_bytes": 289882112,
+                "parent_delta_rss_bytes": 209756160,
+                "tree_delta_rss_bytes": 209756160
+              },
+              {
+                "wall_ms": 1785.37,
+                "parent_peak_rss_bytes": 342315008,
+                "tree_peak_rss_bytes": 342315008,
+                "parent_delta_rss_bytes": 209756160,
+                "tree_delta_rss_bytes": 209756160
+              },
+              {
+                "wall_ms": 1754.3583,
+                "parent_peak_rss_bytes": 342315008,
+                "tree_peak_rss_bytes": 342315008,
+                "parent_delta_rss_bytes": 209756160,
+                "tree_delta_rss_bytes": 209756160
+              }
+            ],
+            "median_wall_ms": 1754.36,
+            "throughput_mib_s": 28.5,
+            "max_parent_peak_rss_bytes": 342315008,
+            "max_tree_peak_rss_bytes": 342315008,
+            "max_parent_delta_rss_bytes": 209756160,
+            "max_tree_delta_rss_bytes": 209756160,
+            "input_sha256": "972f6fbc205aea67a39957ebeb19ef342218944afc6a21c89fc0ca230063d253",
+            "first_output_sha256": "e0daf37ab0140d0c8b87c855facb3588b93a4272fc8b670d136b5e5a3116439d",
+            "second_output_sha256": "e0daf37ab0140d0c8b87c855facb3588b93a4272fc8b670d136b5e5a3116439d",
+            "idempotence_checked": true,
+            "idempotence_pass": true,
+            "fidelity_checked": false,
+            "fidelity_pass": false,
+            "budget_pass": true
+          },
+          "100MiB": {
+            "target_size_bytes": 104857600,
+            "actual_size_bytes": 104857600,
+            "production_allowed": true,
+            "status": "PASS",
+            "error_code": null,
+            "repetitions": 3,
+            "raw_runs": [
+              {
+                "wall_ms": 1805.3819,
+                "parent_peak_rss_bytes": 552013824,
+                "tree_peak_rss_bytes": 552013824,
+                "parent_delta_rss_bytes": 419459072,
+                "tree_delta_rss_bytes": 419459072
+              },
+              {
+                "wall_ms": 1671.1797,
+                "parent_peak_rss_bytes": 552013824,
+                "tree_peak_rss_bytes": 552013824,
+                "parent_delta_rss_bytes": 419459072,
+                "tree_delta_rss_bytes": 419459072
+              },
+              {
+                "wall_ms": 1738.795,
+                "parent_peak_rss_bytes": 552009728,
+                "tree_peak_rss_bytes": 552009728,
+                "parent_delta_rss_bytes": 419454976,
+                "tree_delta_rss_bytes": 419454976
+              }
+            ],
+            "median_wall_ms": 1738.8,
+            "throughput_mib_s": 57.51,
+            "max_parent_peak_rss_bytes": 552013824,
+            "max_tree_peak_rss_bytes": 552013824,
+            "max_parent_delta_rss_bytes": 419459072,
+            "max_tree_delta_rss_bytes": 419459072,
+            "input_sha256": "ef34db4041dd8800cdbb73ec4445151beadf288371dba9e6ed3404d88379dfd9",
+            "first_output_sha256": "bf6e855b67618763d38f0cd8c2ab5ea9aed7b28f4475939f040e4e3ac016bedc",
+            "second_output_sha256": "",
+            "idempotence_checked": false,
+            "idempotence_pass": false,
+            "fidelity_checked": false,
+            "fidelity_pass": false,
+            "budget_pass": false
+          }
+        },
+        "time_scaling_alpha": 0.633,
+        "memory_scaling_alpha": 1.06,
+        "ratio_50_to_100_time": 0.99,
+        "ratio_50_to_100_rss": 2.0,
+        "overall_budget_status": "INVESTIGATE"
+      },
+      "historical_issue": "Accidental cai:/c2ma collision in 100 MiB prNd chunk caused chunk drop (104.8MB -> 67B)",
+      "resolution": "Fixed image_meta.py strip_png to require verified C2PA carrier or JUMBF container header"
+    }
+  ]
 }

@@ -4,7 +4,8 @@
 **Phase 11 Harness Commit**: `6dfefb625d394116d60dd8686b2d9ead77b9419b`  
 **Budget & Sampler Closure Commit**: `7bba59fa4714a63852940abc550350b981be69a1`  
 **Evidence & Documentation Closure Commit**: `841e6e18fbf79069d2a2333cfc8764049875f308`  
-**Production Optimization Changes**: **NONE** (0 production source modifications; pure measurement, audit, and harness verification)  
+**Production Defect Fix Commit**: `70d2f9e0ebefddca34e626e632b07e8ebec9bf96` (`fix(image): prevent unverified PNG provenance chunk removal`)  
+**Execution-Path & Evidence Closure Commit**: `115178a` (`test(perf): close Phase 11 execution-path and PNG evidence gaps`)  
 **DOCX Frozen Core Gate**: `git diff v2.0.0 -- service/scripts/docx/` **EMPTY** (0 lines modified)  
 **Golden & Candidate DOCX Hashes**: **MATCH**  
 - Golden SHA256: `c05ca5c1be3b020b75d5763cf22061879a255b3c4f57b0455ae562b54809f58d` (VERIFIED)  
@@ -76,7 +77,7 @@ Before benchmarking, all architectural resource bounds across top-level CLI, HTT
    - Traverses the entire process subtree recursively (`proc.children(recursive=True)`), summing resident memory from all active child processes (e.g., `ffmpeg` spawned during media transcoding).
    - Tracks `max_child_rss_bytes` to explicitly witness child contributions.
    - **Child Witness Proof**: Verified by executable test `tests/test_performance_harness.py::test_process_tree_child_witness` where a child Python process allocated 48 MiB of heap; the sampler observed 65.39 MiB of child RSS (`tree_peak > parent_peak` and `max_child_rss_bytes > 0`).
-   - In `clean_audio.audio_purify` (which spawns `ffmpeg`), child RSS is actively captured at 24.05 MiB. In canonical `Pipeline.clean()` on `.wav`, processing routes to `av_meta.clean_av` (in-process RIFF chunk stripping) where child RSS is genuinely 0 bytes because no subprocess is spawned.
+   - **External Process Profile Non-Applicability**: An exhaustive audit of the canonical `Pipeline.clean()` call graph verified that **no canonical supported clean path spawns an external process**. Canonical audio cleaning (`.wav`) routes to `av_meta.clean_av` / `_strip_wav`, which performs 100% in-process bytearray manipulation walking RIFF chunks and stripping C2PA, LIST INFO, and ID3 without spawning `ffmpeg` or any child process (child RSS = 0 bytes). Destructive tools (`clean_audio.audio_purify` and `clean_video.video_purify`) invoke `ffmpeg` with active child RSS (measured at 24.05 MiB), but these are standalone service-endpoint transcoders, not canonical pipeline cleaners. Consequently, **EXTERNAL PROCESS PERFORMANCE PROFILE: NOT APPLICABLE TO CURRENT CANONICAL CLEAN PATHS**. The process-tree sampler is retained as permanent harness capability proof.
 3. **Explicit Garbage Collection & Settling**:
    - `gc.collect()` is invoked before each run, followed by a settling delay to establish a stable resident baseline.
 4. **Deterministic Fixture Generation**:
@@ -143,9 +144,10 @@ The scaling benchmark suite comprises:
   - `DOCX_OPC_TREE`: $\le 96\text{ MiB} + 10.0 \times S$ (In-memory zip stream, member byte copying, MSVCRT heap retention).
   - `XLSX_OPC_TREE`: $\le 96\text{ MiB} + 10.0 \times S$ (In-memory zip stream, member byte copying, MSVCRT heap retention).
   - `ODF_PACKAGE`: $\le 96\text{ MiB} + 8.0 \times S$ (ZIP container member streaming, XML manipulation, buffer retention).
-  - `CHUNKED_IMAGE`: $\le 96\text{ MiB} + 5.0 \times S$ (Streaming chunk filtering with full output byte assembly).
-  - `EXTERNAL_AV`: $\le 256\text{ MiB} + 4.0 \times S$ (Subprocess tree RSS for external audio/video toolchain).
-- **Closure Rerun Verification (`artifacts/v2.1/phase11_closure_guardrails.json`)**: All 50 MiB and 100 MiB closure measurements across DOCX, XLSX, ODT, PNG, and 10 MiB closure text (with historical 50 and 100 MiB text scaling points retained) evaluated as **PASS**.
+  - `CHUNKED_IMAGE` / `IMAGE_CHUNK`: $\le 96\text{ MiB} + 5.0 \times S$ (Streaming chunk filtering with full output byte assembly).
+  - `AUDIO_RIFF_IN_PROCESS`: $\le 96\text{ MiB} + 5.0 \times S$ (In-process RIFF chunk filtering with bytearray assembly).
+  - `EXTERNAL_PROCESS` / `EXTERNAL_AV`: $\le 256\text{ MiB} + 4.0 \times S$ (Subprocess tree RSS for external toolchains; retained as harness sampler witness, not applicable to canonical clean paths).
+- **Closure Rerun Verification (`artifacts/v2.1/phase11_closure_guardrails.json`)**: All 50 MiB and 100 MiB closure measurements across DOCX, XLSX, ODT, PNG, WAV, and 10 MiB closure text (with historical 50 and 100 MiB text scaling points retained) evaluated as **PASS**.
 
 ---
 
@@ -240,15 +242,21 @@ The scaling benchmark suite comprises:
 | **50 MiB** | PASS | 1,128.31 | 44.32 | 275.1 | 200.0 | PASS | PASS | PASS (196.0 < 596.0 MiB) |
 | **100 MiB**| PASS | 2,248.48 | 44.47 | 525.1 | 400.0 | PASS | PASS | PASS (392.0 < 1096.0 MiB)|
 
-#### 9. PNG Positive Cleaning (`png_positive`) & Sanity Check
-- **Sanity Audit (Section 15)**: Initial 50 MiB wall time was 1,754.4 ms and 100 MiB was 1,738.8 ms (ratio ~0.99×). Audit verified: `actual_size_100` (104,857,600) > `actual_size_50` (52,428,800). Both positive workloads. In 50 MiB run, cleaner dropped 32-byte comment and wrote 52.4 MiB. In 100 MiB run, pseudo-random payload triggered C2PA hit in `prNd` chunk, causing the cleaner to drop the entire 104 MiB chunk and write only 67 bytes, avoiding ~100 MiB disk write I/O. Time ratio 0.99× is mathematically and physically valid. Status: **PASS**.
+#### 9. PNG Positive Cleaning (`png_positive`) & Semantic Closure
+- **Root-Cause Audit & Resolution**:
+  - *Historical Anomaly*: In the initial benchmark run, 50 MiB took 1,754.4 ms while 100 MiB took 1,738.8 ms (ratio 0.99×). Investigation revealed that in the 100 MiB synthetic fixture, pseudo-random payload generated in a private ancillary chunk (`prNd`) produced random 4-byte occurrences (`b"cai:"` at offset 23,862,244 and `b"c2ma"` at offset 48,655,063).
+  - *Production Defect*: In `service/scripts/image_meta.py::strip_png`, a loose check `_contains_any(ctype + payload, C2PA_MARKERS)` treated the private chunk `prNd` as a C2PA carrier, discarding the entire 104.85 MB chunk and emitting an output of only 67 bytes (avoiding ~100 MiB disk write I/O).
+  - *Production Defect Fix (`70d2f9e0ebefddca34e626e632b07e8ebec9bf96`)*: `strip_png` was tightened to enforce strict carrier verification (`caBX`, `juMB`, `jumb`, `c2*`, `eXIf`) and validated JUMBF container headers (`payload[4:8] == b"jumb"`). Unrecognized private/ancillary chunks (such as `prNd`) are preserved byte-for-byte.
+  - *Regression Test*: Added permanent regression test `tests/test_clean_image.py::test_png_private_chunk_accidental_marker_is_not_deleted`.
+  - *Recalculated Apples-to-Apples Scaling*: Benchmarked with full 1/10/50/100 MiB payload preservation (each positive output drops exactly 44 bytes of C2PA metadata, emitting 104,857,556 bytes at 100 MiB). Time ratio 50 $\rightarrow$ 100 MiB is **2.74×** (sublinear scaling $\alpha = 0.668$).
+  - *Historical Provenance*: Historical 0.99× / 67-byte measurement is preserved in `phase11_benchmark_historical.json` and documented in `phase11_benchmark.json::historical_profiles`.
 
 | Size | Status | Median Wall (ms) | Throughput (MiB/s) | Parent Peak RSS (MiB) | Tree Delta RSS (MiB) | Idempotence | Fidelity | Closure Guardrail |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| **1 MiB** | PASS | 114.11 | 8.76 | 31.5 | 3.0 | PASS | N/A | PASS (3.0 < 101.0 MiB) |
-| **10 MiB** | PASS | 427.33 | 23.40 | 86.5 | 40.0 | PASS | N/A | PASS (40.0 < 146.0 MiB) |
-| **50 MiB** | PASS | 1,754.36 | 28.50 | 326.5 | 200.0 | PASS | N/A | PASS (200.1 < 346.0 MiB) |
-| **100 MiB**| PASS | 1,738.80 | 57.51 | 526.4 | 400.0 | PASS | N/A | PASS (400.0 < 596.0 MiB) |
+| **1 MiB** | PASS | 62.66 | 15.96 | 31.5 | 2.0 | PASS | N/A | PASS (2.0 < 101.0 MiB) |
+| **10 MiB** | PASS | 165.18 | 60.54 | 86.5 | 30.0 | PASS | N/A | PASS (30.0 < 146.0 MiB) |
+| **50 MiB** | PASS | 568.88 | 87.89 | 326.5 | 150.1 | PASS | N/A | PASS (150.1 < 346.0 MiB) |
+| **100 MiB**| PASS | 1,559.80 | 64.11 | 526.4 | 400.0 | PASS | N/A | PASS (400.0 < 596.0 MiB) |
 
 #### 10. PNG No-Change Fast Path (`png_nochange`)
 - **Canonical Policy**: `png` | **Execution Class**: `CHUNKED_IMAGE` | **Streaming**: `STREAMING_INPUT_FULL_OUTPUT`
@@ -261,25 +269,28 @@ The scaling benchmark suite comprises:
 | **100 MiB**| PASS | 1,854.56 | 53.92 | 526.5 | 400.0 | PASS | N/A | PASS (400.0 < 596.0 MiB) |
 
 #### 11. WAV Positive Cleaning (`wav_positive`)
-- **Canonical Policy**: `audio` | **Execution Class**: `EXTERNAL_AV` | **Streaming**: `EXTERNAL_PROCESS`
-- **Predeclared External Budget**: $\le 256\text{ MiB} + 4.0 \times S$ (100 MiB limit = 656 MiB; measured delta = 300.0 MiB).
+- **Canonical Policy**: `audio` | **Execution Class**: `AUDIO_RIFF_IN_PROCESS` | **Streaming**: `STREAMING_INPUT_FULL_OUTPUT`
+- **Execution Truthfulness**: Canonical audio cleaning in `av_meta.clean_av` / `_strip_wav` walks RIFF chunks and strips C2PA, LIST INFO, and ID3 in-memory without spawning child subprocesses (`ffmpeg` is not invoked; child RSS = 0 bytes). Output bytearray is assembled directly in-process.
+- **Closure Guardrail**: $\le 96\text{ MiB} + 5.0 \times S$ (100 MiB limit = 596.0 MiB; measured delta = 300.0 MiB).
+- **Scaling Exponent**: Time $\alpha = 0.640$ (Sublinear), Memory $\alpha = 1.084$ | 50 $\rightarrow$ 100 MiB Time Ratio: **1.77×** | RSS Ratio: **2.00×**
 
-| Size | Status | Median Wall (ms) | Throughput (MiB/s) | Parent Peak RSS (MiB) | Tree Peak RSS (MiB) | Tree Delta RSS (MiB) | Idempotence | Budget Status |
+| Size | Status | Median Wall (ms) | Throughput (MiB/s) | Parent Peak RSS (MiB) | Tree Peak RSS (MiB) | Tree Delta RSS (MiB) | Idempotence | Closure Guardrail |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| **1 MiB** | PASS | 52.16 | 19.17 | 30.5 | 30.5 | 2.0 | PASS | **PASS** (2.0 < 260.0 MiB) |
-| **10 MiB** | PASS | 159.78 | 62.59 | 76.5 | 76.5 | 30.0 | PASS | **PASS** (30.0 < 296.0 MiB) |
-| **50 MiB** | PASS | 562.62 | 88.87 | 276.5 | 276.5 | 150.0 | PASS | **PASS** (150.0 < 456.0 MiB) |
-| **100 MiB**| PASS | 997.69 | 100.23 | 526.5 | 526.5 | 300.0 | PASS | **PASS** (300.0 < 656.0 MiB) |
+| **1 MiB** | PASS | 52.16 | 19.17 | 30.5 | 30.5 | 2.0 | PASS | **PASS** (2.0 < 101.0 MiB) |
+| **10 MiB** | PASS | 159.78 | 62.59 | 76.5 | 76.5 | 30.0 | PASS | **PASS** (30.0 < 146.0 MiB) |
+| **50 MiB** | PASS | 562.62 | 88.87 | 276.5 | 276.5 | 150.0 | PASS | **PASS** (150.0 < 346.0 MiB) |
+| **100 MiB**| PASS | 997.69 | 100.23 | 526.5 | 526.5 | 300.0 | PASS | **PASS** (300.0 < 596.0 MiB) |
 
 #### 12. WAV No-Change Fast Path (`wav_nochange`)
-- **Canonical Policy**: `audio` | **Execution Class**: `EXTERNAL_AV` | **Streaming**: `EXTERNAL_PROCESS`
+- **Canonical Policy**: `audio` | **Execution Class**: `AUDIO_RIFF_IN_PROCESS` | **Streaming**: `STREAMING_INPUT_FULL_OUTPUT`
+- **Closure Guardrail**: $\le 96\text{ MiB} + 5.0 \times S$ (100 MiB limit = 596.0 MiB; measured delta = 500.0 MiB).
 
-| Size | Status | Median Wall (ms) | Throughput (MiB/s) | Parent Peak RSS (MiB) | Tree Peak RSS (MiB) | Tree Delta RSS (MiB) | Idempotence | Budget Status |
+| Size | Status | Median Wall (ms) | Throughput (MiB/s) | Parent Peak RSS (MiB) | Tree Peak RSS (MiB) | Tree Delta RSS (MiB) | Idempotence | Closure Guardrail |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| **1 MiB** | PASS | 56.46 | 17.71 | 29.5 | 29.5 | 2.0 | PASS | **PASS** (2.0 < 260.0 MiB) |
-| **10 MiB** | PASS | 185.22 | 53.99 | 66.5 | 66.5 | 30.0 | PASS | **PASS** (30.0 < 296.0 MiB) |
-| **50 MiB** | PASS | 645.23 | 77.49 | 276.5 | 276.5 | 200.0 | PASS | **PASS** (200.0 < 456.0 MiB) |
-| **100 MiB**| PASS | 1,175.63 | 85.06 | 626.5 | 626.5 | 500.0 | PASS | **PASS** (500.0 < 656.0 MiB) |
+| **1 MiB** | PASS | 56.46 | 17.71 | 29.5 | 29.5 | 2.0 | PASS | **PASS** (2.0 < 101.0 MiB) |
+| **10 MiB** | PASS | 185.22 | 53.99 | 66.5 | 66.5 | 30.0 | PASS | **PASS** (30.0 < 146.0 MiB) |
+| **50 MiB** | PASS | 645.23 | 77.49 | 276.5 | 276.5 | 200.0 | PASS | **PASS** (200.0 < 346.0 MiB) |
+| **100 MiB**| PASS | 1,175.63 | 85.06 | 626.5 | 626.5 | 500.0 | PASS | **PASS** (500.0 < 596.0 MiB) |
 
 #### 13. End-to-End CLI DOCX Cleaning (`cli_docx_positive`)
 - **Canonical Policy**: `docx` | **Execution Class**: `DOCX_OPC_TREE` | **Streaming**: `RAW_MEMBER_PASSTHROUGH`
@@ -371,12 +382,12 @@ The full regression test suite was executed to confirm that the Phase 11 perform
 
 | Test Suite | Scope | Passed | Skipped | Failed | Warnings | Execution Time |
 | :--- | :--- | :---: | :---: | :---: | :---: | :---: |
-| **Performance Harness Tests** | `tests/test_performance_harness.py` | **11** | 0 | 0 | 0 | 45.39 s |
-| **Phase 9 Security Hardening** | `tests/test_malformed_archives.py` | **141** | 0 | 0 | 0 | 1.60 s |
-| **Phase 10 Idempotence & Property** | `tests/test_idempotence.py`, `tests/test_property_unicode.py` | **139** | 0 | 0 | 0 | 11.71 s |
-| **Format Regressions (DOCX, XLSX, PPTX)** | `tests/test_docx_body_carriers.py`, `tests/test_xlsx_lossless.py`, `tests/test_pptx_lossless.py` | **135** | 0 | 0 | 0 | 26.11 s |
-| **Contract Regressions** | 8 contract test modules (`test_cli_v21.py`, `test_api_v21.py`, etc.) | **88** | 0 | 0 | 0 | 11.17 s |
-| **Canonical Full Pytest Suite** | Full Repository (`pytest -ra`) | **1911** | **152** | **0** | **0** | **203.28 s** |
+| **Performance Harness Tests** | `tests/test_performance_harness.py` | **11** | 0 | 0 | 0 | 101.07 s |
+| **Phase 9 Security Hardening** | `tests/test_malformed_archives.py` | **141** | 0 | 0 | 0 | 3.65 s |
+| **Phase 10 Idempotence & Property** | `tests/test_idempotence.py`, `tests/test_property_unicode.py` | **139** | 0 | 0 | 0 | 12.62 s |
+| **Format Regressions (DOCX, XLSX, PPTX)** | `tests/test_docx_body_carriers.py`, `tests/test_xlsx_lossless.py`, `tests/test_pptx_lossless.py` | **135** | 0 | 0 | 0 | 29.50 s |
+| **Contract Regressions** | 8 contract test modules (`test_cli_v21.py`, `test_api_v21.py`, etc.) | **88** | 0 | 0 | 0 | 15.54 s |
+| **Canonical Full Pytest Suite** | Full Repository (`pytest -ra`) | **1912** | **152** | **0** | **0** | **263.40 s** |
 
 ---
 
@@ -387,6 +398,7 @@ The full regression test suite was executed to confirm that the Phase 11 perform
    - For multi-tenant or containerized environments with strict cgroup limits (e.g. 512 MiB per container), single-file payloads should be capped at 32–50 MiB, or deployed with process-level worker concurrency scaled to available host RAM.
 2. **Text Processing Overhead**:
    - Plain text frequency analysis (`Counter`) and character iteration scale with $O(N)$ strict linearity at ~0.08 MiB/s. While thoroughly robust and memory-leak free, high-throughput text processing over 50 MiB benefits from batch chunking if used in real-time interactive APIs.
-3. **Subprocess Process-Tree Visibility**:
-   - Subprocess-backed tools (`ffmpeg`) showed clean termination and predictable resident footprint across all 1 to 100 MiB tests, with peak tree RSS staying strictly below the 656 MiB allocation limit.
-   - `ProcessTreeMemorySampler` actively captures child RSS contributions as proven by unit witness tests.
+3. **Process-Tree Sampler & External Toolchains**:
+   - An architectural audit confirmed that canonical `Pipeline.clean()` does not spawn external subprocesses (all canonical formats operate strictly in-process).
+   - Dedicated media purifiers (`clean_audio.audio_purify`, `clean_video.video_purify`) leverage `ffmpeg` and are fully monitored by `ProcessTreeMemorySampler` (as proven by unit witness tests capturing child RSS contributions).
+   - `test_process_tree_child_witness` serves as permanent capability proof that the sampler accurately traverses child trees whenever subprocesses are present.

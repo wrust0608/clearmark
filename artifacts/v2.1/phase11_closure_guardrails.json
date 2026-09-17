@@ -69,11 +69,29 @@
       "metric": "parent_delta",
       "rationale": "Streaming chunk filtering with full output byte assembly"
     },
+    "IMAGE_CHUNK": {
+      "multiplier": 5.0,
+      "base_bytes": 100663296,
+      "metric": "parent_delta",
+      "rationale": "Streaming chunk filtering with full output byte assembly"
+    },
+    "AUDIO_RIFF_IN_PROCESS": {
+      "multiplier": 5.0,
+      "base_bytes": 100663296,
+      "metric": "parent_delta",
+      "rationale": "In-process RIFF chunk filtering with bytearray assembly"
+    },
+    "EXTERNAL_PROCESS": {
+      "multiplier": 4.0,
+      "base_bytes": 268435456,
+      "metric": "tree_delta",
+      "rationale": "Subprocess tree RSS for external toolchains (not applicable to canonical clean paths)"
+    },
     "EXTERNAL_AV": {
       "multiplier": 4.0,
       "base_bytes": 268435456,
       "metric": "tree_delta",
-      "rationale": "Subprocess tree RSS for external audio/video toolchain"
+      "rationale": "Legacy label retained for backward-compatibility"
     }
   },
   "closure_measurements": {
@@ -150,25 +168,54 @@
       "status": "PASS"
     },
     "png_positive_50MiB": {
-      "wall_ms": 1868.7,
-      "parent_delta_rss_bytes": 209825792,
+      "wall_ms": 568.9,
+      "parent_delta_rss_bytes": 157376512,
       "limit_bytes": 362807296,
-      "status": "PASS"
+      "status": "PASS",
+      "cleaned_size_bytes": 52428756,
+      "delta_bytes": 44
     },
     "png_positive_100MiB": {
-      "wall_ms": 2005.1,
-      "parent_delta_rss_bytes": 419430400,
+      "wall_ms": 1559.8,
+      "parent_delta_rss_bytes": 419467264,
       "limit_bytes": 624951296,
-      "status": "PASS"
+      "status": "PASS",
+      "cleaned_size_bytes": 104857556,
+      "delta_bytes": 44,
+      "historical_note": "Historical run (1738.8ms, 67 bytes out due to prNd marker collision) superseded by apples-to-apples run"
     },
     "png_nochange_50MiB": {
-      "wall_ms": 1056.6,
+      "wall_ms": 905.7,
       "parent_delta_rss_bytes": 209715200,
       "limit_bytes": 362807296,
       "status": "PASS"
     },
     "png_nochange_100MiB": {
-      "wall_ms": 1814.7,
+      "wall_ms": 1854.6,
+      "parent_delta_rss_bytes": 419430400,
+      "limit_bytes": 624951296,
+      "status": "PASS"
+    },
+    "wav_positive_50MiB": {
+      "wall_ms": 562.6,
+      "parent_delta_rss_bytes": 157286400,
+      "limit_bytes": 362807296,
+      "status": "PASS"
+    },
+    "wav_positive_100MiB": {
+      "wall_ms": 997.7,
+      "parent_delta_rss_bytes": 314572800,
+      "limit_bytes": 624951296,
+      "status": "PASS"
+    },
+    "wav_nochange_50MiB": {
+      "wall_ms": 645.2,
+      "parent_delta_rss_bytes": 209715200,
+      "limit_bytes": 362807296,
+      "status": "PASS"
+    },
+    "wav_nochange_100MiB": {
+      "wall_ms": 1175.6,
       "parent_delta_rss_bytes": 419430400,
       "limit_bytes": 624951296,
       "status": "PASS"

@@ -1,0 +1,2817 @@
+{
+  "schema_version": "2.1.0",
+  "generated_at_utc": "2026-09-17T07:26:16Z",
+  "mode": "full",
+  "seed": 3405691582,
+  "environment": {
+    "os": "Windows",
+    "os_release": "11",
+    "os_version": "10.0.26200",
+    "architecture": "AMD64",
+    "python_version": "3.12.14",
+    "cpu_count_logical": 8,
+    "cpu_count_physical": 4,
+    "cpu_processor": "Intel64 Family 6 Model 140 Stepping 1, GenuineIntel",
+    "total_ram_bytes": 16889192448,
+    "available_ram_bytes": 2571784192,
+    "temp_disk_free_bytes": 139785347072,
+    "psutil_version": "7.2.2",
+    "ffmpeg_version": "ffmpeg version 9.0.1-full_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers"
+  },
+  "limits": {
+    "top_level_max_input_bytes": 268435456,
+    "max_stdin_bytes": 67108864,
+    "http_max_body_bytes": 402653184,
+    "http_max_input_bytes": 268435456,
+    "batch_per_file_max_input_bytes": 33554432,
+    "batch_max_total_bytes": 209715200,
+    "batch_max_files": 100,
+    "zip_member_uncompressed_max_bytes": 67108864,
+    "zip_total_uncompressed_max_bytes": 134217728,
+    "xml_part_max_bytes": 33554432,
+    "xml_aggregate_max_bytes": 134217728,
+    "max_compression_ratio": 100.0,
+    "max_xml_depth": 100,
+    "max_xml_elements": 500000
+  },
+  "memory_budgets": {
+    "in_process": "delta_parent_rss <= 96 MiB + 2.5 * input_size",
+    "external_process": "delta_tree_rss <= 256 MiB + 4.0 * input_size"
+  },
+  "profiles": [
+    {
+      "benchmark_id": "text_positive",
+      "canonical_policy": "txt",
+      "extension": "txt",
+      "execution_class": "TEXT_WHOLE_BUFFER",
+      "streaming_classification": "FULL_BUFFER",
+      "is_positive": true,
+      "is_cli": false,
+      "sizes_successful": [
+        1048576,
+        10485760,
+        52428800,
+        104857600
+      ],
+      "sizes_rejected": [],
+      "results_by_size": {
+        "1MiB": {
+          "target_size_bytes": 1048576,
+          "actual_size_bytes": 1048576,
+          "production_allowed": true,
+          "status": "PASS",
+          "error_code": null,
+          "repetitions": 3,
+          "raw_runs": [
+            {
+              "wall_ms": 13584.2349,
+              "parent_peak_rss_bytes": 49827840,
+              "tree_peak_rss_bytes": 49827840,
+              "parent_delta_rss_bytes": 10579968,
+              "tree_delta_rss_bytes": 10579968
+            },
+            {
+              "wall_ms": 12178.8122,
+              "parent_peak_rss_bytes": 50786304,
+              "tree_peak_rss_bytes": 50786304,
+              "parent_delta_rss_bytes": 10387456,
+              "tree_delta_rss_bytes": 10387456
+            },
+            {
+              "wall_ms": 12341.2129,
+              "parent_peak_rss_bytes": 50925568,
+              "tree_peak_rss_bytes": 50925568,
+              "parent_delta_rss_bytes": 10579968,
+              "tree_delta_rss_bytes": 10579968
+            }
+          ],
+          "median_wall_ms": 12341.21,
+          "throughput_mib_s": 0.08,
+          "max_parent_peak_rss_bytes": 50925568,
+          "max_tree_peak_rss_bytes": 50925568,
+          "max_parent_delta_rss_bytes": 10579968,
+          "max_tree_delta_rss_bytes": 10579968,
+          "input_sha256": "cc7318a7ae21efb9011e76ebd3bb46988b86fe2a0103e5830174d3a5dc5474eb",
+          "first_output_sha256": "7fc341398a9d4b90ba0944aaef382d375630db294f16f55fb2a1f74f10e81ad7",
+          "second_output_sha256": "7fc341398a9d4b90ba0944aaef382d375630db294f16f55fb2a1f74f10e81ad7",
+          "idempotence_checked": true,
+          "idempotence_pass": true,
+          "fidelity_checked": false,
+          "fidelity_pass": false,
+          "budget_pass": true
+        },
+        "10MiB": {
+          "target_size_bytes": 10485760,
+          "actual_size_bytes": 10485760,
+          "production_allowed": true,
+          "status": "PASS",
+          "error_code": null,
+          "repetitions": 3,
+          "raw_runs": [
+            {
+              "wall_ms": 121830.6279,
+              "parent_peak_rss_bytes": 164270080,
+              "tree_peak_rss_bytes": 164270080,
+              "parent_delta_rss_bytes": 115499008,
+              "tree_delta_rss_bytes": 115499008
+            },
+            {
+              "wall_ms": 120101.0404,
+              "parent_peak_rss_bytes": 174190592,
+              "tree_peak_rss_bytes": 174190592,
+              "parent_delta_rss_bytes": 114827264,
+              "tree_delta_rss_bytes": 114827264
+            },
+            {
+              "wall_ms": 122051.3516,
+              "parent_peak_rss_bytes": 174215168,
+              "tree_peak_rss_bytes": 174215168,
+              "parent_delta_rss_bytes": 115425280,
+              "tree_delta_rss_bytes": 115425280
+            }
+          ],
+          "median_wall_ms": 121830.63,
+          "throughput_mib_s": 0.08,
+          "max_parent_peak_rss_bytes": 174215168,
+          "max_tree_peak_rss_bytes": 174215168,
+          "max_parent_delta_rss_bytes": 115499008,
+          "max_tree_delta_rss_bytes": 115499008,
+          "input_sha256": "05e278ee690998b5b0ac7a94f39f326d9a61798a78df2256191e127b3a12a82c",
+          "first_output_sha256": "2bce8ef017249c4ee227d5848e1778298a383fd981af2c3007ccafcbddfa36f7",
+          "second_output_sha256": "2bce8ef017249c4ee227d5848e1778298a383fd981af2c3007ccafcbddfa36f7",
+          "idempotence_checked": true,
+          "idempotence_pass": true,
+          "fidelity_checked": false,
+          "fidelity_pass": false,
+          "budget_pass": true
+        },
+        "50MiB": {
+          "target_size_bytes": 52428800,
+          "actual_size_bytes": 52428800,
+          "production_allowed": true,
+          "status": "PASS",
+          "error_code": null,
+          "repetitions": 2,
+          "raw_runs": [
+            {
+              "wall_ms": 606914.5404,
+              "parent_peak_rss_bytes": 667029504,
+              "tree_peak_rss_bytes": 667029504,
+              "parent_delta_rss_bytes": 576770048,
+              "tree_delta_rss_bytes": 576770048
+            },
+            {
+              "wall_ms": 615161.9923,
+              "parent_peak_rss_bytes": 719441920,
+              "tree_peak_rss_bytes": 719441920,
+              "parent_delta_rss_bytes": 576757760,
+              "tree_delta_rss_bytes": 576757760
+            }
+          ],
+          "median_wall_ms": 615161.99,
+          "throughput_mib_s": 0.08,
+          "max_parent_peak_rss_bytes": 719441920,
+          "max_tree_peak_rss_bytes": 719441920,
+          "max_parent_delta_rss_bytes": 576770048,
+          "max_tree_delta_rss_bytes": 576770048,
+          "input_sha256": "5e315059598801d9e83c87cd23eded30baa1aa02122bf907154e5bfa82638d4f",
+          "first_output_sha256": "e7eb8efc2e96f2527256a26839821fe07e14ca9e991098978ec8e5e2ecca670b",
+          "second_output_sha256": "",
+          "idempotence_checked": false,
+          "idempotence_pass": false,
+          "fidelity_checked": false,
+          "fidelity_pass": false,
+          "budget_pass": false
+        },
+        "100MiB": {
+          "target_size_bytes": 104857600,
+          "actual_size_bytes": 104857600,
+          "production_allowed": true,
+          "status": "PASS",
+          "error_code": null,
+          "repetitions": 2,
+          "raw_runs": [
+            {
+              "wall_ms": 1220341.1918,
+              "parent_peak_rss_bytes": 1296187392,
+              "tree_peak_rss_bytes": 1296187392,
+              "parent_delta_rss_bytes": 1153507328,
+              "tree_delta_rss_bytes": 1153507328
+            },
+            {
+              "wall_ms": 1204858.1439,
+              "parent_peak_rss_bytes": 1401024512,
+              "tree_peak_rss_bytes": 1401024512,
+              "parent_delta_rss_bytes": 1153470464,
+              "tree_delta_rss_bytes": 1153470464
+            }
+          ],
+          "median_wall_ms": 1220341.19,
+          "throughput_mib_s": 0.08,
+          "max_parent_peak_rss_bytes": 1401024512,
+          "max_tree_peak_rss_bytes": 1401024512,
+          "max_parent_delta_rss_bytes": 1153507328,
+          "max_tree_delta_rss_bytes": 1153507328,
+          "input_sha256": "0d302f6dd671daf77ff68214a70ea415bf30ed2a0c44f44a1c9d7c175b6936c8",
+          "first_output_sha256": "bf98466760cedae29bc1abb9fe21ee4378ee91307b75f03c654de71fa63b46a5",
+          "second_output_sha256": "",
+          "idempotence_checked": false,
+          "idempotence_pass": false,
+          "fidelity_checked": false,
+          "fidelity_pass": false,
+          "budget_pass": false
+        }
+      },
+      "time_scaling_alpha": 0.998,
+      "memory_scaling_alpha": 1.019,
+      "ratio_50_to_100_time": 1.98,
+      "ratio_50_to_100_rss": 2.0,
+      "overall_budget_status": "INVESTIGATE"
+    },
+    {
+      "benchmark_id": "text_nochange",
+      "canonical_policy": "txt",
+      "extension": "txt",
+      "execution_class": "TEXT_WHOLE_BUFFER",
+      "streaming_classification": "FULL_BUFFER",
+      "is_positive": false,
+      "is_cli": false,
+      "sizes_successful": [
+        1048576,
+        10485760,
+        52428800,
+        104857600
+      ],
+      "sizes_rejected": [],
+      "results_by_size": {
+        "1MiB": {
+          "target_size_bytes": 1048576,
+          "actual_size_bytes": 1048576,
+          "production_allowed": true,
+          "status": "PASS",
+          "error_code": null,
+          "repetitions": 3,
+          "raw_runs": [
+            {
+              "wall_ms": 11845.2807,
+              "parent_peak_rss_bytes": 48361472,
+              "tree_peak_rss_bytes": 48361472,
+              "parent_delta_rss_bytes": 9469952,
+              "tree_delta_rss_bytes": 9469952
+            },
+            {
+              "wall_ms": 11957.2671,
+              "parent_peak_rss_bytes": 49418240,
+              "tree_peak_rss_bytes": 49418240,
+              "parent_delta_rss_bytes": 10526720,
+              "tree_delta_rss_bytes": 10526720
+            },
+            {
+              "wall_ms": 12412.437,
+              "parent_peak_rss_bytes": 48340992,
+              "tree_peak_rss_bytes": 48340992,
+              "parent_delta_rss_bytes": 9449472,
+              "tree_delta_rss_bytes": 9449472
+            }
+          ],
+          "median_wall_ms": 11957.27,
+          "throughput_mib_s": 0.08,
+          "max_parent_peak_rss_bytes": 49418240,
+          "max_tree_peak_rss_bytes": 49418240,
+          "max_parent_delta_rss_bytes": 10526720,
+          "max_tree_delta_rss_bytes": 10526720,
+          "input_sha256": "2762a6528e585f9d4e8c1ea28eebac8f67ce0956a358b117c956321e80ddb834",
+          "first_output_sha256": "2762a6528e585f9d4e8c1ea28eebac8f67ce0956a358b117c956321e80ddb834",
+          "second_output_sha256": "2762a6528e585f9d4e8c1ea28eebac8f67ce0956a358b117c956321e80ddb834",
+          "idempotence_checked": true,
+          "idempotence_pass": true,
+          "fidelity_checked": false,
+          "fidelity_pass": false,
+          "budget_pass": true
+        },
+        "10MiB": {
+          "target_size_bytes": 10485760,
+          "actual_size_bytes": 10485760,
+          "production_allowed": true,
+          "status": "PASS",
+          "error_code": null,
+          "repetitions": 3,
+          "raw_runs": [
+            {
+              "wall_ms": 122184.5047,
+              "parent_peak_rss_bytes": 153243648,
+              "tree_peak_rss_bytes": 153243648,
+              "parent_delta_rss_bytes": 104914944,
+              "tree_delta_rss_bytes": 104914944
+            },
+            {
+              "wall_ms": 120464.3567,
+              "parent_peak_rss_bytes": 153227264,
+              "tree_peak_rss_bytes": 153227264,
+              "parent_delta_rss_bytes": 104898560,
+              "tree_delta_rss_bytes": 104898560
+            },
+            {
+              "wall_ms": 121678.9649,
+              "parent_peak_rss_bytes": 153264128,
+              "tree_peak_rss_bytes": 153264128,
+              "parent_delta_rss_bytes": 104935424,
+              "tree_delta_rss_bytes": 104935424
+            }
+          ],
+          "median_wall_ms": 121678.96,
+          "throughput_mib_s": 0.08,
+          "max_parent_peak_rss_bytes": 153264128,
+          "max_tree_peak_rss_bytes": 153264128,
+          "max_parent_delta_rss_bytes": 104935424,
+          "max_tree_delta_rss_bytes": 104935424,
+          "input_sha256": "d6e406bd8ca12f9996366d83031cf99a9004839c0bbfd77ade65777794bb179f",
+          "first_output_sha256": "d6e406bd8ca12f9996366d83031cf99a9004839c0bbfd77ade65777794bb179f",
+          "second_output_sha256": "d6e406bd8ca12f9996366d83031cf99a9004839c0bbfd77ade65777794bb179f",
+          "idempotence_checked": true,
+          "idempotence_pass": true,
+          "fidelity_checked": false,
+          "fidelity_pass": false,
+          "budget_pass": true
+        },
+        "50MiB": {
+          "target_size_bytes": 52428800,
+          "actual_size_bytes": 52428800,
+          "production_allowed": true,
+          "status": "PASS",
+          "error_code": null,
+          "repetitions": 2,
+          "raw_runs": [
+            {
+              "wall_ms": 610941.677,
+              "parent_peak_rss_bytes": 614617088,
+              "tree_peak_rss_bytes": 614617088,
+              "parent_delta_rss_bytes": 524378112,
+              "tree_delta_rss_bytes": 524378112
+            },
+            {
+              "wall_ms": 613421.4927,
+              "parent_peak_rss_bytes": 614645760,
+              "tree_peak_rss_bytes": 614645760,
+              "parent_delta_rss_bytes": 524382208,
+              "tree_delta_rss_bytes": 524382208
+            }
+          ],
+          "median_wall_ms": 613421.49,
+          "throughput_mib_s": 0.08,
+          "max_parent_peak_rss_bytes": 614645760,
+          "max_tree_peak_rss_bytes": 614645760,
+          "max_parent_delta_rss_bytes": 524382208,
+          "max_tree_delta_rss_bytes": 524382208,
+          "input_sha256": "bdde077ea9445aa86c4af81ae2be9fbdc2830b31219fef3dc0e26079487a1a71",
+          "first_output_sha256": "bdde077ea9445aa86c4af81ae2be9fbdc2830b31219fef3dc0e26079487a1a71",
+          "second_output_sha256": "bdde077ea9445aa86c4af81ae2be9fbdc2830b31219fef3dc0e26079487a1a71",
+          "idempotence_checked": true,
+          "idempotence_pass": true,
+          "fidelity_checked": false,
+          "fidelity_pass": false,
+          "budget_pass": false
+        },
+        "100MiB": {
+          "target_size_bytes": 104857600,
+          "actual_size_bytes": 104857600,
+          "production_allowed": true,
+          "status": "PASS",
+          "error_code": null,
+          "repetitions": 2,
+          "raw_runs": [
+            {
+              "wall_ms": 1231701.7743,
+              "parent_peak_rss_bytes": 1171918848,
+              "tree_peak_rss_bytes": 1171918848,
+              "parent_delta_rss_bytes": 1029246976,
+              "tree_delta_rss_bytes": 1029246976
+            },
+            {
+              "wall_ms": 1213912.8868,
+              "parent_peak_rss_bytes": 1171529728,
+              "tree_peak_rss_bytes": 1171529728,
+              "parent_delta_rss_bytes": 1048207360,
+              "tree_delta_rss_bytes": 1048207360
+            }
+          ],
+          "median_wall_ms": 1231701.77,
+          "throughput_mib_s": 0.08,
+          "max_parent_peak_rss_bytes": 1171918848,
+          "max_tree_peak_rss_bytes": 1171918848,
+          "max_parent_delta_rss_bytes": 1048207360,
+          "max_tree_delta_rss_bytes": 1048207360,
+          "input_sha256": "8bd1aefbc8165888eeb242c42bbe129665c7fcdfee198963e39f2d4be00bcddf",
+          "first_output_sha256": "8bd1aefbc8165888eeb242c42bbe129665c7fcdfee198963e39f2d4be00bcddf",
+          "second_output_sha256": "8bd1aefbc8165888eeb242c42bbe129665c7fcdfee198963e39f2d4be00bcddf",
+          "idempotence_checked": true,
+          "idempotence_pass": true,
+          "fidelity_checked": false,
+          "fidelity_pass": false,
+          "budget_pass": false
+        }
+      },
+      "time_scaling_alpha": 1.006,
+      "memory_scaling_alpha": 0.999,
+      "ratio_50_to_100_time": 2.01,
+      "ratio_50_to_100_rss": 2.0,
+      "overall_budget_status": "INVESTIGATE"
+    },
+    {
+      "benchmark_id": "docx_positive",
+      "canonical_policy": "docx",
+      "extension": "docx",
+      "execution_class": "LOSSLESS_OPC",
+      "streaming_classification": "RAW_MEMBER_PASSTHROUGH",
+      "is_positive": true,
+      "is_cli": false,
+      "sizes_successful": [
+        1048576,
+        10485760,
+        52428800,
+        104857600
+      ],
+      "sizes_rejected": [],
+      "results_by_size": {
+        "1MiB": {
+          "target_size_bytes": 1048576,
+          "actual_size_bytes": 1049676,
+          "production_allowed": true,
+          "status": "PASS",
+          "error_code": null,
+          "repetitions": 3,
+          "raw_runs": [
+            {
+              "wall_ms": 428.9642,
+              "parent_peak_rss_bytes": 35307520,
+              "tree_peak_rss_bytes": 35307520,
+              "parent_delta_rss_bytes": 10317824,
+              "tree_delta_rss_bytes": 10317824
+            },
+            {
+              "wall_ms": 418.5182,
+              "parent_peak_rss_bytes": 36614144,
+              "tree_peak_rss_bytes": 36614144,
+              "parent_delta_rss_bytes": 9834496,
+              "tree_delta_rss_bytes": 9834496
+            },
+            {
+              "wall_ms": 518.0413,
+              "parent_peak_rss_bytes": 36904960,
+              "tree_peak_rss_bytes": 36904960,
+              "parent_delta_rss_bytes": 10174464,
+              "tree_delta_rss_bytes": 10174464
+            }
+          ],
+          "median_wall_ms": 428.96,
+          "throughput_mib_s": 2.33,
+          "max_parent_peak_rss_bytes": 36904960,
+          "max_tree_peak_rss_bytes": 36904960,
+          "max_parent_delta_rss_bytes": 10317824,
+          "max_tree_delta_rss_bytes": 10317824,
+          "input_sha256": "80b9c0b452ddb76f5c26681f984caa35653bc07b845d0377c49a4d04a86220cb",
+          "first_output_sha256": "269956cd37e4ebd5739bde0463f50e0d0335a30c30573902564ee142b48857a2",
+          "second_output_sha256": "269956cd37e4ebd5739bde0463f50e0d0335a30c30573902564ee142b48857a2",
+          "idempotence_checked": true,
+          "idempotence_pass": true,
+          "fidelity_checked": true,
+          "fidelity_pass": true,
+          "budget_pass": true
+        },
+        "10MiB": {
+          "target_size_bytes": 10485760,
+          "actual_size_bytes": 10486860,
+          "production_allowed": true,
+          "status": "PASS",
+          "error_code": null,
+          "repetitions": 3,
+          "raw_runs": [
+            {
+              "wall_ms": 728.9271,
+              "parent_peak_rss_bytes": 130043904,
+              "tree_peak_rss_bytes": 130043904,
+              "parent_delta_rss_bytes": 94715904,
+              "tree_delta_rss_bytes": 94715904
+            },
+            {
+              "wall_ms": 712.487,
+              "parent_peak_rss_bytes": 141189120,
+              "tree_peak_rss_bytes": 141189120,
+              "parent_delta_rss_bytes": 95039488,
+              "tree_delta_rss_bytes": 95039488
+            },
+            {
+              "wall_ms": 715.7579,
+              "parent_peak_rss_bytes": 140976128,
+              "tree_peak_rss_bytes": 140976128,
+              "parent_delta_rss_bytes": 94621696,
+              "tree_delta_rss_bytes": 94621696
+            }
+          ],
+          "median_wall_ms": 715.76,
+          "throughput_mib_s": 13.97,
+          "max_parent_peak_rss_bytes": 141189120,
+          "max_tree_peak_rss_bytes": 141189120,
+          "max_parent_delta_rss_bytes": 95039488,
+          "max_tree_delta_rss_bytes": 95039488,
+          "input_sha256": "b493803d03a1fe167a676a8a6bde663e6eca46229154f18692c2cffd050c8039",
+          "first_output_sha256": "bd58d14f4e5f1ef3c16a8492a8436abb147ab8341c3b17ade6abdd21dda854ed",
+          "second_output_sha256": "bd58d14f4e5f1ef3c16a8492a8436abb147ab8341c3b17ade6abdd21dda854ed",
+          "idempotence_checked": true,
+          "idempotence_pass": true,
+          "fidelity_checked": true,
+          "fidelity_pass": true,
+          "budget_pass": true
+        },
+        "50MiB": {
+          "target_size_bytes": 52428800,
+          "actual_size_bytes": 52430020,
+          "production_allowed": true,
+          "status": "PASS",
+          "error_code": null,
+          "repetitions": 3,
+          "raw_runs": [
+            {
+              "wall_ms": 2082.5135,
+              "parent_peak_rss_bytes": 549699584,
+              "tree_peak_rss_bytes": 549699584,
+              "parent_delta_rss_bytes": 471707648,
+              "tree_delta_rss_bytes": 471707648
+            },
+            {
+              "wall_ms": 2079.0248,
+              "parent_peak_rss_bytes": 602759168,
+              "tree_peak_rss_bytes": 602759168,
+              "parent_delta_rss_bytes": 472678400,
+              "tree_delta_rss_bytes": 472678400
+            },
+            {
+              "wall_ms": 2044.302,
+              "parent_peak_rss_bytes": 602439680,
+              "tree_peak_rss_bytes": 602439680,
+              "parent_delta_rss_bytes": 472195072,
+              "tree_delta_rss_bytes": 472195072
+            }
+          ],
+          "median_wall_ms": 2079.02,
+          "throughput_mib_s": 24.05,
+          "max_parent_peak_rss_bytes": 602759168,
+          "max_tree_peak_rss_bytes": 602759168,
+          "max_parent_delta_rss_bytes": 472678400,
+          "max_tree_delta_rss_bytes": 472678400,
+          "input_sha256": "416d723dc43f51004c4d9437af879960bbf2d828cb90172b48dcdbeef245cc5d",
+          "first_output_sha256": "56b4e3ffe6fd8d630ec9c89f4f33a752bc2f40128a06d0e9aa2898a574d2a3bf",
+          "second_output_sha256": "",
+          "idempotence_checked": false,
+          "idempotence_pass": false,
+          "fidelity_checked": true,
+          "fidelity_pass": true,
+          "budget_pass": false
+        },
+        "100MiB": {
+          "target_size_bytes": 104857600,
+          "actual_size_bytes": 104858940,
+          "production_allowed": true,
+          "status": "PASS",
+          "error_code": null,
+          "repetitions": 3,
+          "raw_runs": [
+            {
+              "wall_ms": 3504.6267,
+              "parent_peak_rss_bytes": 1074606080,
+              "tree_peak_rss_bytes": 1074606080,
+              "parent_delta_rss_bytes": 943624192,
+              "tree_delta_rss_bytes": 943624192
+            },
+            {
+              "wall_ms": 3678.0094,
+              "parent_peak_rss_bytes": 1179467776,
+              "tree_peak_rss_bytes": 1179467776,
+              "parent_delta_rss_bytes": 944865280,
+              "tree_delta_rss_bytes": 944865280
+            },
+            {
+              "wall_ms": 3862.2313,
+              "parent_peak_rss_bytes": 1178918912,
+              "tree_peak_rss_bytes": 1178918912,
+              "parent_delta_rss_bytes": 943529984,
+              "tree_delta_rss_bytes": 943529984
+            }
+          ],
+          "median_wall_ms": 3678.01,
+          "throughput_mib_s": 27.19,
+          "max_parent_peak_rss_bytes": 1179467776,
+          "max_tree_peak_rss_bytes": 1179467776,
+          "max_parent_delta_rss_bytes": 944865280,
+          "max_tree_delta_rss_bytes": 944865280,
+          "input_sha256": "d58c485b59a66ad441c153a2441045331d43550965afc9f0ff0b30d2bd1f9c72",
+          "first_output_sha256": "753ab79ef78261f24af5d6cde013ba195c8100b509457196fbe0f23d1c88211c",
+          "second_output_sha256": "",
+          "idempotence_checked": false,
+          "idempotence_pass": false,
+          "fidelity_checked": true,
+          "fidelity_pass": true,
+          "budget_pass": false
+        }
+      },
+      "time_scaling_alpha": 0.461,
+      "memory_scaling_alpha": 0.981,
+      "ratio_50_to_100_time": 1.77,
+      "ratio_50_to_100_rss": 2.0,
+      "overall_budget_status": "INVESTIGATE"
+    },
+    {
+      "benchmark_id": "docx_nochange",
+      "canonical_policy": "docx",
+      "extension": "docx",
+      "execution_class": "LOSSLESS_OPC",
+      "streaming_classification": "RAW_MEMBER_PASSTHROUGH",
+      "is_positive": false,
+      "is_cli": false,
+      "sizes_successful": [
+        1048576,
+        10485760,
+        52428800,
+        104857600
+      ],
+      "sizes_rejected": [],
+      "results_by_size": {
+        "1MiB": {
+          "target_size_bytes": 1048576,
+          "actual_size_bytes": 1049676,
+          "production_allowed": true,
+          "status": "PASS",
+          "error_code": null,
+          "repetitions": 3,
+          "raw_runs": [
+            {
+              "wall_ms": 350.6418,
+              "parent_peak_rss_bytes": 36372480,
+              "tree_peak_rss_bytes": 36372480,
+              "parent_delta_rss_bytes": 9723904,
+              "tree_delta_rss_bytes": 9723904
+            },
+            {
+              "wall_ms": 404.9879,
+              "parent_peak_rss_bytes": 37486592,
+              "tree_peak_rss_bytes": 37486592,
+              "parent_delta_rss_bytes": 9764864,
+              "tree_delta_rss_bytes": 9764864
+            },
+            {
+              "wall_ms": 412.3277,
+              "parent_peak_rss_bytes": 37470208,
+              "tree_peak_rss_bytes": 37470208,
+              "parent_delta_rss_bytes": 9715712,
+              "tree_delta_rss_bytes": 9715712
+            }
+          ],
+          "median_wall_ms": 404.99,
+          "throughput_mib_s": 2.47,
+          "max_parent_peak_rss_bytes": 37486592,
+          "max_tree_peak_rss_bytes": 37486592,
+          "max_parent_delta_rss_bytes": 9764864,
+          "max_tree_delta_rss_bytes": 9764864,
+          "input_sha256": "9766787f182eec5943aaed93c1e6a5d5d724e581dd43fbe10179c1dc09ef6876",
+          "first_output_sha256": "793adf4c064cce8b2facf6c85c17b7da7eeeed783e42717f47c814e1669612c8",
+          "second_output_sha256": "793adf4c064cce8b2facf6c85c17b7da7eeeed783e42717f47c814e1669612c8",
+          "idempotence_checked": true,
+          "idempotence_pass": true,
+          "fidelity_checked": true,
+          "fidelity_pass": true,
+          "budget_pass": true
+        },
+        "10MiB": {
+          "target_size_bytes": 10485760,
+          "actual_size_bytes": 10486860,
+          "production_allowed": true,
+          "status": "PASS",
+          "error_code": null,
+          "repetitions": 3,
+          "raw_runs": [
+            {
+              "wall_ms": 672.7255,
+              "parent_peak_rss_bytes": 130842624,
+              "tree_peak_rss_bytes": 130842624,
+              "parent_delta_rss_bytes": 94855168,
+              "tree_delta_rss_bytes": 94855168
+            },
+            {
+              "wall_ms": 774.4268,
+              "parent_peak_rss_bytes": 141332480,
+              "tree_peak_rss_bytes": 141332480,
+              "parent_delta_rss_bytes": 94244864,
+              "tree_delta_rss_bytes": 94244864
+            },
+            {
+              "wall_ms": 752.7684,
+              "parent_peak_rss_bytes": 141352960,
+              "tree_peak_rss_bytes": 141352960,
+              "parent_delta_rss_bytes": 94265344,
+              "tree_delta_rss_bytes": 94265344
+            }
+          ],
+          "median_wall_ms": 752.77,
+          "throughput_mib_s": 13.29,
+          "max_parent_peak_rss_bytes": 141352960,
+          "max_tree_peak_rss_bytes": 141352960,
+          "max_parent_delta_rss_bytes": 94855168,
+          "max_tree_delta_rss_bytes": 94855168,
+          "input_sha256": "c0c64e328d2bdb8cfc7cf902910cfb61690f10c605a77a965aea443d9ae1e13f",
+          "first_output_sha256": "711d8c4e7b06abcc60aee6e64ca811ce55434f94ae51bc0691087cf6fbec815f",
+          "second_output_sha256": "711d8c4e7b06abcc60aee6e64ca811ce55434f94ae51bc0691087cf6fbec815f",
+          "idempotence_checked": true,
+          "idempotence_pass": true,
+          "fidelity_checked": true,
+          "fidelity_pass": true,
+          "budget_pass": true
+        },
+        "50MiB": {
+          "target_size_bytes": 52428800,
+          "actual_size_bytes": 52430020,
+          "production_allowed": true,
+          "status": "PASS",
+          "error_code": null,
+          "repetitions": 3,
+          "raw_runs": [
+            {
+              "wall_ms": 1831.2626,
+              "parent_peak_rss_bytes": 550354944,
+              "tree_peak_rss_bytes": 550354944,
+              "parent_delta_rss_bytes": 471748608,
+              "tree_delta_rss_bytes": 471748608
+            },
+            {
+              "wall_ms": 1941.5753,
+              "parent_peak_rss_bytes": 602587136,
+              "tree_peak_rss_bytes": 602587136,
+              "parent_delta_rss_bytes": 471711744,
+              "tree_delta_rss_bytes": 471711744
+            },
+            {
+              "wall_ms": 2012.6579,
+              "parent_peak_rss_bytes": 602583040,
+              "tree_peak_rss_bytes": 602583040,
+              "parent_delta_rss_bytes": 471842816,
+              "tree_delta_rss_bytes": 471842816
+            }
+          ],
+          "median_wall_ms": 1941.58,
+          "throughput_mib_s": 25.75,
+          "max_parent_peak_rss_bytes": 602587136,
+          "max_tree_peak_rss_bytes": 602587136,
+          "max_parent_delta_rss_bytes": 471842816,
+          "max_tree_delta_rss_bytes": 471842816,
+          "input_sha256": "d1b9a32ba591d253f3d841771dba4cb7ef0e0c037d84dfff0815d6043b5e1c6f",
+          "first_output_sha256": "ff6900fa7682ca749498c2d0e5df9bdb8d7428fc99734378eb853090fddf4941",
+          "second_output_sha256": "ff6900fa7682ca749498c2d0e5df9bdb8d7428fc99734378eb853090fddf4941",
+          "idempotence_checked": true,
+          "idempotence_pass": true,
+          "fidelity_checked": true,
+          "fidelity_pass": true,
+          "budget_pass": false
+        },
+        "100MiB": {
+          "target_size_bytes": 104857600,
+          "actual_size_bytes": 104858940,
+          "production_allowed": true,
+          "status": "PASS",
+          "error_code": null,
+          "repetitions": 3,
+          "raw_runs": [
+            {
+              "wall_ms": 3815.3198,
+              "parent_peak_rss_bytes": 1074630656,
+              "tree_peak_rss_bytes": 1074630656,
+              "parent_delta_rss_bytes": 943611904,
+              "tree_delta_rss_bytes": 943611904
+            },
+            {
+              "wall_ms": 3735.412,
+              "parent_peak_rss_bytes": 1179467776,
+              "tree_peak_rss_bytes": 1179467776,
+              "parent_delta_rss_bytes": 943755264,
+              "tree_delta_rss_bytes": 943755264
+            },
+            {
+              "wall_ms": 3619.2591,
+              "parent_peak_rss_bytes": 1179426816,
+              "tree_peak_rss_bytes": 1179426816,
+              "parent_delta_rss_bytes": 943570944,
+              "tree_delta_rss_bytes": 943570944
+            }
+          ],
+          "median_wall_ms": 3735.41,
+          "throughput_mib_s": 26.77,
+          "max_parent_peak_rss_bytes": 1179467776,
+          "max_tree_peak_rss_bytes": 1179467776,
+          "max_parent_delta_rss_bytes": 943755264,
+          "max_tree_delta_rss_bytes": 943755264,
+          "input_sha256": "7374992ed06e4630b7f12b4721b3526d749a65e6fe545dec776d7430c786281a",
+          "first_output_sha256": "3d9e7fdac9d839e685c6d3046369c49561b356c3d42cbc8da1132132c2d056d3",
+          "second_output_sha256": "3d9e7fdac9d839e685c6d3046369c49561b356c3d42cbc8da1132132c2d056d3",
+          "idempotence_checked": true,
+          "idempotence_pass": true,
+          "fidelity_checked": true,
+          "fidelity_pass": true,
+          "budget_pass": false
+        }
+      },
+      "time_scaling_alpha": 0.467,
+      "memory_scaling_alpha": 0.992,
+      "ratio_50_to_100_time": 1.92,
+      "ratio_50_to_100_rss": 2.0,
+      "overall_budget_status": "INVESTIGATE"
+    },
+    {
+      "benchmark_id": "xlsx_positive",
+      "canonical_policy": "xlsx",
+      "extension": "xlsx",
+      "execution_class": "SECOND_OPC",
+      "streaming_classification": "RAW_MEMBER_PASSTHROUGH",
+      "is_positive": true,
+      "is_cli": false,
+      "sizes_successful": [
+        1048576,
+        10485760,
+        52428800,
+        104857600
+      ],
+      "sizes_rejected": [],
+      "results_by_size": {
+        "1MiB": {
+          "target_size_bytes": 1048576,
+          "actual_size_bytes": 1049440,
+          "production_allowed": true,
+          "status": "PASS",
+          "error_code": null,
+          "repetitions": 3,
+          "raw_runs": [
+            {
+              "wall_ms": 33.0292,
+              "parent_peak_rss_bytes": 29822976,
+              "tree_peak_rss_bytes": 29822976,
+              "parent_delta_rss_bytes": 3207168,
+              "tree_delta_rss_bytes": 3207168
+            },
+            {
+              "wall_ms": 38.5265,
+              "parent_peak_rss_bytes": 28790784,
+              "tree_peak_rss_bytes": 28790784,
+              "parent_delta_rss_bytes": 1122304,
+              "tree_delta_rss_bytes": 1122304
+            },
+            {
+              "wall_ms": 35.9171,
+              "parent_peak_rss_bytes": 30883840,
+              "tree_peak_rss_bytes": 30883840,
+              "parent_delta_rss_bytes": 3215360,
+              "tree_delta_rss_bytes": 3215360
+            }
+          ],
+          "median_wall_ms": 35.92,
+          "throughput_mib_s": 27.86,
+          "max_parent_peak_rss_bytes": 30883840,
+          "max_tree_peak_rss_bytes": 30883840,
+          "max_parent_delta_rss_bytes": 3215360,
+          "max_tree_delta_rss_bytes": 3215360,
+          "input_sha256": "5a27ca0f75be02a48afb95310cc5bc6f7463dcdd9c010bcb9ff96833b264e4af",
+          "first_output_sha256": "eb2a0ab17dabcbe97ac27acbec0da39567fdf3d6c805fd7fbd14ac2427abae6e",
+          "second_output_sha256": "eb2a0ab17dabcbe97ac27acbec0da39567fdf3d6c805fd7fbd14ac2427abae6e",
+          "idempotence_checked": true,
+          "idempotence_pass": true,
+          "fidelity_checked": true,
+          "fidelity_pass": true,
+          "budget_pass": true
+        },
+        "10MiB": {
+          "target_size_bytes": 10485760,
+          "actual_size_bytes": 10486624,
+          "production_allowed": true,
+          "status": "PASS",
+          "error_code": null,
+          "repetitions": 3,
+          "raw_runs": [
+            {
+              "wall_ms": 317.6165,
+              "parent_peak_rss_bytes": 110157824,
+              "tree_peak_rss_bytes": 110157824,
+              "parent_delta_rss_bytes": 73404416,
+              "tree_delta_rss_bytes": 73404416
+            },
+            {
+              "wall_ms": 291.5968,
+              "parent_peak_rss_bytes": 120643584,
+              "tree_peak_rss_bytes": 120643584,
+              "parent_delta_rss_bytes": 73400320,
+              "tree_delta_rss_bytes": 73400320
+            },
+            {
+              "wall_ms": 260.8071,
+              "parent_peak_rss_bytes": 120651776,
+              "tree_peak_rss_bytes": 120651776,
+              "parent_delta_rss_bytes": 73408512,
+              "tree_delta_rss_bytes": 73408512
+            }
+          ],
+          "median_wall_ms": 291.6,
+          "throughput_mib_s": 34.3,
+          "max_parent_peak_rss_bytes": 120651776,
+          "max_tree_peak_rss_bytes": 120651776,
+          "max_parent_delta_rss_bytes": 73408512,
+          "max_tree_delta_rss_bytes": 73408512,
+          "input_sha256": "d8e7419c42b04c2204cc857edbaf146cf9069116d72ffa27994ab7f2e170ffce",
+          "first_output_sha256": "251f1e609a9a6593b315cf2ac30902e14a774e97ebaeb39686e7590ffed3cfd6",
+          "second_output_sha256": "251f1e609a9a6593b315cf2ac30902e14a774e97ebaeb39686e7590ffed3cfd6",
+          "idempotence_checked": true,
+          "idempotence_pass": true,
+          "fidelity_checked": true,
+          "fidelity_pass": true,
+          "budget_pass": true
+        },
+        "50MiB": {
+          "target_size_bytes": 52428800,
+          "actual_size_bytes": 52429780,
+          "production_allowed": true,
+          "status": "PASS",
+          "error_code": null,
+          "repetitions": 3,
+          "raw_runs": [
+            {
+              "wall_ms": 1396.0559,
+              "parent_peak_rss_bytes": 441548800,
+              "tree_peak_rss_bytes": 441548800,
+              "parent_delta_rss_bytes": 362844160,
+              "tree_delta_rss_bytes": 362844160
+            },
+            {
+              "wall_ms": 1382.1049,
+              "parent_peak_rss_bytes": 493981696,
+              "tree_peak_rss_bytes": 493981696,
+              "parent_delta_rss_bytes": 362844160,
+              "tree_delta_rss_bytes": 362844160
+            },
+            {
+              "wall_ms": 1352.4981,
+              "parent_peak_rss_bytes": 493981696,
+              "tree_peak_rss_bytes": 493981696,
+              "parent_delta_rss_bytes": 362844160,
+              "tree_delta_rss_bytes": 362844160
+            }
+          ],
+          "median_wall_ms": 1382.1,
+          "throughput_mib_s": 36.18,
+          "max_parent_peak_rss_bytes": 493981696,
+          "max_tree_peak_rss_bytes": 493981696,
+          "max_parent_delta_rss_bytes": 362844160,
+          "max_tree_delta_rss_bytes": 362844160,
+          "input_sha256": "2dfcf07e6238b0925b4c606ee559e51de338178cbe6e879451ba3cd4e8d44545",
+          "first_output_sha256": "2082ccb711c7c6b06361942e9e99f60a71bb6e887c3735daef6952a04c3f17aa",
+          "second_output_sha256": "",
+          "idempotence_checked": false,
+          "idempotence_pass": false,
+          "fidelity_checked": true,
+          "fidelity_pass": true,
+          "budget_pass": false
+        },
+        "100MiB": {
+          "target_size_bytes": 104857600,
+          "actual_size_bytes": 104858696,
+          "production_allowed": true,
+          "status": "PASS",
+          "error_code": null,
+          "repetitions": 3,
+          "raw_runs": [
+            {
+              "wall_ms": 2809.6575,
+              "parent_peak_rss_bytes": 865185792,
+              "tree_peak_rss_bytes": 865185792,
+              "parent_delta_rss_bytes": 734052352,
+              "tree_delta_rss_bytes": 734052352
+            },
+            {
+              "wall_ms": 2703.2731,
+              "parent_peak_rss_bytes": 965861376,
+              "tree_peak_rss_bytes": 965861376,
+              "parent_delta_rss_bytes": 729866240,
+              "tree_delta_rss_bytes": 729866240
+            },
+            {
+              "wall_ms": 2716.6281,
+              "parent_peak_rss_bytes": 965861376,
+              "tree_peak_rss_bytes": 965861376,
+              "parent_delta_rss_bytes": 729866240,
+              "tree_delta_rss_bytes": 729866240
+            }
+          ],
+          "median_wall_ms": 2716.63,
+          "throughput_mib_s": 36.81,
+          "max_parent_peak_rss_bytes": 965861376,
+          "max_tree_peak_rss_bytes": 965861376,
+          "max_parent_delta_rss_bytes": 734052352,
+          "max_tree_delta_rss_bytes": 734052352,
+          "input_sha256": "c4bc5ebc055cd7e4b90214e055f87ec384ddcff467562987a6572e210b24b36f",
+          "first_output_sha256": "130ec40ba9ece536aef3deb8314c04ea3cbf8753a95f649428d774e802f9c99f",
+          "second_output_sha256": "",
+          "idempotence_checked": false,
+          "idempotence_pass": false,
+          "fidelity_checked": true,
+          "fidelity_pass": true,
+          "budget_pass": false
+        }
+      },
+      "time_scaling_alpha": 0.939,
+      "memory_scaling_alpha": 1.177,
+      "ratio_50_to_100_time": 1.97,
+      "ratio_50_to_100_rss": 2.02,
+      "overall_budget_status": "INVESTIGATE"
+    },
+    {
+      "benchmark_id": "xlsx_nochange",
+      "canonical_policy": "xlsx",
+      "extension": "xlsx",
+      "execution_class": "SECOND_OPC",
+      "streaming_classification": "RAW_MEMBER_PASSTHROUGH",
+      "is_positive": false,
+      "is_cli": false,
+      "sizes_successful": [
+        1048576,
+        10485760,
+        52428800,
+        104857600
+      ],
+      "sizes_rejected": [],
+      "results_by_size": {
+        "1MiB": {
+          "target_size_bytes": 1048576,
+          "actual_size_bytes": 1049505,
+          "production_allowed": true,
+          "status": "PASS",
+          "error_code": null,
+          "repetitions": 3,
+          "raw_runs": [
+            {
+              "wall_ms": 35.0581,
+              "parent_peak_rss_bytes": 28790784,
+              "tree_peak_rss_bytes": 28790784,
+              "parent_delta_rss_bytes": 2166784,
+              "tree_delta_rss_bytes": 2166784
+            },
+            {
+              "wall_ms": 37.0991,
+              "parent_peak_rss_bytes": 28790784,
+              "tree_peak_rss_bytes": 28790784,
+              "parent_delta_rss_bytes": 2166784,
+              "tree_delta_rss_bytes": 2166784
+            },
+            {
+              "wall_ms": 58.5981,
+              "parent_peak_rss_bytes": 29835264,
+              "tree_peak_rss_bytes": 29835264,
+              "parent_delta_rss_bytes": 3211264,
+              "tree_delta_rss_bytes": 3211264
+            }
+          ],
+          "median_wall_ms": 37.1,
+          "throughput_mib_s": 26.98,
+          "max_parent_peak_rss_bytes": 29835264,
+          "max_tree_peak_rss_bytes": 29835264,
+          "max_parent_delta_rss_bytes": 3211264,
+          "max_tree_delta_rss_bytes": 3211264,
+          "input_sha256": "31f63bab0ccc51bb06161205730d72704f14e769161cb49cc53321a51eba7414",
+          "first_output_sha256": "31f63bab0ccc51bb06161205730d72704f14e769161cb49cc53321a51eba7414",
+          "second_output_sha256": "31f63bab0ccc51bb06161205730d72704f14e769161cb49cc53321a51eba7414",
+          "idempotence_checked": true,
+          "idempotence_pass": true,
+          "fidelity_checked": true,
+          "fidelity_pass": true,
+          "budget_pass": true
+        },
+        "10MiB": {
+          "target_size_bytes": 10485760,
+          "actual_size_bytes": 10486689,
+          "production_allowed": true,
+          "status": "PASS",
+          "error_code": null,
+          "repetitions": 3,
+          "raw_runs": [
+            {
+              "wall_ms": 234.0147,
+              "parent_peak_rss_bytes": 78712832,
+              "tree_peak_rss_bytes": 78712832,
+              "parent_delta_rss_bytes": 41951232,
+              "tree_delta_rss_bytes": 41951232
+            },
+            {
+              "wall_ms": 255.24,
+              "parent_peak_rss_bytes": 78712832,
+              "tree_peak_rss_bytes": 78712832,
+              "parent_delta_rss_bytes": 41951232,
+              "tree_delta_rss_bytes": 41951232
+            },
+            {
+              "wall_ms": 222.1555,
+              "parent_peak_rss_bytes": 78712832,
+              "tree_peak_rss_bytes": 78712832,
+              "parent_delta_rss_bytes": 41951232,
+              "tree_delta_rss_bytes": 41951232
+            }
+          ],
+          "median_wall_ms": 234.01,
+          "throughput_mib_s": 42.74,
+          "max_parent_peak_rss_bytes": 78712832,
+          "max_tree_peak_rss_bytes": 78712832,
+          "max_parent_delta_rss_bytes": 41951232,
+          "max_tree_delta_rss_bytes": 41951232,
+          "input_sha256": "85d86c58880013751887cebd54096f8f29bd7281c329252ff38fb7d93cd9d563",
+          "first_output_sha256": "85d86c58880013751887cebd54096f8f29bd7281c329252ff38fb7d93cd9d563",
+          "second_output_sha256": "85d86c58880013751887cebd54096f8f29bd7281c329252ff38fb7d93cd9d563",
+          "idempotence_checked": true,
+          "idempotence_pass": true,
+          "fidelity_checked": true,
+          "fidelity_pass": true,
+          "budget_pass": true
+        },
+        "50MiB": {
+          "target_size_bytes": 52428800,
+          "actual_size_bytes": 52429845,
+          "production_allowed": true,
+          "status": "PASS",
+          "error_code": null,
+          "repetitions": 3,
+          "raw_runs": [
+            {
+              "wall_ms": 1128.3053,
+              "parent_peak_rss_bytes": 284258304,
+              "tree_peak_rss_bytes": 284258304,
+              "parent_delta_rss_bytes": 205553664,
+              "tree_delta_rss_bytes": 205553664
+            },
+            {
+              "wall_ms": 1058.8534,
+              "parent_peak_rss_bytes": 288444416,
+              "tree_peak_rss_bytes": 288444416,
+              "parent_delta_rss_bytes": 209739776,
+              "tree_delta_rss_bytes": 209739776
+            },
+            {
+              "wall_ms": 1135.6201,
+              "parent_peak_rss_bytes": 284258304,
+              "tree_peak_rss_bytes": 284258304,
+              "parent_delta_rss_bytes": 205553664,
+              "tree_delta_rss_bytes": 205553664
+            }
+          ],
+          "median_wall_ms": 1128.31,
+          "throughput_mib_s": 44.32,
+          "max_parent_peak_rss_bytes": 288444416,
+          "max_tree_peak_rss_bytes": 288444416,
+          "max_parent_delta_rss_bytes": 209739776,
+          "max_tree_delta_rss_bytes": 209739776,
+          "input_sha256": "b019246f322012f2c21fb531c753dfb84e19715368eb270755bf5a48cf10346d",
+          "first_output_sha256": "b019246f322012f2c21fb531c753dfb84e19715368eb270755bf5a48cf10346d",
+          "second_output_sha256": "b019246f322012f2c21fb531c753dfb84e19715368eb270755bf5a48cf10346d",
+          "idempotence_checked": true,
+          "idempotence_pass": true,
+          "fidelity_checked": true,
+          "fidelity_pass": true,
+          "budget_pass": true
+        },
+        "100MiB": {
+          "target_size_bytes": 104857600,
+          "actual_size_bytes": 104858761,
+          "production_allowed": true,
+          "status": "PASS",
+          "error_code": null,
+          "repetitions": 3,
+          "raw_runs": [
+            {
+              "wall_ms": 2248.4845,
+              "parent_peak_rss_bytes": 550604800,
+              "tree_peak_rss_bytes": 550604800,
+              "parent_delta_rss_bytes": 419471360,
+              "tree_delta_rss_bytes": 419471360
+            },
+            {
+              "wall_ms": 2264.749,
+              "parent_peak_rss_bytes": 550604800,
+              "tree_peak_rss_bytes": 550604800,
+              "parent_delta_rss_bytes": 419471360,
+              "tree_delta_rss_bytes": 419471360
+            },
+            {
+              "wall_ms": 2036.7736,
+              "parent_peak_rss_bytes": 542220288,
+              "tree_peak_rss_bytes": 542220288,
+              "parent_delta_rss_bytes": 411086848,
+              "tree_delta_rss_bytes": 411086848
+            }
+          ],
+          "median_wall_ms": 2248.48,
+          "throughput_mib_s": 44.47,
+          "max_parent_peak_rss_bytes": 550604800,
+          "max_tree_peak_rss_bytes": 550604800,
+          "max_parent_delta_rss_bytes": 419471360,
+          "max_tree_delta_rss_bytes": 419471360,
+          "input_sha256": "30073b8dbe6f53b3faf6c335f499c18fa1fe9b41d5127dc376dd10a4234a7033",
+          "first_output_sha256": "30073b8dbe6f53b3faf6c335f499c18fa1fe9b41d5127dc376dd10a4234a7033",
+          "second_output_sha256": "30073b8dbe6f53b3faf6c335f499c18fa1fe9b41d5127dc376dd10a4234a7033",
+          "idempotence_checked": true,
+          "idempotence_pass": true,
+          "fidelity_checked": true,
+          "fidelity_pass": true,
+          "budget_pass": false
+        }
+      },
+      "time_scaling_alpha": 0.891,
+      "memory_scaling_alpha": 1.058,
+      "ratio_50_to_100_time": 1.99,
+      "ratio_50_to_100_rss": 2.0,
+      "overall_budget_status": "INVESTIGATE"
+    },
+    {
+      "benchmark_id": "odt_positive",
+      "canonical_policy": "odt",
+      "extension": "odt",
+      "execution_class": "GENERIC_CONTAINER",
+      "streaming_classification": "RAW_MEMBER_PASSTHROUGH",
+      "is_positive": true,
+      "is_cli": false,
+      "sizes_successful": [
+        1048576,
+        10485760,
+        52428800,
+        104857600
+      ],
+      "sizes_rejected": [],
+      "results_by_size": {
+        "1MiB": {
+          "target_size_bytes": 1048576,
+          "actual_size_bytes": 1048879,
+          "production_allowed": true,
+          "status": "PASS",
+          "error_code": null,
+          "repetitions": 3,
+          "raw_runs": [
+            {
+              "wall_ms": 167.5281,
+              "parent_peak_rss_bytes": 32169984,
+              "tree_peak_rss_bytes": 32169984,
+              "parent_delta_rss_bytes": 4362240,
+              "tree_delta_rss_bytes": 4362240
+            },
+            {
+              "wall_ms": 181.4264,
+              "parent_peak_rss_bytes": 33026048,
+              "tree_peak_rss_bytes": 33026048,
+              "parent_delta_rss_bytes": 4165632,
+              "tree_delta_rss_bytes": 4165632
+            },
+            {
+              "wall_ms": 206.1903,
+              "parent_peak_rss_bytes": 34115584,
+              "tree_peak_rss_bytes": 34115584,
+              "parent_delta_rss_bytes": 5189632,
+              "tree_delta_rss_bytes": 5189632
+            }
+          ],
+          "median_wall_ms": 181.43,
+          "throughput_mib_s": 5.51,
+          "max_parent_peak_rss_bytes": 34115584,
+          "max_tree_peak_rss_bytes": 34115584,
+          "max_parent_delta_rss_bytes": 5189632,
+          "max_tree_delta_rss_bytes": 5189632,
+          "input_sha256": "3a9979584d8c8dfc579fe79c2873124dd3ee47ebb74fd88e7f1488445655a555",
+          "first_output_sha256": "44e8dc9b6b6beb8e3c3513c74ffece1013a13b7160cf5430390349e97f788560",
+          "second_output_sha256": "44e8dc9b6b6beb8e3c3513c74ffece1013a13b7160cf5430390349e97f788560",
+          "idempotence_checked": true,
+          "idempotence_pass": true,
+          "fidelity_checked": false,
+          "fidelity_pass": false,
+          "budget_pass": true
+        },
+        "10MiB": {
+          "target_size_bytes": 10485760,
+          "actual_size_bytes": 10486063,
+          "production_allowed": true,
+          "status": "PASS",
+          "error_code": null,
+          "repetitions": 3,
+          "raw_runs": [
+            {
+              "wall_ms": 1114.5706,
+              "parent_peak_rss_bytes": 90218496,
+              "tree_peak_rss_bytes": 90218496,
+              "parent_delta_rss_bytes": 52424704,
+              "tree_delta_rss_bytes": 52424704
+            },
+            {
+              "wall_ms": 1151.4511,
+              "parent_peak_rss_bytes": 100577280,
+              "tree_peak_rss_bytes": 100577280,
+              "parent_delta_rss_bytes": 52334592,
+              "tree_delta_rss_bytes": 52334592
+            },
+            {
+              "wall_ms": 1135.6898,
+              "parent_peak_rss_bytes": 100446208,
+              "tree_peak_rss_bytes": 100446208,
+              "parent_delta_rss_bytes": 52334592,
+              "tree_delta_rss_bytes": 52334592
+            }
+          ],
+          "median_wall_ms": 1135.69,
+          "throughput_mib_s": 8.81,
+          "max_parent_peak_rss_bytes": 100577280,
+          "max_tree_peak_rss_bytes": 100577280,
+          "max_parent_delta_rss_bytes": 52424704,
+          "max_tree_delta_rss_bytes": 52424704,
+          "input_sha256": "9b3633deb47a3f89e90cbb473c8170a43e45f8558fcd675eb5e22c2155dc0e35",
+          "first_output_sha256": "f236b13ac08205ef8232e4a2a8e9f7a323b30cb0a3c4a396e7d22dcd3440573b",
+          "second_output_sha256": "f236b13ac08205ef8232e4a2a8e9f7a323b30cb0a3c4a396e7d22dcd3440573b",
+          "idempotence_checked": true,
+          "idempotence_pass": true,
+          "fidelity_checked": false,
+          "fidelity_pass": false,
+          "budget_pass": true
+        },
+        "50MiB": {
+          "target_size_bytes": 52428800,
+          "actual_size_bytes": 52429219,
+          "production_allowed": true,
+          "status": "PASS",
+          "error_code": null,
+          "repetitions": 3,
+          "raw_runs": [
+            {
+              "wall_ms": 5176.0141,
+              "parent_peak_rss_bytes": 337801216,
+              "tree_peak_rss_bytes": 337801216,
+              "parent_delta_rss_bytes": 258068480,
+              "tree_delta_rss_bytes": 258068480
+            },
+            {
+              "wall_ms": 4976.9709,
+              "parent_peak_rss_bytes": 390152192,
+              "tree_peak_rss_bytes": 390152192,
+              "parent_delta_rss_bytes": 258248704,
+              "tree_delta_rss_bytes": 258248704
+            },
+            {
+              "wall_ms": 5273.5813,
+              "parent_peak_rss_bytes": 389828608,
+              "tree_peak_rss_bytes": 389828608,
+              "parent_delta_rss_bytes": 257921024,
+              "tree_delta_rss_bytes": 257921024
+            }
+          ],
+          "median_wall_ms": 5176.01,
+          "throughput_mib_s": 9.66,
+          "max_parent_peak_rss_bytes": 390152192,
+          "max_tree_peak_rss_bytes": 390152192,
+          "max_parent_delta_rss_bytes": 258248704,
+          "max_tree_delta_rss_bytes": 258248704,
+          "input_sha256": "b1e970c6f50350494508ba49f75f040e45566c064a2a6721f259c149eac626b1",
+          "first_output_sha256": "ad2cc347caa6d76d5b6113abd6d460f49cf4be8f8a4822bd92b7c5dfa7521f8a",
+          "second_output_sha256": "",
+          "idempotence_checked": false,
+          "idempotence_pass": false,
+          "fidelity_checked": false,
+          "fidelity_pass": false,
+          "budget_pass": false
+        },
+        "100MiB": {
+          "target_size_bytes": 104857600,
+          "actual_size_bytes": 104858135,
+          "production_allowed": true,
+          "status": "PASS",
+          "error_code": null,
+          "repetitions": 3,
+          "raw_runs": [
+            {
+              "wall_ms": 6644.6078,
+              "parent_peak_rss_bytes": 387592192,
+              "tree_peak_rss_bytes": 387592192,
+              "parent_delta_rss_bytes": 255213568,
+              "tree_delta_rss_bytes": 255213568
+            },
+            {
+              "wall_ms": 6617.3064,
+              "parent_peak_rss_bytes": 343855104,
+              "tree_peak_rss_bytes": 343855104,
+              "parent_delta_rss_bytes": 207478784,
+              "tree_delta_rss_bytes": 207478784
+            },
+            {
+              "wall_ms": 6483.3336,
+              "parent_peak_rss_bytes": 387829760,
+              "tree_peak_rss_bytes": 387829760,
+              "parent_delta_rss_bytes": 251396096,
+              "tree_delta_rss_bytes": 251396096
+            }
+          ],
+          "median_wall_ms": 6617.31,
+          "throughput_mib_s": 15.11,
+          "max_parent_peak_rss_bytes": 387829760,
+          "max_tree_peak_rss_bytes": 387829760,
+          "max_parent_delta_rss_bytes": 255213568,
+          "max_tree_delta_rss_bytes": 255213568,
+          "input_sha256": "a3de09ce99503af122cfe9a25a8b9b8cd24c61327cbfe8eb7ec6412436cebda1",
+          "first_output_sha256": "e614ff5193d9de1d8acf8d954bd1b4293f2aa4d75cacb638569b33fc462bbaa6",
+          "second_output_sha256": "",
+          "idempotence_checked": false,
+          "idempotence_pass": false,
+          "fidelity_checked": false,
+          "fidelity_pass": false,
+          "budget_pass": true
+        }
+      },
+      "time_scaling_alpha": 0.808,
+      "memory_scaling_alpha": 0.892,
+      "ratio_50_to_100_time": 1.28,
+      "ratio_50_to_100_rss": 0.99,
+      "overall_budget_status": "INVESTIGATE"
+    },
+    {
+      "benchmark_id": "odt_nochange",
+      "canonical_policy": "odt",
+      "extension": "odt",
+      "execution_class": "GENERIC_CONTAINER",
+      "streaming_classification": "RAW_MEMBER_PASSTHROUGH",
+      "is_positive": false,
+      "is_cli": false,
+      "sizes_successful": [
+        1048576,
+        10485760,
+        52428800,
+        104857600
+      ],
+      "sizes_rejected": [],
+      "results_by_size": {
+        "1MiB": {
+          "target_size_bytes": 1048576,
+          "actual_size_bytes": 1048879,
+          "production_allowed": true,
+          "status": "PASS",
+          "error_code": null,
+          "repetitions": 3,
+          "raw_runs": [
+            {
+              "wall_ms": 175.6379,
+              "parent_peak_rss_bytes": 32317440,
+              "tree_peak_rss_bytes": 32317440,
+              "parent_delta_rss_bytes": 4362240,
+              "tree_delta_rss_bytes": 4362240
+            },
+            {
+              "wall_ms": 186.3369,
+              "parent_peak_rss_bytes": 31182848,
+              "tree_peak_rss_bytes": 31182848,
+              "parent_delta_rss_bytes": 2043904,
+              "tree_delta_rss_bytes": 2043904
+            },
+            {
+              "wall_ms": 156.9369,
+              "parent_peak_rss_bytes": 31313920,
+              "tree_peak_rss_bytes": 31313920,
+              "parent_delta_rss_bytes": 2240512,
+              "tree_delta_rss_bytes": 2240512
+            }
+          ],
+          "median_wall_ms": 175.64,
+          "throughput_mib_s": 5.7,
+          "max_parent_peak_rss_bytes": 32317440,
+          "max_tree_peak_rss_bytes": 32317440,
+          "max_parent_delta_rss_bytes": 4362240,
+          "max_tree_delta_rss_bytes": 4362240,
+          "input_sha256": "8e02f2fb030a21b1dc4d083ed8ed6aa90a6d00d8d80ef0e0fde8e3ac74574f2b",
+          "first_output_sha256": "153eb889e744e58367ffd34e0189002db26c16b6fc6536781f4010862dee7470",
+          "second_output_sha256": "153eb889e744e58367ffd34e0189002db26c16b6fc6536781f4010862dee7470",
+          "idempotence_checked": true,
+          "idempotence_pass": true,
+          "fidelity_checked": false,
+          "fidelity_pass": false,
+          "budget_pass": true
+        },
+        "10MiB": {
+          "target_size_bytes": 10485760,
+          "actual_size_bytes": 10486063,
+          "production_allowed": true,
+          "status": "PASS",
+          "error_code": null,
+          "repetitions": 3,
+          "raw_runs": [
+            {
+              "wall_ms": 1010.5596,
+              "parent_peak_rss_bytes": 89923584,
+              "tree_peak_rss_bytes": 89923584,
+              "parent_delta_rss_bytes": 51937280,
+              "tree_delta_rss_bytes": 51937280
+            },
+            {
+              "wall_ms": 1186.7737,
+              "parent_peak_rss_bytes": 100413440,
+              "tree_peak_rss_bytes": 100413440,
+              "parent_delta_rss_bytes": 52465664,
+              "tree_delta_rss_bytes": 52465664
+            },
+            {
+              "wall_ms": 1058.6998,
+              "parent_peak_rss_bytes": 100478976,
+              "tree_peak_rss_bytes": 100478976,
+              "parent_delta_rss_bytes": 52531200,
+              "tree_delta_rss_bytes": 52531200
+            }
+          ],
+          "median_wall_ms": 1058.7,
+          "throughput_mib_s": 9.45,
+          "max_parent_peak_rss_bytes": 100478976,
+          "max_tree_peak_rss_bytes": 100478976,
+          "max_parent_delta_rss_bytes": 52531200,
+          "max_tree_delta_rss_bytes": 52531200,
+          "input_sha256": "cf27ae845db36d46541ff8fb49e3e796f69f81a66c2b87b6e84b042d153c97f1",
+          "first_output_sha256": "d3a51004fc72e34bc9d26810bf9b357f40f1645dadbdc6bc538021edb8372819",
+          "second_output_sha256": "d3a51004fc72e34bc9d26810bf9b357f40f1645dadbdc6bc538021edb8372819",
+          "idempotence_checked": true,
+          "idempotence_pass": true,
+          "fidelity_checked": false,
+          "fidelity_pass": false,
+          "budget_pass": true
+        },
+        "50MiB": {
+          "target_size_bytes": 52428800,
+          "actual_size_bytes": 52429219,
+          "production_allowed": true,
+          "status": "PASS",
+          "error_code": null,
+          "repetitions": 3,
+          "raw_runs": [
+            {
+              "wall_ms": 3223.6852,
+              "parent_peak_rss_bytes": 232632320,
+              "tree_peak_rss_bytes": 232632320,
+              "parent_delta_rss_bytes": 152702976,
+              "tree_delta_rss_bytes": 152702976
+            },
+            {
+              "wall_ms": 3381.9808,
+              "parent_peak_rss_bytes": 235200512,
+              "tree_peak_rss_bytes": 235200512,
+              "parent_delta_rss_bytes": 153501696,
+              "tree_delta_rss_bytes": 153501696
+            },
+            {
+              "wall_ms": 3322.5337,
+              "parent_peak_rss_bytes": 235180032,
+              "tree_peak_rss_bytes": 235180032,
+              "parent_delta_rss_bytes": 153473024,
+              "tree_delta_rss_bytes": 153473024
+            }
+          ],
+          "median_wall_ms": 3322.53,
+          "throughput_mib_s": 15.05,
+          "max_parent_peak_rss_bytes": 235200512,
+          "max_tree_peak_rss_bytes": 235200512,
+          "max_parent_delta_rss_bytes": 153501696,
+          "max_tree_delta_rss_bytes": 153501696,
+          "input_sha256": "c9701db5fe360ebb858a07e749da75a3a5218d8296bebcc9ef764e14964b7c0c",
+          "first_output_sha256": "a2c61013ec3862c0b2fa022e37a5823e8484758b47952982ca2cbdd97fe4ecda",
+          "second_output_sha256": "a2c61013ec3862c0b2fa022e37a5823e8484758b47952982ca2cbdd97fe4ecda",
+          "idempotence_checked": true,
+          "idempotence_pass": true,
+          "fidelity_checked": false,
+          "fidelity_pass": false,
+          "budget_pass": true
+        },
+        "100MiB": {
+          "target_size_bytes": 104857600,
+          "actual_size_bytes": 104858135,
+          "production_allowed": true,
+          "status": "PASS",
+          "error_code": null,
+          "repetitions": 3,
+          "raw_runs": [
+            {
+              "wall_ms": 9940.0311,
+              "parent_peak_rss_bytes": 566947840,
+              "tree_peak_rss_bytes": 566947840,
+              "parent_delta_rss_bytes": 434413568,
+              "tree_delta_rss_bytes": 434413568
+            },
+            {
+              "wall_ms": 10026.8498,
+              "parent_peak_rss_bytes": 652255232,
+              "tree_peak_rss_bytes": 652255232,
+              "parent_delta_rss_bytes": 415002624,
+              "tree_delta_rss_bytes": 415002624
+            },
+            {
+              "wall_ms": 10015.4391,
+              "parent_peak_rss_bytes": 667791360,
+              "tree_peak_rss_bytes": 667791360,
+              "parent_delta_rss_bytes": 430583808,
+              "tree_delta_rss_bytes": 430583808
+            }
+          ],
+          "median_wall_ms": 10015.44,
+          "throughput_mib_s": 9.98,
+          "max_parent_peak_rss_bytes": 667791360,
+          "max_tree_peak_rss_bytes": 667791360,
+          "max_parent_delta_rss_bytes": 434413568,
+          "max_tree_delta_rss_bytes": 434413568,
+          "input_sha256": "9430301a14b431ecbd340761f4827e4077015695980cb3f96806a5090faccbf1",
+          "first_output_sha256": "5b558bfc80e20bc7c0faf832f50aa50ad3fe7e09758f057ec66756c247b7a84a",
+          "second_output_sha256": "5b558bfc80e20bc7c0faf832f50aa50ad3fe7e09758f057ec66756c247b7a84a",
+          "idempotence_checked": true,
+          "idempotence_pass": true,
+          "fidelity_checked": false,
+          "fidelity_pass": false,
+          "budget_pass": false
+        }
+      },
+      "time_scaling_alpha": 0.838,
+      "memory_scaling_alpha": 0.96,
+      "ratio_50_to_100_time": 3.01,
+      "ratio_50_to_100_rss": 2.83,
+      "overall_budget_status": "INVESTIGATE"
+    },
+    {
+      "benchmark_id": "png_positive",
+      "canonical_policy": "png",
+      "extension": "png",
+      "execution_class": "IMAGE_CHUNK",
+      "streaming_classification": "STREAMING_INPUT_FULL_OUTPUT",
+      "is_positive": true,
+      "is_cli": false,
+      "sizes_successful": [
+        1048576,
+        10485760,
+        52428800,
+        104857600
+      ],
+      "sizes_rejected": [],
+      "results_by_size": {
+        "1MiB": {
+          "target_size_bytes": 1048576,
+          "actual_size_bytes": 1048576,
+          "production_allowed": true,
+          "status": "PASS",
+          "error_code": null,
+          "repetitions": 3,
+          "raw_runs": [
+            {
+              "wall_ms": 150.2247,
+              "parent_peak_rss_bytes": 31928320,
+              "tree_peak_rss_bytes": 31928320,
+              "parent_delta_rss_bytes": 3182592,
+              "tree_delta_rss_bytes": 3182592
+            },
+            {
+              "wall_ms": 114.1113,
+              "parent_peak_rss_bytes": 32980992,
+              "tree_peak_rss_bytes": 32980992,
+              "parent_delta_rss_bytes": 3182592,
+              "tree_delta_rss_bytes": 3182592
+            },
+            {
+              "wall_ms": 109.9891,
+              "parent_peak_rss_bytes": 32980992,
+              "tree_peak_rss_bytes": 32980992,
+              "parent_delta_rss_bytes": 3182592,
+              "tree_delta_rss_bytes": 3182592
+            }
+          ],
+          "median_wall_ms": 114.11,
+          "throughput_mib_s": 8.76,
+          "max_parent_peak_rss_bytes": 32980992,
+          "max_tree_peak_rss_bytes": 32980992,
+          "max_parent_delta_rss_bytes": 3182592,
+          "max_tree_delta_rss_bytes": 3182592,
+          "input_sha256": "2be3cc76e0717000029e666846e673d21b0c8bc52b618145181762ee918ab958",
+          "first_output_sha256": "814c183d29b521122d8d9911b07f83c070921c05909852d300ca38e025fb9768",
+          "second_output_sha256": "814c183d29b521122d8d9911b07f83c070921c05909852d300ca38e025fb9768",
+          "idempotence_checked": true,
+          "idempotence_pass": true,
+          "fidelity_checked": false,
+          "fidelity_pass": false,
+          "budget_pass": true
+        },
+        "10MiB": {
+          "target_size_bytes": 10485760,
+          "actual_size_bytes": 10485760,
+          "production_allowed": true,
+          "status": "PASS",
+          "error_code": null,
+          "repetitions": 3,
+          "raw_runs": [
+            {
+              "wall_ms": 439.5755,
+              "parent_peak_rss_bytes": 80166912,
+              "tree_peak_rss_bytes": 80166912,
+              "parent_delta_rss_bytes": 41984000,
+              "tree_delta_rss_bytes": 41984000
+            },
+            {
+              "wall_ms": 377.8316,
+              "parent_peak_rss_bytes": 90656768,
+              "tree_peak_rss_bytes": 90656768,
+              "parent_delta_rss_bytes": 41984000,
+              "tree_delta_rss_bytes": 41984000
+            },
+            {
+              "wall_ms": 427.3266,
+              "parent_peak_rss_bytes": 90652672,
+              "tree_peak_rss_bytes": 90652672,
+              "parent_delta_rss_bytes": 41979904,
+              "tree_delta_rss_bytes": 41979904
+            }
+          ],
+          "median_wall_ms": 427.33,
+          "throughput_mib_s": 23.4,
+          "max_parent_peak_rss_bytes": 90656768,
+          "max_tree_peak_rss_bytes": 90656768,
+          "max_parent_delta_rss_bytes": 41984000,
+          "max_tree_delta_rss_bytes": 41984000,
+          "input_sha256": "3488a34d7719ef220598a0aec164d65900e76e028ccfc9260ebae211cde392bb",
+          "first_output_sha256": "f1ff2c2eeba5852b3fb7bac11f62eafe5e45672a314e938b99170e0b98fcc153",
+          "second_output_sha256": "f1ff2c2eeba5852b3fb7bac11f62eafe5e45672a314e938b99170e0b98fcc153",
+          "idempotence_checked": true,
+          "idempotence_pass": true,
+          "fidelity_checked": false,
+          "fidelity_pass": false,
+          "budget_pass": true
+        },
+        "50MiB": {
+          "target_size_bytes": 52428800,
+          "actual_size_bytes": 52428800,
+          "production_allowed": true,
+          "status": "PASS",
+          "error_code": null,
+          "repetitions": 3,
+          "raw_runs": [
+            {
+              "wall_ms": 1692.5976,
+              "parent_peak_rss_bytes": 289882112,
+              "tree_peak_rss_bytes": 289882112,
+              "parent_delta_rss_bytes": 209756160,
+              "tree_delta_rss_bytes": 209756160
+            },
+            {
+              "wall_ms": 1785.37,
+              "parent_peak_rss_bytes": 342315008,
+              "tree_peak_rss_bytes": 342315008,
+              "parent_delta_rss_bytes": 209756160,
+              "tree_delta_rss_bytes": 209756160
+            },
+            {
+              "wall_ms": 1754.3583,
+              "parent_peak_rss_bytes": 342315008,
+              "tree_peak_rss_bytes": 342315008,
+              "parent_delta_rss_bytes": 209756160,
+              "tree_delta_rss_bytes": 209756160
+            }
+          ],
+          "median_wall_ms": 1754.36,
+          "throughput_mib_s": 28.5,
+          "max_parent_peak_rss_bytes": 342315008,
+          "max_tree_peak_rss_bytes": 342315008,
+          "max_parent_delta_rss_bytes": 209756160,
+          "max_tree_delta_rss_bytes": 209756160,
+          "input_sha256": "972f6fbc205aea67a39957ebeb19ef342218944afc6a21c89fc0ca230063d253",
+          "first_output_sha256": "e0daf37ab0140d0c8b87c855facb3588b93a4272fc8b670d136b5e5a3116439d",
+          "second_output_sha256": "e0daf37ab0140d0c8b87c855facb3588b93a4272fc8b670d136b5e5a3116439d",
+          "idempotence_checked": true,
+          "idempotence_pass": true,
+          "fidelity_checked": false,
+          "fidelity_pass": false,
+          "budget_pass": true
+        },
+        "100MiB": {
+          "target_size_bytes": 104857600,
+          "actual_size_bytes": 104857600,
+          "production_allowed": true,
+          "status": "PASS",
+          "error_code": null,
+          "repetitions": 3,
+          "raw_runs": [
+            {
+              "wall_ms": 1805.3819,
+              "parent_peak_rss_bytes": 552013824,
+              "tree_peak_rss_bytes": 552013824,
+              "parent_delta_rss_bytes": 419459072,
+              "tree_delta_rss_bytes": 419459072
+            },
+            {
+              "wall_ms": 1671.1797,
+              "parent_peak_rss_bytes": 552013824,
+              "tree_peak_rss_bytes": 552013824,
+              "parent_delta_rss_bytes": 419459072,
+              "tree_delta_rss_bytes": 419459072
+            },
+            {
+              "wall_ms": 1738.795,
+              "parent_peak_rss_bytes": 552009728,
+              "tree_peak_rss_bytes": 552009728,
+              "parent_delta_rss_bytes": 419454976,
+              "tree_delta_rss_bytes": 419454976
+            }
+          ],
+          "median_wall_ms": 1738.8,
+          "throughput_mib_s": 57.51,
+          "max_parent_peak_rss_bytes": 552013824,
+          "max_tree_peak_rss_bytes": 552013824,
+          "max_parent_delta_rss_bytes": 419459072,
+          "max_tree_delta_rss_bytes": 419459072,
+          "input_sha256": "ef34db4041dd8800cdbb73ec4445151beadf288371dba9e6ed3404d88379dfd9",
+          "first_output_sha256": "bf6e855b67618763d38f0cd8c2ab5ea9aed7b28f4475939f040e4e3ac016bedc",
+          "second_output_sha256": "",
+          "idempotence_checked": false,
+          "idempotence_pass": false,
+          "fidelity_checked": false,
+          "fidelity_pass": false,
+          "budget_pass": false
+        }
+      },
+      "time_scaling_alpha": 0.633,
+      "memory_scaling_alpha": 1.06,
+      "ratio_50_to_100_time": 0.99,
+      "ratio_50_to_100_rss": 2.0,
+      "overall_budget_status": "INVESTIGATE"
+    },
+    {
+      "benchmark_id": "png_nochange",
+      "canonical_policy": "png",
+      "extension": "png",
+      "execution_class": "IMAGE_CHUNK",
+      "streaming_classification": "STREAMING_INPUT_FULL_OUTPUT",
+      "is_positive": false,
+      "is_cli": false,
+      "sizes_successful": [
+        1048576,
+        10485760,
+        52428800,
+        104857600
+      ],
+      "sizes_rejected": [],
+      "results_by_size": {
+        "1MiB": {
+          "target_size_bytes": 1048576,
+          "actual_size_bytes": 1048576,
+          "production_allowed": true,
+          "status": "PASS",
+          "error_code": null,
+          "repetitions": 3,
+          "raw_runs": [
+            {
+              "wall_ms": 161.2576,
+              "parent_peak_rss_bytes": 31928320,
+              "tree_peak_rss_bytes": 31928320,
+              "parent_delta_rss_bytes": 3182592,
+              "tree_delta_rss_bytes": 3182592
+            },
+            {
+              "wall_ms": 107.1397,
+              "parent_peak_rss_bytes": 31928320,
+              "tree_peak_rss_bytes": 31928320,
+              "parent_delta_rss_bytes": 3182592,
+              "tree_delta_rss_bytes": 3182592
+            },
+            {
+              "wall_ms": 121.2224,
+              "parent_peak_rss_bytes": 31924224,
+              "tree_peak_rss_bytes": 31924224,
+              "parent_delta_rss_bytes": 3178496,
+              "tree_delta_rss_bytes": 3178496
+            }
+          ],
+          "median_wall_ms": 121.22,
+          "throughput_mib_s": 8.25,
+          "max_parent_peak_rss_bytes": 31928320,
+          "max_tree_peak_rss_bytes": 31928320,
+          "max_parent_delta_rss_bytes": 3182592,
+          "max_tree_delta_rss_bytes": 3182592,
+          "input_sha256": "88ec31d664314caf6410c7e53977c8074aba9bdc9982ead41c7d3f98dbfd4863",
+          "first_output_sha256": "88ec31d664314caf6410c7e53977c8074aba9bdc9982ead41c7d3f98dbfd4863",
+          "second_output_sha256": "88ec31d664314caf6410c7e53977c8074aba9bdc9982ead41c7d3f98dbfd4863",
+          "idempotence_checked": true,
+          "idempotence_pass": true,
+          "fidelity_checked": false,
+          "fidelity_pass": false,
+          "budget_pass": true
+        },
+        "10MiB": {
+          "target_size_bytes": 10485760,
+          "actual_size_bytes": 10485760,
+          "production_allowed": true,
+          "status": "PASS",
+          "error_code": null,
+          "repetitions": 3,
+          "raw_runs": [
+            {
+              "wall_ms": 495.0656,
+              "parent_peak_rss_bytes": 80166912,
+              "tree_peak_rss_bytes": 80166912,
+              "parent_delta_rss_bytes": 41979904,
+              "tree_delta_rss_bytes": 41979904
+            },
+            {
+              "wall_ms": 476.1252,
+              "parent_peak_rss_bytes": 80171008,
+              "tree_peak_rss_bytes": 80171008,
+              "parent_delta_rss_bytes": 41984000,
+              "tree_delta_rss_bytes": 41984000
+            },
+            {
+              "wall_ms": 451.2701,
+              "parent_peak_rss_bytes": 80171008,
+              "tree_peak_rss_bytes": 80171008,
+              "parent_delta_rss_bytes": 41984000,
+              "tree_delta_rss_bytes": 41984000
+            }
+          ],
+          "median_wall_ms": 476.13,
+          "throughput_mib_s": 21.0,
+          "max_parent_peak_rss_bytes": 80171008,
+          "max_tree_peak_rss_bytes": 80171008,
+          "max_parent_delta_rss_bytes": 41984000,
+          "max_tree_delta_rss_bytes": 41984000,
+          "input_sha256": "0a52ab4692bb41f70f4ee1deb89f5054dde6fd709a3036b908f8c90962392e99",
+          "first_output_sha256": "0a52ab4692bb41f70f4ee1deb89f5054dde6fd709a3036b908f8c90962392e99",
+          "second_output_sha256": "0a52ab4692bb41f70f4ee1deb89f5054dde6fd709a3036b908f8c90962392e99",
+          "idempotence_checked": true,
+          "idempotence_pass": true,
+          "fidelity_checked": false,
+          "fidelity_pass": false,
+          "budget_pass": true
+        },
+        "50MiB": {
+          "target_size_bytes": 52428800,
+          "actual_size_bytes": 52428800,
+          "production_allowed": true,
+          "status": "PASS",
+          "error_code": null,
+          "repetitions": 3,
+          "raw_runs": [
+            {
+              "wall_ms": 887.0833,
+              "parent_peak_rss_bytes": 289886208,
+              "tree_peak_rss_bytes": 289886208,
+              "parent_delta_rss_bytes": 209756160,
+              "tree_delta_rss_bytes": 209756160
+            },
+            {
+              "wall_ms": 905.7204,
+              "parent_peak_rss_bytes": 289886208,
+              "tree_peak_rss_bytes": 289886208,
+              "parent_delta_rss_bytes": 209756160,
+              "tree_delta_rss_bytes": 209756160
+            },
+            {
+              "wall_ms": 963.1724,
+              "parent_peak_rss_bytes": 289886208,
+              "tree_peak_rss_bytes": 289886208,
+              "parent_delta_rss_bytes": 209756160,
+              "tree_delta_rss_bytes": 209756160
+            }
+          ],
+          "median_wall_ms": 905.72,
+          "throughput_mib_s": 55.2,
+          "max_parent_peak_rss_bytes": 289886208,
+          "max_tree_peak_rss_bytes": 289886208,
+          "max_parent_delta_rss_bytes": 209756160,
+          "max_tree_delta_rss_bytes": 209756160,
+          "input_sha256": "31d2a731aa6c1e134ca2df8ffe73ce741ef73c69c606efc81dbd81862dd3e92d",
+          "first_output_sha256": "bf6e855b67618763d38f0cd8c2ab5ea9aed7b28f4475939f040e4e3ac016bedc",
+          "second_output_sha256": "bf6e855b67618763d38f0cd8c2ab5ea9aed7b28f4475939f040e4e3ac016bedc",
+          "idempotence_checked": true,
+          "idempotence_pass": true,
+          "fidelity_checked": false,
+          "fidelity_pass": false,
+          "budget_pass": true
+        },
+        "100MiB": {
+          "target_size_bytes": 104857600,
+          "actual_size_bytes": 104857600,
+          "production_allowed": true,
+          "status": "PASS",
+          "error_code": null,
+          "repetitions": 3,
+          "raw_runs": [
+            {
+              "wall_ms": 1808.6979,
+              "parent_peak_rss_bytes": 552030208,
+              "tree_peak_rss_bytes": 552030208,
+              "parent_delta_rss_bytes": 419471360,
+              "tree_delta_rss_bytes": 419471360
+            },
+            {
+              "wall_ms": 1924.2245,
+              "parent_peak_rss_bytes": 552026112,
+              "tree_peak_rss_bytes": 552026112,
+              "parent_delta_rss_bytes": 419467264,
+              "tree_delta_rss_bytes": 419467264
+            },
+            {
+              "wall_ms": 1854.5556,
+              "parent_peak_rss_bytes": 552030208,
+              "tree_peak_rss_bytes": 552030208,
+              "parent_delta_rss_bytes": 419471360,
+              "tree_delta_rss_bytes": 419471360
+            }
+          ],
+          "median_wall_ms": 1854.56,
+          "throughput_mib_s": 53.92,
+          "max_parent_peak_rss_bytes": 552030208,
+          "max_tree_peak_rss_bytes": 552030208,
+          "max_parent_delta_rss_bytes": 419471360,
+          "max_tree_delta_rss_bytes": 419471360,
+          "input_sha256": "ea90c2a6a4c2e9dc390eb9683dd7218c858673e50aa3c190ed87eb8a1878cdac",
+          "first_output_sha256": "bf6e855b67618763d38f0cd8c2ab5ea9aed7b28f4475939f040e4e3ac016bedc",
+          "second_output_sha256": "bf6e855b67618763d38f0cd8c2ab5ea9aed7b28f4475939f040e4e3ac016bedc",
+          "idempotence_checked": true,
+          "idempotence_pass": true,
+          "fidelity_checked": false,
+          "fidelity_pass": false,
+          "budget_pass": false
+        }
+      },
+      "time_scaling_alpha": 0.563,
+      "memory_scaling_alpha": 1.06,
+      "ratio_50_to_100_time": 2.05,
+      "ratio_50_to_100_rss": 2.0,
+      "overall_budget_status": "INVESTIGATE"
+    },
+    {
+      "benchmark_id": "wav_positive",
+      "canonical_policy": "audio",
+      "extension": "wav",
+      "execution_class": "EXTERNAL_AV",
+      "streaming_classification": "EXTERNAL_PROCESS",
+      "is_positive": true,
+      "is_cli": false,
+      "sizes_successful": [
+        1048576,
+        10485760,
+        52428800,
+        104857600
+      ],
+      "sizes_rejected": [],
+      "results_by_size": {
+        "1MiB": {
+          "target_size_bytes": 1048576,
+          "actual_size_bytes": 1048576,
+          "production_allowed": true,
+          "status": "PASS",
+          "error_code": null,
+          "repetitions": 3,
+          "raw_runs": [
+            {
+              "wall_ms": 52.1592,
+              "parent_peak_rss_bytes": 30887936,
+              "tree_peak_rss_bytes": 30887936,
+              "parent_delta_rss_bytes": 2125824,
+              "tree_delta_rss_bytes": 2125824
+            },
+            {
+              "wall_ms": 55.9485,
+              "parent_peak_rss_bytes": 31944704,
+              "tree_peak_rss_bytes": 31944704,
+              "parent_delta_rss_bytes": 2129920,
+              "tree_delta_rss_bytes": 2129920
+            },
+            {
+              "wall_ms": 50.8085,
+              "parent_peak_rss_bytes": 30892032,
+              "tree_peak_rss_bytes": 30892032,
+              "parent_delta_rss_bytes": 1077248,
+              "tree_delta_rss_bytes": 1077248
+            }
+          ],
+          "median_wall_ms": 52.16,
+          "throughput_mib_s": 19.17,
+          "max_parent_peak_rss_bytes": 31944704,
+          "max_tree_peak_rss_bytes": 31944704,
+          "max_parent_delta_rss_bytes": 2129920,
+          "max_tree_delta_rss_bytes": 2129920,
+          "input_sha256": "c98d66357708a5f950ff32cfd761105802016f396aced27d7debde601fc14768",
+          "first_output_sha256": "97e14a6a845ec16bf604d6166bd0826684071e7450971be6eb7dd59ea1c166a9",
+          "second_output_sha256": "97e14a6a845ec16bf604d6166bd0826684071e7450971be6eb7dd59ea1c166a9",
+          "idempotence_checked": true,
+          "idempotence_pass": true,
+          "fidelity_checked": false,
+          "fidelity_pass": false,
+          "budget_pass": true
+        },
+        "10MiB": {
+          "target_size_bytes": 10485760,
+          "actual_size_bytes": 10485760,
+          "production_allowed": true,
+          "status": "PASS",
+          "error_code": null,
+          "repetitions": 3,
+          "raw_runs": [
+            {
+              "wall_ms": 135.4217,
+              "parent_peak_rss_bytes": 59199488,
+              "tree_peak_rss_bytes": 59199488,
+              "parent_delta_rss_bytes": 21000192,
+              "tree_delta_rss_bytes": 21000192
+            },
+            {
+              "wall_ms": 159.7809,
+              "parent_peak_rss_bytes": 80183296,
+              "tree_peak_rss_bytes": 80183296,
+              "parent_delta_rss_bytes": 31494144,
+              "tree_delta_rss_bytes": 31494144
+            },
+            {
+              "wall_ms": 168.5147,
+              "parent_peak_rss_bytes": 80183296,
+              "tree_peak_rss_bytes": 80183296,
+              "parent_delta_rss_bytes": 31494144,
+              "tree_delta_rss_bytes": 31494144
+            }
+          ],
+          "median_wall_ms": 159.78,
+          "throughput_mib_s": 62.59,
+          "max_parent_peak_rss_bytes": 80183296,
+          "max_tree_peak_rss_bytes": 80183296,
+          "max_parent_delta_rss_bytes": 31494144,
+          "max_tree_delta_rss_bytes": 31494144,
+          "input_sha256": "00f1d636dec86a702a4437870f25dd1269eafbe215c788546203ed5ea486f9b9",
+          "first_output_sha256": "08a3c0d086c4bc58506d0ee9a495c11e9f213ce9331e42744566f7ad8a46ad39",
+          "second_output_sha256": "08a3c0d086c4bc58506d0ee9a495c11e9f213ce9331e42744566f7ad8a46ad39",
+          "idempotence_checked": true,
+          "idempotence_pass": true,
+          "fidelity_checked": false,
+          "fidelity_pass": false,
+          "budget_pass": true
+        },
+        "50MiB": {
+          "target_size_bytes": 52428800,
+          "actual_size_bytes": 52428800,
+          "production_allowed": true,
+          "status": "PASS",
+          "error_code": null,
+          "repetitions": 3,
+          "raw_runs": [
+            {
+              "wall_ms": 567.2002,
+              "parent_peak_rss_bytes": 235524096,
+              "tree_peak_rss_bytes": 235524096,
+              "parent_delta_rss_bytes": 155381760,
+              "tree_delta_rss_bytes": 155381760
+            },
+            {
+              "wall_ms": 562.6248,
+              "parent_peak_rss_bytes": 267677696,
+              "tree_peak_rss_bytes": 267677696,
+              "parent_delta_rss_bytes": 135102464,
+              "tree_delta_rss_bytes": 135102464
+            },
+            {
+              "wall_ms": 547.3617,
+              "parent_peak_rss_bytes": 289898496,
+              "tree_peak_rss_bytes": 289898496,
+              "parent_delta_rss_bytes": 157323264,
+              "tree_delta_rss_bytes": 157323264
+            }
+          ],
+          "median_wall_ms": 562.62,
+          "throughput_mib_s": 88.87,
+          "max_parent_peak_rss_bytes": 289898496,
+          "max_tree_peak_rss_bytes": 289898496,
+          "max_parent_delta_rss_bytes": 157323264,
+          "max_tree_delta_rss_bytes": 157323264,
+          "input_sha256": "a6c8df1b365fb038e15fee993a4961f8365373763b2404a479cc9f066e0dec23",
+          "first_output_sha256": "7ac31c982291f312b0cd083bc4f8329ce3b795dc9aef8b3f5ea2179ca1654e9b",
+          "second_output_sha256": "7ac31c982291f312b0cd083bc4f8329ce3b795dc9aef8b3f5ea2179ca1654e9b",
+          "idempotence_checked": true,
+          "idempotence_pass": true,
+          "fidelity_checked": false,
+          "fidelity_pass": false,
+          "budget_pass": true
+        },
+        "100MiB": {
+          "target_size_bytes": 104857600,
+          "actual_size_bytes": 104857600,
+          "production_allowed": true,
+          "status": "PASS",
+          "error_code": null,
+          "repetitions": 3,
+          "raw_runs": [
+            {
+              "wall_ms": 1009.6636,
+              "parent_peak_rss_bytes": 447184896,
+              "tree_peak_rss_bytes": 447184896,
+              "parent_delta_rss_bytes": 314609664,
+              "tree_delta_rss_bytes": 314609664
+            },
+            {
+              "wall_ms": 993.7493,
+              "parent_peak_rss_bytes": 552046592,
+              "tree_peak_rss_bytes": 552046592,
+              "parent_delta_rss_bytes": 314609664,
+              "tree_delta_rss_bytes": 314609664
+            },
+            {
+              "wall_ms": 997.6886,
+              "parent_peak_rss_bytes": 552042496,
+              "tree_peak_rss_bytes": 552042496,
+              "parent_delta_rss_bytes": 314605568,
+              "tree_delta_rss_bytes": 314605568
+            }
+          ],
+          "median_wall_ms": 997.69,
+          "throughput_mib_s": 100.23,
+          "max_parent_peak_rss_bytes": 552046592,
+          "max_tree_peak_rss_bytes": 552046592,
+          "max_parent_delta_rss_bytes": 314609664,
+          "max_tree_delta_rss_bytes": 314609664,
+          "input_sha256": "566d87b89188bb2ca17c78b26b860495870f3f3ee932b252a3ccc3141fd216a2",
+          "first_output_sha256": "54bedc6aa394ccd408f2d0f5b5757a18d7d7fe20091c6a2792adbb5a84993553",
+          "second_output_sha256": "",
+          "idempotence_checked": false,
+          "idempotence_pass": false,
+          "fidelity_checked": false,
+          "fidelity_pass": false,
+          "budget_pass": true
+        }
+      },
+      "time_scaling_alpha": 0.64,
+      "memory_scaling_alpha": 1.084,
+      "ratio_50_to_100_time": 1.77,
+      "ratio_50_to_100_rss": 2.0,
+      "overall_budget_status": "PASS"
+    },
+    {
+      "benchmark_id": "wav_nochange",
+      "canonical_policy": "audio",
+      "extension": "wav",
+      "execution_class": "EXTERNAL_AV",
+      "streaming_classification": "EXTERNAL_PROCESS",
+      "is_positive": false,
+      "is_cli": false,
+      "sizes_successful": [
+        1048576,
+        10485760,
+        52428800,
+        104857600
+      ],
+      "sizes_rejected": [],
+      "results_by_size": {
+        "1MiB": {
+          "target_size_bytes": 1048576,
+          "actual_size_bytes": 1048576,
+          "production_allowed": true,
+          "status": "PASS",
+          "error_code": null,
+          "repetitions": 3,
+          "raw_runs": [
+            {
+              "wall_ms": 38.8712,
+              "parent_peak_rss_bytes": 30896128,
+              "tree_peak_rss_bytes": 30896128,
+              "parent_delta_rss_bytes": 2129920,
+              "tree_delta_rss_bytes": 2129920
+            },
+            {
+              "wall_ms": 75.0048,
+              "parent_peak_rss_bytes": 30896128,
+              "tree_peak_rss_bytes": 30896128,
+              "parent_delta_rss_bytes": 2129920,
+              "tree_delta_rss_bytes": 2129920
+            },
+            {
+              "wall_ms": 56.4606,
+              "parent_peak_rss_bytes": 30892032,
+              "tree_peak_rss_bytes": 30892032,
+              "parent_delta_rss_bytes": 2125824,
+              "tree_delta_rss_bytes": 2125824
+            }
+          ],
+          "median_wall_ms": 56.46,
+          "throughput_mib_s": 17.71,
+          "max_parent_peak_rss_bytes": 30896128,
+          "max_tree_peak_rss_bytes": 30896128,
+          "max_parent_delta_rss_bytes": 2129920,
+          "max_tree_delta_rss_bytes": 2129920,
+          "input_sha256": "5291cd459cd220c9787730a9cf2c35e5b8c9aa04c49daa78303b2f4a93a87633",
+          "first_output_sha256": "5291cd459cd220c9787730a9cf2c35e5b8c9aa04c49daa78303b2f4a93a87633",
+          "second_output_sha256": "5291cd459cd220c9787730a9cf2c35e5b8c9aa04c49daa78303b2f4a93a87633",
+          "idempotence_checked": true,
+          "idempotence_pass": true,
+          "fidelity_checked": false,
+          "fidelity_pass": false,
+          "budget_pass": true
+        },
+        "10MiB": {
+          "target_size_bytes": 10485760,
+          "actual_size_bytes": 10485760,
+          "production_allowed": true,
+          "status": "PASS",
+          "error_code": null,
+          "repetitions": 3,
+          "raw_runs": [
+            {
+              "wall_ms": 187.752,
+              "parent_peak_rss_bytes": 59203584,
+              "tree_peak_rss_bytes": 59203584,
+              "parent_delta_rss_bytes": 21000192,
+              "tree_delta_rss_bytes": 21000192
+            },
+            {
+              "wall_ms": 185.2248,
+              "parent_peak_rss_bytes": 59207680,
+              "tree_peak_rss_bytes": 59207680,
+              "parent_delta_rss_bytes": 21004288,
+              "tree_delta_rss_bytes": 21004288
+            },
+            {
+              "wall_ms": 161.9648,
+              "parent_peak_rss_bytes": 69697536,
+              "tree_peak_rss_bytes": 69697536,
+              "parent_delta_rss_bytes": 31494144,
+              "tree_delta_rss_bytes": 31494144
+            }
+          ],
+          "median_wall_ms": 185.22,
+          "throughput_mib_s": 53.99,
+          "max_parent_peak_rss_bytes": 69697536,
+          "max_tree_peak_rss_bytes": 69697536,
+          "max_parent_delta_rss_bytes": 31494144,
+          "max_tree_delta_rss_bytes": 31494144,
+          "input_sha256": "6a71b244eeae6b492c1a5de1f369b24bec65222c3b7919c0adb864ff2854c3c6",
+          "first_output_sha256": "6a71b244eeae6b492c1a5de1f369b24bec65222c3b7919c0adb864ff2854c3c6",
+          "second_output_sha256": "6a71b244eeae6b492c1a5de1f369b24bec65222c3b7919c0adb864ff2854c3c6",
+          "idempotence_checked": true,
+          "idempotence_pass": true,
+          "fidelity_checked": false,
+          "fidelity_pass": false,
+          "budget_pass": true
+        },
+        "50MiB": {
+          "target_size_bytes": 52428800,
+          "actual_size_bytes": 52428800,
+          "production_allowed": true,
+          "status": "PASS",
+          "error_code": null,
+          "repetitions": 3,
+          "raw_runs": [
+            {
+              "wall_ms": 645.23,
+              "parent_peak_rss_bytes": 289902592,
+              "tree_peak_rss_bytes": 289902592,
+              "parent_delta_rss_bytes": 209756160,
+              "tree_delta_rss_bytes": 209756160
+            },
+            {
+              "wall_ms": 666.8544,
+              "parent_peak_rss_bytes": 289898496,
+              "tree_peak_rss_bytes": 289898496,
+              "parent_delta_rss_bytes": 209752064,
+              "tree_delta_rss_bytes": 209752064
+            },
+            {
+              "wall_ms": 627.0022,
+              "parent_peak_rss_bytes": 289902592,
+              "tree_peak_rss_bytes": 289902592,
+              "parent_delta_rss_bytes": 209756160,
+              "tree_delta_rss_bytes": 209756160
+            }
+          ],
+          "median_wall_ms": 645.23,
+          "throughput_mib_s": 77.49,
+          "max_parent_peak_rss_bytes": 289902592,
+          "max_tree_peak_rss_bytes": 289902592,
+          "max_parent_delta_rss_bytes": 209756160,
+          "max_tree_delta_rss_bytes": 209756160,
+          "input_sha256": "b0b2629aa021296ed4c2a40284a1a038397a131c6e43921424dd44610aadd8d0",
+          "first_output_sha256": "b0b2629aa021296ed4c2a40284a1a038397a131c6e43921424dd44610aadd8d0",
+          "second_output_sha256": "b0b2629aa021296ed4c2a40284a1a038397a131c6e43921424dd44610aadd8d0",
+          "idempotence_checked": true,
+          "idempotence_pass": true,
+          "fidelity_checked": false,
+          "fidelity_pass": false,
+          "budget_pass": true
+        },
+        "100MiB": {
+          "target_size_bytes": 104857600,
+          "actual_size_bytes": 104857600,
+          "production_allowed": true,
+          "status": "PASS",
+          "error_code": null,
+          "repetitions": 3,
+          "raw_runs": [
+            {
+              "wall_ms": 1186.0286,
+              "parent_peak_rss_bytes": 552042496,
+              "tree_peak_rss_bytes": 552042496,
+              "parent_delta_rss_bytes": 419467264,
+              "tree_delta_rss_bytes": 419467264
+            },
+            {
+              "wall_ms": 1175.6255,
+              "parent_peak_rss_bytes": 656904192,
+              "tree_peak_rss_bytes": 656904192,
+              "parent_delta_rss_bytes": 524328960,
+              "tree_delta_rss_bytes": 524328960
+            },
+            {
+              "wall_ms": 1158.7862,
+              "parent_peak_rss_bytes": 552042496,
+              "tree_peak_rss_bytes": 552042496,
+              "parent_delta_rss_bytes": 419467264,
+              "tree_delta_rss_bytes": 419467264
+            }
+          ],
+          "median_wall_ms": 1175.63,
+          "throughput_mib_s": 85.06,
+          "max_parent_peak_rss_bytes": 656904192,
+          "max_tree_peak_rss_bytes": 656904192,
+          "max_parent_delta_rss_bytes": 524328960,
+          "max_tree_delta_rss_bytes": 524328960,
+          "input_sha256": "c6ef5aa0a135b20343a77984c619e87f70d8b98dd9e0d8d0e1026f6ab183cb26",
+          "first_output_sha256": "c6ef5aa0a135b20343a77984c619e87f70d8b98dd9e0d8d0e1026f6ab183cb26",
+          "second_output_sha256": "c6ef5aa0a135b20343a77984c619e87f70d8b98dd9e0d8d0e1026f6ab183cb26",
+          "idempotence_checked": true,
+          "idempotence_pass": true,
+          "fidelity_checked": false,
+          "fidelity_pass": false,
+          "budget_pass": true
+        }
+      },
+      "time_scaling_alpha": 0.656,
+      "memory_scaling_alpha": 1.189,
+      "ratio_50_to_100_time": 1.82,
+      "ratio_50_to_100_rss": 2.5,
+      "overall_budget_status": "PASS"
+    },
+    {
+      "benchmark_id": "cli_docx_positive",
+      "canonical_policy": "docx",
+      "extension": "docx",
+      "execution_class": "CLI_END_TO_END",
+      "streaming_classification": "RAW_MEMBER_PASSTHROUGH",
+      "is_positive": true,
+      "is_cli": true,
+      "sizes_successful": [
+        1048576,
+        10485760,
+        52428800,
+        104857600
+      ],
+      "sizes_rejected": [],
+      "results_by_size": {
+        "1MiB": {
+          "target_size_bytes": 1048576,
+          "actual_size_bytes": 1049676,
+          "production_allowed": true,
+          "status": "PASS",
+          "error_code": null,
+          "repetitions": 3,
+          "raw_runs": [
+            {
+              "wall_ms": 459.5879,
+              "parent_peak_rss_bytes": 39268352,
+              "tree_peak_rss_bytes": 39268352,
+              "parent_delta_rss_bytes": 11825152,
+              "tree_delta_rss_bytes": 11825152
+            },
+            {
+              "wall_ms": 502.0321,
+              "parent_peak_rss_bytes": 40730624,
+              "tree_peak_rss_bytes": 40730624,
+              "parent_delta_rss_bytes": 11882496,
+              "tree_delta_rss_bytes": 11882496
+            },
+            {
+              "wall_ms": 434.1315,
+              "parent_peak_rss_bytes": 40292352,
+              "tree_peak_rss_bytes": 40292352,
+              "parent_delta_rss_bytes": 11833344,
+              "tree_delta_rss_bytes": 11833344
+            }
+          ],
+          "median_wall_ms": 459.59,
+          "throughput_mib_s": 2.18,
+          "max_parent_peak_rss_bytes": 40730624,
+          "max_tree_peak_rss_bytes": 40730624,
+          "max_parent_delta_rss_bytes": 11882496,
+          "max_tree_delta_rss_bytes": 11882496,
+          "input_sha256": "dbbf1636b431b57aa3d69e7c7fc97d0272de3ef2a3fe95bfa6ecab7a54407183",
+          "first_output_sha256": "ae3d50ace69e3a4e06fac7c6263b175fe926d04aef772fc323efed8674b8244f",
+          "second_output_sha256": "ae3d50ace69e3a4e06fac7c6263b175fe926d04aef772fc323efed8674b8244f",
+          "idempotence_checked": true,
+          "idempotence_pass": true,
+          "fidelity_checked": true,
+          "fidelity_pass": true,
+          "budget_pass": true
+        },
+        "10MiB": {
+          "target_size_bytes": 10485760,
+          "actual_size_bytes": 10486860,
+          "production_allowed": true,
+          "status": "PASS",
+          "error_code": null,
+          "repetitions": 3,
+          "raw_runs": [
+            {
+              "wall_ms": 1706.1457,
+              "parent_peak_rss_bytes": 144363520,
+              "tree_peak_rss_bytes": 144363520,
+              "parent_delta_rss_bytes": 106876928,
+              "tree_delta_rss_bytes": 106876928
+            },
+            {
+              "wall_ms": 1701.4119,
+              "parent_peak_rss_bytes": 154488832,
+              "tree_peak_rss_bytes": 154488832,
+              "parent_delta_rss_bytes": 106819584,
+              "tree_delta_rss_bytes": 106819584
+            },
+            {
+              "wall_ms": 1726.1655,
+              "parent_peak_rss_bytes": 155316224,
+              "tree_peak_rss_bytes": 155316224,
+              "parent_delta_rss_bytes": 106921984,
+              "tree_delta_rss_bytes": 106921984
+            }
+          ],
+          "median_wall_ms": 1706.15,
+          "throughput_mib_s": 5.86,
+          "max_parent_peak_rss_bytes": 155316224,
+          "max_tree_peak_rss_bytes": 155316224,
+          "max_parent_delta_rss_bytes": 106921984,
+          "max_tree_delta_rss_bytes": 106921984,
+          "input_sha256": "7b5507e9c80f399163e588a4b609ad44d8656aae422b06a831334cf6fb503f4f",
+          "first_output_sha256": "e5f0830d75c93e51482698f47655aafbc77b73d70bdbf7e76985525d702c6033",
+          "second_output_sha256": "e5f0830d75c93e51482698f47655aafbc77b73d70bdbf7e76985525d702c6033",
+          "idempotence_checked": true,
+          "idempotence_pass": true,
+          "fidelity_checked": true,
+          "fidelity_pass": true,
+          "budget_pass": true
+        },
+        "50MiB": {
+          "target_size_bytes": 52428800,
+          "actual_size_bytes": 52430020,
+          "production_allowed": true,
+          "status": "PASS",
+          "error_code": null,
+          "repetitions": 3,
+          "raw_runs": [
+            {
+              "wall_ms": 3701.591,
+              "parent_peak_rss_bytes": 606113792,
+              "tree_peak_rss_bytes": 606113792,
+              "parent_delta_rss_bytes": 526020608,
+              "tree_delta_rss_bytes": 526020608
+            },
+            {
+              "wall_ms": 3548.3919,
+              "parent_peak_rss_bytes": 657907712,
+              "tree_peak_rss_bytes": 657907712,
+              "parent_delta_rss_bytes": 526229504,
+              "tree_delta_rss_bytes": 526229504
+            },
+            {
+              "wall_ms": 4576.8409,
+              "parent_peak_rss_bytes": 658554880,
+              "tree_peak_rss_bytes": 658554880,
+              "parent_delta_rss_bytes": 526372864,
+              "tree_delta_rss_bytes": 526372864
+            }
+          ],
+          "median_wall_ms": 3701.59,
+          "throughput_mib_s": 13.51,
+          "max_parent_peak_rss_bytes": 658554880,
+          "max_tree_peak_rss_bytes": 658554880,
+          "max_parent_delta_rss_bytes": 526372864,
+          "max_tree_delta_rss_bytes": 526372864,
+          "input_sha256": "6d3e4fda9dfb36a588590a583156d79778c1f19f6731456570cf897ead769a6f",
+          "first_output_sha256": "e2f14b8ae4836f7e6ffe98f81bfdcbd1ce6770f39af06cbc5b6762e698c1a92e",
+          "second_output_sha256": "",
+          "idempotence_checked": false,
+          "idempotence_pass": false,
+          "fidelity_checked": true,
+          "fidelity_pass": true,
+          "budget_pass": false
+        },
+        "100MiB": {
+          "target_size_bytes": 104857600,
+          "actual_size_bytes": 104858940,
+          "production_allowed": true,
+          "status": "PASS",
+          "error_code": null,
+          "repetitions": 3,
+          "raw_runs": [
+            {
+              "wall_ms": 5564.7485,
+              "parent_peak_rss_bytes": 1182334976,
+              "tree_peak_rss_bytes": 1182334976,
+              "parent_delta_rss_bytes": 1049825280,
+              "tree_delta_rss_bytes": 1049825280
+            },
+            {
+              "wall_ms": 5394.2235,
+              "parent_peak_rss_bytes": 1286950912,
+              "tree_peak_rss_bytes": 1286950912,
+              "parent_delta_rss_bytes": 1050402816,
+              "tree_delta_rss_bytes": 1050402816
+            },
+            {
+              "wall_ms": 5203.7951,
+              "parent_peak_rss_bytes": 1287954432,
+              "tree_peak_rss_bytes": 1287954432,
+              "parent_delta_rss_bytes": 1051230208,
+              "tree_delta_rss_bytes": 1051230208
+            }
+          ],
+          "median_wall_ms": 5394.22,
+          "throughput_mib_s": 18.54,
+          "max_parent_peak_rss_bytes": 1287954432,
+          "max_tree_peak_rss_bytes": 1287954432,
+          "max_parent_delta_rss_bytes": 1051230208,
+          "max_tree_delta_rss_bytes": 1051230208,
+          "input_sha256": "d2ebffc9153a2b7eb3b120e0ca0b6e5d1700cf3d248282feda5c8eac2bc8341f",
+          "first_output_sha256": "49093866b9ff1124e9ecc575bbcdb584be729c5efe852b17a991ca543e0ac5ca",
+          "second_output_sha256": "",
+          "idempotence_checked": false,
+          "idempotence_pass": false,
+          "fidelity_checked": true,
+          "fidelity_pass": true,
+          "budget_pass": false
+        }
+      },
+      "time_scaling_alpha": 0.532,
+      "memory_scaling_alpha": 0.973,
+      "ratio_50_to_100_time": 1.46,
+      "ratio_50_to_100_rss": 2.0,
+      "overall_budget_status": "INVESTIGATE"
+    },
+    {
+      "benchmark_id": "cli_txt_positive",
+      "canonical_policy": "txt",
+      "extension": "txt",
+      "execution_class": "CLI_END_TO_END",
+      "streaming_classification": "FULL_BUFFER",
+      "is_positive": true,
+      "is_cli": true,
+      "sizes_successful": [
+        1048576,
+        10485760
+      ],
+      "sizes_rejected": [],
+      "results_by_size": {
+        "1MiB": {
+          "target_size_bytes": 1048576,
+          "actual_size_bytes": 1048576,
+          "production_allowed": true,
+          "status": "PASS",
+          "error_code": null,
+          "repetitions": 3,
+          "raw_runs": [
+            {
+              "wall_ms": 12311.0757,
+              "parent_peak_rss_bytes": 45907968,
+              "tree_peak_rss_bytes": 45907968,
+              "parent_delta_rss_bytes": 18108416,
+              "tree_delta_rss_bytes": 18108416
+            },
+            {
+              "wall_ms": 12156.7258,
+              "parent_peak_rss_bytes": 47046656,
+              "tree_peak_rss_bytes": 47046656,
+              "parent_delta_rss_bytes": 11632640,
+              "tree_delta_rss_bytes": 11632640
+            },
+            {
+              "wall_ms": 12002.501,
+              "parent_peak_rss_bytes": 47091712,
+              "tree_peak_rss_bytes": 47091712,
+              "parent_delta_rss_bytes": 11603968,
+              "tree_delta_rss_bytes": 11603968
+            }
+          ],
+          "median_wall_ms": 12156.73,
+          "throughput_mib_s": 0.08,
+          "max_parent_peak_rss_bytes": 47091712,
+          "max_tree_peak_rss_bytes": 47091712,
+          "max_parent_delta_rss_bytes": 18108416,
+          "max_tree_delta_rss_bytes": 18108416,
+          "input_sha256": "cc7318a7ae21efb9011e76ebd3bb46988b86fe2a0103e5830174d3a5dc5474eb",
+          "first_output_sha256": "7fc341398a9d4b90ba0944aaef382d375630db294f16f55fb2a1f74f10e81ad7",
+          "second_output_sha256": "7fc341398a9d4b90ba0944aaef382d375630db294f16f55fb2a1f74f10e81ad7",
+          "idempotence_checked": true,
+          "idempotence_pass": true,
+          "fidelity_checked": false,
+          "fidelity_pass": false,
+          "budget_pass": true
+        },
+        "10MiB": {
+          "target_size_bytes": 10485760,
+          "actual_size_bytes": 10485760,
+          "production_allowed": true,
+          "status": "PASS",
+          "error_code": null,
+          "repetitions": 3,
+          "raw_runs": [
+            {
+              "wall_ms": 119681.7601,
+              "parent_peak_rss_bytes": 169791488,
+              "tree_peak_rss_bytes": 169791488,
+              "parent_delta_rss_bytes": 125882368,
+              "tree_delta_rss_bytes": 125882368
+            },
+            {
+              "wall_ms": 128605.5292,
+              "parent_peak_rss_bytes": 180293632,
+              "tree_peak_rss_bytes": 180293632,
+              "parent_delta_rss_bytes": 125878272,
+              "tree_delta_rss_bytes": 125878272
+            },
+            {
+              "wall_ms": 121316.1949,
+              "parent_peak_rss_bytes": 173740032,
+              "tree_peak_rss_bytes": 173740032,
+              "parent_delta_rss_bytes": 119324672,
+              "tree_delta_rss_bytes": 119324672
+            }
+          ],
+          "median_wall_ms": 121316.19,
+          "throughput_mib_s": 0.08,
+          "max_parent_peak_rss_bytes": 180293632,
+          "max_tree_peak_rss_bytes": 180293632,
+          "max_parent_delta_rss_bytes": 125882368,
+          "max_tree_delta_rss_bytes": 125882368,
+          "input_sha256": "05e278ee690998b5b0ac7a94f39f326d9a61798a78df2256191e127b3a12a82c",
+          "first_output_sha256": "2bce8ef017249c4ee227d5848e1778298a383fd981af2c3007ccafcbddfa36f7",
+          "second_output_sha256": "2bce8ef017249c4ee227d5848e1778298a383fd981af2c3007ccafcbddfa36f7",
+          "idempotence_checked": true,
+          "idempotence_pass": true,
+          "fidelity_checked": false,
+          "fidelity_pass": false,
+          "budget_pass": true
+        }
+      },
+      "time_scaling_alpha": null,
+      "memory_scaling_alpha": null,
+      "ratio_50_to_100_time": null,
+      "ratio_50_to_100_rss": null,
+      "overall_budget_status": "PASS"
+    }
+  ],
+  "batch_workload": {
+    "workload": "10x10MiB + 1x50MiB_rejection",
+    "wall_ms": 15587.63,
+    "successful_items": 10,
+    "expected_limit_rejected_items": 1,
+    "parent_peak_rss_bytes": 291418112,
+    "tree_peak_rss_bytes": 291418112,
+    "parent_delta_rss_bytes": 200847360,
+    "tree_delta_rss_bytes": 200847360,
+    "fault_isolation_pass": true
+  },
+  "breadth_smoke": {
+    "docx": {
+      "status": "CLEANED",
+      "wall_ms": 278.52,
+      "pass": true
+    },
+    "odt": {
+      "status": "CLEANED",
+      "wall_ms": 112.85,
+      "pass": true
+    },
+    "txt": {
+      "status": "CLEANED",
+      "wall_ms": 7205.57,
+      "pass": true
+    },
+    "xlsx": {
+      "status": "CLEANED",
+      "wall_ms": 28.03,
+      "pass": true
+    }
+  },
+  "memory_leak_probe": {
+    "runs": 10,
+    "baseline_rss_sequence_bytes": [
+      37625856,
+      41185280,
+      43876352,
+      43872256,
+      43872256,
+      43872256,
+      43872256,
+      43872256,
+      43872256,
+      43872256,
+      43872256
+    ],
+    "growth_bytes": -4096,
+    "leak_detected": false,
+    "status": "PASS"
+  }
+}

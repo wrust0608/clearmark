@@ -12,7 +12,7 @@ Measures:
    - Class C: SECOND OPC ADAPTER (xlsx)
    - Class D: GENERIC ZIP/XML CONTAINER (odt)
    - Class E: CHUNK/CONTAINER IMAGE METADATA (png)
-   - Class F: EXTERNAL AV TOOLCHAIN (wav with ffmpeg)
+   - Class F: AUDIO RIFF IN-PROCESS (wav RIFF chunk stripping)
 6. CLI end-to-end processing.
 7. Batch processing (10 x 10 MiB) and expected limit rejection.
 8. Breadth smoke across canonical formats.
@@ -115,11 +115,29 @@ CLOSURE_GUARDRAILS = {
         "metric": "parent_delta",
         "rationale": "Streaming chunk filtering with full output byte assembly",
     },
+    "IMAGE_CHUNK": {
+        "multiplier": 5.0,
+        "base_bytes": 96 * 1024 * 1024,
+        "metric": "parent_delta",
+        "rationale": "Streaming chunk filtering with full output byte assembly",
+    },
+    "AUDIO_RIFF_IN_PROCESS": {
+        "multiplier": 5.0,
+        "base_bytes": 96 * 1024 * 1024,
+        "metric": "parent_delta",
+        "rationale": "In-process RIFF chunk filtering with bytearray assembly",
+    },
+    "EXTERNAL_PROCESS": {
+        "multiplier": 4.0,
+        "base_bytes": 256 * 1024 * 1024,
+        "metric": "tree_delta",
+        "rationale": "Subprocess tree RSS for external toolchains (not applicable to canonical clean paths)",
+    },
     "EXTERNAL_AV": {
         "multiplier": 4.0,
         "base_bytes": 256 * 1024 * 1024,
         "metric": "tree_delta",
-        "rationale": "Subprocess tree RSS for external audio/video toolchain",
+        "rationale": "Legacy label retained for backward-compatibility",
     },
 }
 
@@ -695,8 +713,8 @@ class BenchmarkEngine:
         idempotence_checked = False
         idempotence_pass = False
 
-        # Idempotence verification (tested on <= 50 MiB, skip 2nd pass on expensive text >= 50 MiB per Section 41)
-        if (ext != "txt" and actual_size <= SIZE_50_MIB) or (ext == "txt" and actual_size <= SIZE_10_MIB) or not positive:
+        # Idempotence verification (tested on all PNG sizes, OOXML <= 50 MiB, skip 2nd pass on expensive text >= 50 MiB per Section 41)
+        if ext == "png" or (ext != "txt" and actual_size <= SIZE_50_MIB) or (ext == "txt" and actual_size <= SIZE_10_MIB) or not positive:
             cleaned2, rep2 = self.pipeline.clean(last_cleaned, filename=f"bench_input.{ext}")
             second_out_sha = hashlib.sha256(cleaned2).hexdigest()
             idempotence_checked = True
@@ -943,6 +961,7 @@ class BenchmarkEngine:
             ("xlsx", [SIZE_50_MIB, SIZE_100_MIB], "XLSX_OPC_TREE"),
             ("odt", [SIZE_50_MIB, SIZE_100_MIB], "ODF_PACKAGE"),
             ("png", [SIZE_50_MIB, SIZE_100_MIB], "CHUNKED_IMAGE"),
+            ("wav", [SIZE_50_MIB, SIZE_100_MIB], "AUDIO_RIFF_IN_PROCESS"),
         ]
         results = {}
         for ext, sizes, eclass in closure_specs:
@@ -1088,9 +1107,9 @@ def run_benchmarks(quick: bool = False, output_json: Path | None = None) -> dict
         # Class E: CHUNK/IMAGE (PNG)
         ("png_positive", "png", "png", "IMAGE_CHUNK", "STREAMING_INPUT_FULL_OUTPUT", True, False),
         ("png_nochange", "png", "png", "IMAGE_CHUNK", "STREAMING_INPUT_FULL_OUTPUT", False, False),
-        # Class F: EXTERNAL AV (WAV)
-        ("wav_positive", "audio", "wav", "EXTERNAL_AV", "EXTERNAL_PROCESS", True, False),
-        ("wav_nochange", "audio", "wav", "EXTERNAL_AV", "EXTERNAL_PROCESS", False, False),
+        # Class F: AUDIO RIFF (WAV) - In-process RIFF chunk stripping
+        ("wav_positive", "audio", "wav", "AUDIO_RIFF_IN_PROCESS", "STREAMING_INPUT_FULL_OUTPUT", True, False),
+        ("wav_nochange", "audio", "wav", "AUDIO_RIFF_IN_PROCESS", "STREAMING_INPUT_FULL_OUTPUT", False, False),
         # CLI End-to-End representative runs
         ("cli_docx_positive", "docx", "docx", "CLI_END_TO_END", "RAW_MEMBER_PASSTHROUGH", True, True),
         ("cli_txt_positive", "txt", "txt", "CLI_END_TO_END", "FULL_BUFFER", True, True),
