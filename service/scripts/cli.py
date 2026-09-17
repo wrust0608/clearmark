@@ -50,13 +50,13 @@ from pipeline_types import (
 
 class ExitCode(IntEnum):
     SUCCESS = 0
-    BATCH_PARTIAL_SUCCESS = 1
     UNSUPPORTED = 2
-    BATCH_FATAL_SETUP = 2
     VALIDATION_FAILED = 3
     INVALID_INPUT = 4
     DEPENDENCY_MISSING = 5
     LIMIT_EXCEEDED = 6
+    BATCH_PARTIAL_FAILURE = 7
+    BATCH_PARTIAL_SUCCESS = 7  # Backward compatibility alias
     INTERNAL_ERROR = 10
 
 
@@ -569,16 +569,31 @@ def cmd_batch(args: argparse.Namespace) -> int:
     except BatchLimitExceededError as e:
         return _emit_error(
             str(e),
-            ExitCode.UNSUPPORTED,
+            ExitCode.LIMIT_EXCEEDED,
             as_json=args.json,
             error_code="LIMIT_EXCEEDED",
         )
-    except Exception as e:
+    except (ValueError, FileNotFoundError) as e:
         return _emit_error(
-            f"Batch initialization error: {e}",
+            f"Batch configuration error: {e}",
             ExitCode.INVALID_INPUT,
             as_json=args.json,
             error_code="INVALID_INPUT",
+        )
+    except Exception as e:
+        return _emit_error(
+            f"Internal batch setup error: {e}",
+            ExitCode.INTERNAL_ERROR,
+            as_json=args.json,
+            error_code="INTERNAL_ERROR",
+        )
+
+    if report.summary.total == 0:
+        return _emit_error(
+            "No input files found or discovered.",
+            ExitCode.INVALID_INPUT,
+            as_json=args.json,
+            error_code="NO_INPUTS",
         )
 
     if args.json:
@@ -604,17 +619,42 @@ def cmd_batch(args: argparse.Namespace) -> int:
                 err_info = f" ({item.error_code}: {item.error_message_safe})" if item.error_code else ""
                 print(f"[{item.index + 1}/{report.summary.total}] {item.input_path}: {item.status}{out_info}{err_info} ({item.elapsed_ms:.1f} ms)")
 
-    if report.summary.total == 0:
-        return ExitCode.BATCH_FATAL_SETUP
+    # Aggregate Exit Code Mapping (Section 6)
+    # 1. All success / inspected / no change
+    if (report.summary.cleaned + report.summary.no_change + report.summary.inspected) == report.summary.total:
+        return ExitCode.SUCCESS
 
-    has_failures = (
-        report.summary.errors > 0
-        or report.summary.validation_failed > 0
-        or report.summary.unsupported > 0
-    )
-    if has_failures:
-        return ExitCode.BATCH_PARTIAL_SUCCESS
-    return ExitCode.SUCCESS
+    # 2. Homogeneous all unsupported
+    if report.summary.unsupported == report.summary.total:
+        return ExitCode.UNSUPPORTED
+
+    # 3. Homogeneous all validation failed
+    if report.summary.validation_failed == report.summary.total:
+        return ExitCode.VALIDATION_FAILED
+
+    # 4. Homogeneous all single-file limit exceeded
+    if (
+        report.summary.errors == report.summary.total
+        and all(it.error_code == "PROCESSING_LIMIT_EXCEEDED" for it in report.items)
+    ):
+        return ExitCode.LIMIT_EXCEEDED
+
+    # 5. Homogeneous all dependency missing
+    if (
+        report.summary.errors == report.summary.total
+        and all(it.error_code == "OPTIONAL_DEPENDENCY_MISSING" for it in report.items)
+    ):
+        return ExitCode.DEPENDENCY_MISSING
+
+    # 6. Homogeneous all invalid / malformed / not found
+    if (
+        report.summary.errors == report.summary.total
+        and all(it.error_code in ("INVALID_CONTAINER", "UNSUPPORTED_ARCHIVE_FEATURE", "FILE_NOT_FOUND") for it in report.items)
+    ):
+        return ExitCode.INVALID_INPUT
+
+    # 7. Mixed partial failure (any combination of successes and failures, or mixed failures)
+    return ExitCode.BATCH_PARTIAL_FAILURE
 
 
 class CanonicalArgumentParser(argparse.ArgumentParser):
