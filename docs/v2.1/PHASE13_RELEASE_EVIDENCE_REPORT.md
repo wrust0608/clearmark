@@ -138,7 +138,43 @@ Suite: `tests/test_release_evidence.py`
 
 ---
 
-## 7. Production Source Changes
+---
+
+## 7. Canonical Full Evidence Result
+
+Canonical execution of the automated release evidence suite:
+- **Command**: `python tools/build_release_evidence.py --full`
+- **Process Exit Code**: `0`
+- **Current HEAD**: `32e1a2c3afae7d6b738630787ce4d2f7b3640c56`
+- **Git Clean Working Tree**: `True` (`YES`)
+- **Overall Status**: **`PASS`**
+- **RELEASE_READY**: **`true`**
+- **Bundle Destination**: `artifacts/v2.1/release_evidence/`
+- **Manifest Entry Count**: `7` files (`CAPABILITIES.json`, `HASHES.json`, `LIMITS.json`, `PROVENANCE.json`, `release_evidence.json`, `release_evidence.md`, `TEST_RESULTS.json`)
+- **Manifest File Hash Verification**: **`PASS`** (0 missing files, 0 hash mismatches)
+- **MANIFEST.sha256 Verification**: **`PASS`** (`bbc202fdf1cbe3d30c0c47bf983a69227ee4a0499cce92fa9bd9b3063bcc9bb8` matches `MANIFEST.json`)
+- **Deterministic Rerun Result**: **`PASS`** (Run 1 vs Run 2 identical across all deterministic keys: capabilities, limits, contracts, provenance, hashes, test suite counts/status, manifest file list)
+- **Privacy Audit**: **`PASS`** (0 sensitive findings across absolute paths, usernames, home roots, temporary directories, body sentinels, secrets)
+- **Network Audit**: **`PASS`** (0 external network attempts; monkeypatched socket tests verify zero egress)
+- **DOCX Frozen Core Integrity**: **`PASS`** (`git diff v2.0.0 -- service/scripts/docx/` is EMPTY; Golden & Candidate DOCX fixture hashes MATCH)
+
+### Executed Test Suites (Canonical Full Mode)
+
+| Suite | Passed | Skipped | Failed | Warnings | Duration | Status |
+|:---|:---|:---|:---|:---|:---|:---|
+| `release_evidence_unit_tests` | 16 | 0 | 0 | 0 | 0.81s | **PASS** |
+| `phase4_batch_contract` | 23 | 0 | 0 | 0 | 2.37s | **PASS** |
+| `phase9_security` | 141 | 0 | 0 | 0 | 1.26s | **PASS** |
+| `phase10_idempotence` | 139 | 0 | 0 | 0 | 7.71s | **PASS** |
+| `phase12_docs_consistency` | 17 | 0 | 0 | 0 | 0.14s | **PASS** |
+| `format_lossless_regressions` | 135 | 0 | 0 | 0 | 12.21s | **PASS** |
+| `performance_harness` | 11 | 0 | 0 | 0 | 40.40s | **PASS** |
+| `capabilities_and_api_contract` | 44 | 0 | 0 | 0 | 5.53s | **PASS** |
+| `canonical_full_pytest` | 1968 | 152 | 0 | 0 | 146.52s | **PASS** |
+
+---
+
+## 8. Production Source Changes
 
 **NONE**. No code files in `service/` or `service/scripts/` were modified.
 All additions were restricted to:
@@ -151,8 +187,11 @@ All additions were restricted to:
 
 ---
 
-## 8. Commit Provenance
+## 9. Commit Provenance
 
 - **Release Evidence Builder Commit**: `53e65b6f3a7eb7ec882b453e1a6beaa53a2ef565`
-- **Phase 13 Evidence Closure Commit**: `e3cca1a7ad4bb1b12b23023e32bdf55959952549`
+- **Prior Evidence Closure Commit**: `e3cca1a7ad4bb1b12b23023e32bdf55959952549`
+- **Builder Suite Improvement Commit**: `32e1a2c3afae7d6b738630787ce4d2f7b3640c56`
+- **Phase 14 Status**: **NOT STARTED**
+
 

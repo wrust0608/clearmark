@@ -33,25 +33,25 @@
       "path": "release_evidence.json",
       "purpose": "Generated release evidence artifact release_evidence.json",
       "schema_version": "1.0",
-      "sha256": "f8bd7863d354dbb8fd2aee8a0e99151e2809c77c52c65f5ebe29b0bca2c90be4",
-      "size_bytes": 39463
+      "sha256": "1b2ebecebb8206db855367fb49d469fc29432117f9368b0df73688a38bd18ca8",
+      "size_bytes": 39843
     },
     {
       "path": "release_evidence.md",
       "purpose": "Generated release evidence artifact release_evidence.md",
       "schema_version": "1.0",
-      "sha256": "4a7c84dce8bb2f54e38c62d7d82b90fafb25625ee505a7ba9b33fd8c4c5366cb",
-      "size_bytes": 2206
+      "sha256": "7487910ea9446c00a7396ffd2963550aa23065b4b84facddf845aba324976cd7",
+      "size_bytes": 2272
     },
     {
       "path": "TEST_RESULTS.json",
       "purpose": "Generated release evidence artifact TEST_RESULTS.json",
       "schema_version": "1.0",
-      "sha256": "ec42a4db2d2cb65fc9c0d69aec75bfea1fe241843d0be510919e1e7cfe2b3a14",
-      "size_bytes": 2892
+      "sha256": "f7da397889bf4bd7c02457b593e916e7a1e0ff53fcdab2234261987acc37830e",
+      "size_bytes": 3244
     }
   ],
-  "generated_at_utc": "2026-09-17T14:46:42Z",
+  "generated_at_utc": "2026-09-17T18:23:13Z",
   "schema_version": "1.0",
   "target_release": "v2.1.0"
 }

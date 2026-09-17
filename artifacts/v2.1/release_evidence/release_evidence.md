@@ -1,6 +1,6 @@
 # ClearMark v2.1 Release Evidence Report
 
-- **Generated At (UTC)**: `2026-09-17T14:46:42Z`
+- **Generated At (UTC)**: `2026-09-17T18:23:13Z`
 - **Schema Version**: `1.0`
 - **Target Release**: `v2.1.0`
 - **Execution Mode**: `full`
@@ -11,7 +11,7 @@
 
 ## 1. Git Repository State
 
-- **HEAD Commit**: `3d3657a783a3a511502b5bcad2dba6dd263ba504`
+- **HEAD Commit**: `32e1a2c3afae7d6b738630787ce4d2f7b3640c56`
 - **Branch**: `v2.1-dev`
 - **Clean Working Tree**: `True`
 - **v2.0.0 Baseline Commit**: `758d3085b8868566209a82ea981a32aa61147a44`
@@ -36,14 +36,15 @@
 
 | Suite | Passed | Skipped | Failed | Duration | Status |
 |:---|:---|:---|:---|:---|:---|
-| `canonical_full_pytest` | 1968 | 152 | 0 | 113.02s | **PASS** |
-| `capabilities_and_api_contract` | 44 | 0 | 0 | 5.12s | **PASS** |
-| `format_lossless_regressions` | 135 | 0 | 0 | 12.33s | **PASS** |
-| `performance_harness` | 11 | 0 | 0 | 22.23s | **PASS** |
-| `phase10_idempotence` | 139 | 0 | 0 | 6.13s | **PASS** |
-| `phase12_docs_consistency` | 17 | 0 | 0 | 0.16s | **PASS** |
-| `phase4_batch_contract` | 23 | 0 | 0 | 2.39s | **PASS** |
-| `phase9_security` | 141 | 0 | 0 | 1.36s | **PASS** |
+| `canonical_full_pytest` | 1968 | 152 | 0 | 146.52s | **PASS** |
+| `capabilities_and_api_contract` | 44 | 0 | 0 | 5.53s | **PASS** |
+| `format_lossless_regressions` | 135 | 0 | 0 | 12.21s | **PASS** |
+| `performance_harness` | 11 | 0 | 0 | 40.4s | **PASS** |
+| `phase10_idempotence` | 139 | 0 | 0 | 7.71s | **PASS** |
+| `phase12_docs_consistency` | 17 | 0 | 0 | 0.14s | **PASS** |
+| `phase4_batch_contract` | 23 | 0 | 0 | 2.37s | **PASS** |
+| `phase9_security` | 141 | 0 | 0 | 1.26s | **PASS** |
+| `release_evidence_unit_tests` | 16 | 0 | 0 | 0.81s | **PASS** |
 
 ---
 
