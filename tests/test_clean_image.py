@@ -294,3 +294,33 @@ def test_webp_size_mismatch_is_not_rewritten():
         assert "size mismatch" in str(error)
     else:
         raise AssertionError("WebP with a size mismatch should not be rewritten")
+
+
+def test_png_private_chunk_accidental_marker_is_not_deleted():
+    """Ensure unrecognized private/ancillary PNG chunks with accidental marker substrings are preserved."""
+    base_clean = (
+        b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01"
+        b"\x08\x06\x00\x00\x00\x1f\x15c4\x00\x00\x00\nIDATx\x9cc\x00\x01\x00\x00\x05\x00\x01\r\n-\xb4"
+        b"\x00\x00\x00\x00IEND\xaeB\x60\x82"
+    )
+    iend_pos = base_clean.find(b"IEND") - 4
+
+    # Private ancillary chunk with accidental 'cai:' and 'c2ma' collision in non-C2PA binary data
+    payload = b"arbitrary-binary-payload-cai:-and-c2ma-collision-without-jumbf-container"
+    chunk_type = b"prNd"
+    crc = zlib.crc32(chunk_type + payload) & 0xFFFFFFFF
+    chunk = struct.pack(">I", len(payload)) + chunk_type + payload + struct.pack(">I", crc)
+    png_data = base_clean[:iend_pos] + chunk + base_clean[iend_pos:]
+
+    # 1. Direct strip_png preserves chunk
+    cleaned, actions = strip_png(png_data)
+    assert cleaned == png_data
+    assert not any("drop chunk prNd" in a for a in actions)
+
+    # 2. Pipeline.clean treats as NO_CHANGE_REQUIRED without data loss
+    from pipeline import Pipeline, PipelineStatus
+    pipe = Pipeline()
+    pipe_cleaned, rep = pipe.clean(png_data, filename="benign_private.png")
+    assert rep.status == PipelineStatus.NO_CHANGE_REQUIRED
+    assert pipe_cleaned == png_data
+

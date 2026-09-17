@@ -380,6 +380,7 @@ def inspect_png(data: bytes) -> tuple[bool, bool, list[str]]:
     if not data.startswith(PNG_SIG):
         return False, False, ["not a PNG"]
     pos = 8
+    reached_iend = False
     while pos + 8 <= len(data):
         length = struct.unpack(">I", data[pos : pos + 4])[0]
         ctype = data[pos + 4 : pos + 8]
@@ -394,6 +395,9 @@ def inspect_png(data: bytes) -> tuple[bool, bool, list[str]]:
         if ctype in (b"caBX", b"juMB", b"jumb") or ctype.startswith(b"c2"):
             has_c2pa = True
             findings.append(f"PNG chunk {name} (possible C2PA container)")
+        elif len(payload) >= 8 and (payload[4:8].lower() == b"jumb" or payload[:4].lower() == b"jumb"):
+            has_c2pa = True
+            findings.append(f"PNG chunk {name} (JUMBF container header)")
         if ctype in (b"tEXt", b"zTXt", b"iTXt", b"eXIf"):
             if ctype in (b"tEXt", b"zTXt", b"iTXt"):
                 try:
@@ -415,13 +419,15 @@ def inspect_png(data: bytes) -> tuple[bool, bool, list[str]]:
                     parts.append(f"AI generator ({', '.join(product_hits[:8])})")
                 findings.append(f"PNG {name}: {'; '.join(parts)}")
         if ctype == b"IEND":
+            reached_iend = True
             break
         pos = chunk_end + 4  # skip CRC
-    # Whole-file scan fallback
-    whole = _contains_any(data, C2PA_MARKERS)
-    if whole and not has_c2pa:
-        has_c2pa = True
-        findings.append(f"byte-scan C2PA markers: {', '.join(whole[:6])}")
+    # Whole-file scan fallback only if chunk parsing was incomplete / truncated
+    if not reached_iend and not has_c2pa:
+        whole = _contains_any(data, C2PA_MARKERS)
+        if whole:
+            has_c2pa = True
+            findings.append(f"byte-scan C2PA markers: {', '.join(whole[:6])}")
     return has_c2pa, has_ai or has_c2pa, findings
 
 
@@ -1957,7 +1963,14 @@ def strip_png(data: bytes, *, strip_all_text: bool = True) -> tuple[bytes, list[
         name = ctype.decode("latin-1", errors="replace")
 
         drop = False
-        if ctype in (b"eXIf", b"caBX") or ctype.startswith(b"c2"):
+        is_c2pa_chunk = (
+            ctype in (b"eXIf", b"caBX", b"juMB", b"jumb")
+            or ctype.lower().startswith(b"c2")
+        )
+        has_jumbf_header = len(payload) >= 8 and (
+            payload[4:8].lower() == b"jumb" or payload[:4].lower() == b"jumb"
+        )
+        if is_c2pa_chunk:
             drop = True
             actions.append(f"drop chunk {name}")
         elif ctype in (b"tEXt", b"zTXt", b"iTXt"):
@@ -1969,7 +1982,7 @@ def strip_png(data: bytes, *, strip_all_text: bool = True) -> tuple[bytes, list[
             else:
                 if drop:
                     actions.append(f"drop chunk {name}")
-        elif _contains_any(ctype + payload, C2PA_MARKERS) and ctype not in (
+        elif has_jumbf_header and ctype not in (
             b"IHDR",
             b"IDAT",
             b"IEND",
@@ -1982,7 +1995,7 @@ def strip_png(data: bytes, *, strip_all_text: bool = True) -> tuple[bytes, list[
             b"iCCP",
         ):
             drop = True
-            actions.append(f"drop chunk {name} (C2PA marker in payload)")
+            actions.append(f"drop chunk {name} (C2PA JUMBF container)")
 
         if not drop:
             out.extend(struct.pack(">I", length) + ctype + payload + crc_bytes)
