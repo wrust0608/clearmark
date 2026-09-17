@@ -5,7 +5,7 @@
 **Budget & Sampler Closure Commit**: `7bba59fa4714a63852940abc550350b981be69a1`  
 **Evidence & Documentation Closure Commit**: `841e6e18fbf79069d2a2333cfc8764049875f308`  
 **Production Defect Fix Commit**: `70d2f9e0ebefddca34e626e632b07e8ebec9bf96` (`fix(image): prevent unverified PNG provenance chunk removal`)  
-**Execution-Path & Evidence Closure Commit**: `115178a` (`test(perf): close Phase 11 execution-path and PNG evidence gaps`)  
+**Execution-Path & Evidence Closure Commit**: `115178a1c1e18107bc2b3f67d9175c06d2dea7c2` (`test(perf): close Phase 11 execution-path and PNG evidence gaps`)  
 **DOCX Frozen Core Gate**: `git diff v2.0.0 -- service/scripts/docx/` **EMPTY** (0 lines modified)  
 **Golden & Candidate DOCX Hashes**: **MATCH**  
 - Golden SHA256: `c05ca5c1be3b020b75d5763cf22061879a255b3c4f57b0455ae562b54809f58d` (VERIFIED)  
