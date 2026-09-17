@@ -24,3 +24,16 @@
 - **SHA256SUMS**: Recorded in `dist/release/SHA256SUMS.txt`
 - **Build Manifest**: Recorded in `dist/release/DESKTOP_BUILD_MANIFEST.json`
 - **Build Provenance**: Recorded in `dist/release/DESKTOP_BUILD_PROVENANCE.json`
+
+## Post-Publish Verification
+
+- **GitHub Publish Status**: PUBLISHED / VERIFIED
+- **Release URL**: https://github.com/wrust0608/clearmark/releases/tag/v2.2.0-rc1
+- **RC1 Tag**: `v2.2.0-rc1`
+- **RC1 Tag Target**: `26244b3118f1b1d1cea7e4d2c1dfd9d814615125`
+- **Downloaded Installer SHA256**: `cb469d1be8e650043e6440f9e7716f29cb5d46e39f123c589dac4c05865a44a5`
+- **Downloaded Portable SHA256**: `41fff9d8320e196fc4306051d501b9cc6db20c439e4822ce752723d642d25e0b`
+- **Transport Integrity**: PASS
+- **Portable Remote Smoke**: PASS
+- **Installer Remote Smoke**: DEFERRED_TO_RC_ACCEPTANCE
+
