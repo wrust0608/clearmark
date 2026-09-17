@@ -6,7 +6,7 @@
 **Hypothesis Availability**: **NO** (`ModuleNotFoundError: No module named 'hypothesis'`; custom deterministic generator selected; minimal deterministic regressions added manually when issues are found)  
 **Phase 10 Implementation/Test Commit**: `c13b02a0110a783d3fb8382bf11070ed41ef9799`  
 **Phase 10 Capability & Provenance Closure Commit**: `15e856f0ead38d69ce2959e1d510ab55e6f1c9be`  
-**Phase 10 Final Public-Contract Closure Commit**: *To be committed upon contract closure completion*  
+**Phase 10 Final Public-Contract Closure Commit**: `4fc81aae8d1e389ad3f39a04f21db7c828236294`  
 **DOCX Frozen Core Gate**: `git diff v2.0.0 -- service/scripts/docx/` **EMPTY** (0 lines changed)  
 **Golden & Candidate DOCX Hashes**: **MATCH**  
 - Golden SHA256: `c05ca5c1be3b020b75d5763cf22061879a255b3c4f57b0455ae562b54809f58d`  
