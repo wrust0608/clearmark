@@ -3,7 +3,8 @@
 | Field | Value |
 | :--- | :--- |
 | **Release Candidate** | ClearMark v2.1.0-RC1 |
-| **Release-Engineering HEAD** | Target of tag `v2.1.0-rc1` (`v2.1-dev` HEAD) |
+| **Release-Engineering HEAD at handoff preparation** | `6868391270d0dc0981363ae379851be63126c719` |
+| **Release-Engineering Tag Target** | Tag `v2.1.0-rc1` (resolves to finalized release commit) |
 | **Source Commit** | `32e1a2c3afae7d6b738630787ce4d2f7b3640c56` |
 | **Phase 14 Full Audit Closure Hash** | `89e34d113182a04ab48005796d45f9714d69eb7e` |
 | **Package Filename** | `FINAL_REVIEW_PACKAGE_v2.1.0-RC1.zip` |
@@ -14,7 +15,7 @@
 | **Canonical Pytest** | 1990 passed, 152 skipped, 0 failed, 0 warnings (124.99s) |
 | **rc_ready** | `true` |
 | **READY_TO_TAG** | `true` |
-| **Remote Publish Status** | `NO` (awaiting human approval) |
+| **Remote Publish Status** | AUTHORIZED / IN PROGRESS |
 
 ---
 
@@ -35,6 +36,5 @@
    - SHA256 match verified against `FINAL_REVIEW_PACKAGE_v2.1.0-RC1.zip.sha256`.
 
 4. **Tag & Publish Status**:
-   - Annotated tag `v2.1.0-rc1` prepared.
-   - Zero remote actions executed.
-   - Awaiting human review and approval.
+   - Annotated tag `v2.1.0-rc1` prepared and authorized.
+   - Remote publish to GitHub Releases authorized.
