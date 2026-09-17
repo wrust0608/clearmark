@@ -1,0 +1,117 @@
+[
+  {
+    "tag": "v2.2.0-rc1",
+    "release_title": "ClearMark v2.2.0 RC1 — Windows Desktop",
+    "prerelease": true,
+    "release_url": "https://github.com/wrust0608/clearmark/releases/tag/v2.2.0-rc1",
+    "tag_target": "26244b3118f1b1d1cea7e4d2c1dfd9d814615125",
+    "publication_timestamp": "2026-09-17T23:17:54Z",
+    "assets": [
+      {
+        "name": "ClearMark-Setup-v2.2.0-rc1.exe",
+        "size": 10685804,
+        "digest": "sha256:cb469d1be8e650043e6440f9e7716f29cb5d46e39f123c589dac4c05865a44a5"
+      },
+      {
+        "name": "ClearMark-v2.2.0-rc1-Windows-x64-portable.zip",
+        "size": 11301822,
+        "digest": "sha256:41fff9d8320e196fc4306051d501b9cc6db20c439e4822ce752723d642d25e0b"
+      },
+      {
+        "name": "DESKTOP_ACCEPTANCE_REPORT.md",
+        "size": 5085,
+        "digest": "sha256:6cf0ab3cc830fc5e13023ed0344b922cfedb96409b6d5d408451d8a1d0272e08"
+      },
+      {
+        "name": "DESKTOP_BUILD_MANIFEST.json",
+        "size": 1191,
+        "digest": "sha256:cf0bafb878733d7ca02cf33929d8d546b87f0a879c6dd1289fd5a7dd1fc1e4fe"
+      },
+      {
+        "name": "DESKTOP_BUILD_PROVENANCE.json",
+        "size": 858,
+        "digest": "sha256:caaf880b7ee8574383ecb9874c4175f42a4f50416acb3d5eec0e672dbab11c08"
+      },
+      {
+        "name": "SHA256SUMS.txt",
+        "size": 211,
+        "digest": "sha256:2990810b163ce91837ced42dff7003a47126390c2aec4e423bba23ea63df427d"
+      }
+    ]
+  },
+  {
+    "tag": "v2.1.0",
+    "release_title": "ClearMark v2.1.0",
+    "prerelease": false,
+    "release_url": "https://github.com/wrust0608/clearmark/releases/tag/v2.1.0",
+    "tag_target": "7a479f97ee0f034080e93beaf74e86d526956991",
+    "publication_timestamp": "2026-09-17T22:10:29Z",
+    "assets": [
+      {
+        "name": "FINAL_RELEASE_PACKAGE_v2.1.0.zip",
+        "size": 2039742,
+        "digest": "sha256:6e58055c49e94abe3437048d78affa53fbf0a34e5992e50621b6c50751ac79f1"
+      },
+      {
+        "name": "FINAL_RELEASE_PACKAGE_v2.1.0.zip.sha256",
+        "size": 100,
+        "digest": "sha256:8c8c0dab3ade9364ccbd5545a5d892253be1448405bcb2220c91b85a38c7181e"
+      },
+      {
+        "name": "PACKAGE_AUDIT.json",
+        "size": 1562,
+        "digest": "sha256:fa95a2045228360b9bb11d88409bb058195504b4f38a60bd07621847a7265c15"
+      },
+      {
+        "name": "PACKAGE_CONTENTS.txt",
+        "size": 29960,
+        "digest": "sha256:551ae166cbdd2c65b42895ead14ef4bae1cc58fa1616b3280d4a50e5f91f68f5"
+      },
+      {
+        "name": "STABLE_RELEASE_MANIFEST.json",
+        "size": 1266,
+        "digest": "sha256:0e9d9b326d1a036072711521030b444262dc5bf11501c7ba4cc77374baecd232"
+      },
+      {
+        "name": "STABLE_RELEASE_PROVENANCE.json",
+        "size": 1355,
+        "digest": "sha256:b67da12148d12d51ded78dc6a738fd84befd306b6818d9c5916e887eba76329d"
+      },
+      {
+        "name": "STABLE_VS_RC1_DIFF.json",
+        "size": 1123,
+        "digest": "sha256:d1f5c9d69cf2f5e47c978b20374c49d6293f5adaca94cccd4fc14932324c9914"
+      }
+    ]
+  },
+  {
+    "tag": "v2.1.0-rc1",
+    "release_title": "ClearMark v2.1.0 RC1",
+    "prerelease": true,
+    "release_url": "https://github.com/wrust0608/clearmark/releases/tag/v2.1.0-rc1",
+    "tag_target": "9ecfea135f7b871f226313bfc7f101d07f578d3b",
+    "publication_timestamp": "2026-09-17T20:17:37Z",
+    "assets": [
+      {
+        "name": "FINAL_REVIEW_PACKAGE_v2.1.0-RC1.zip",
+        "size": 2043966,
+        "digest": "sha256:33616f74730a0e026efa751d1fb5d86d5f310e2d66f6de3d34afec3635d716d9"
+      },
+      {
+        "name": "FINAL_REVIEW_PACKAGE_v2.1.0-RC1.zip.sha256",
+        "size": 103,
+        "digest": "sha256:008193e02ca824fb91750c6885b83a57875bd51062000f436bda5a6345631430"
+      },
+      {
+        "name": "PACKAGE_AUDIT.json",
+        "size": 1127,
+        "digest": "sha256:87595a2dae8797d53f42ebe2551105529dd9191b99e34803cc9e549400479bf1"
+      },
+      {
+        "name": "PACKAGE_CONTENTS.txt",
+        "size": 32068,
+        "digest": "sha256:bc06578ef4e87c690eddfd191fede7cf2e5847e52f2055395312ad1c17b766d7"
+      }
+    ]
+  }
+]

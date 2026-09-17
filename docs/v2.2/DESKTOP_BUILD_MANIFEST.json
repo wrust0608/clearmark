@@ -1,0 +1,30 @@
+{
+  "name": "ClearMark Desktop",
+  "version": "2.2.0-rc1",
+  "target": "v2.2.0-rc1",
+  "build_timestamp": "2026-09-17T22:52:00.304255+00:00",
+  "platform": "windows-x64",
+  "artifacts": {
+    "installer": {
+      "filename": "ClearMark-Setup-v2.2.0-rc1.exe",
+      "size_bytes": 10685804,
+      "sha256": "cb469d1be8e650043e6440f9e7716f29cb5d46e39f123c589dac4c05865a44a5",
+      "path": "dist\\release\\ClearMark-Setup-v2.2.0-rc1.exe"
+    },
+    "portable": {
+      "filename": "ClearMark-v2.2.0-rc1-Windows-x64-portable.zip",
+      "size_bytes": 11301822,
+      "sha256": "41fff9d8320e196fc4306051d501b9cc6db20c439e4822ce752723d642d25e0b",
+      "path": "dist\\release\\ClearMark-v2.2.0-rc1-Windows-x64-portable.zip"
+    }
+  },
+  "specifications": {
+    "default_port": 8765,
+    "port_fallback_range": "8766-8799",
+    "single_instance_mutex": "Local\\ClearMark_Desktop_SingleInstance",
+    "control_channel": "Loopback authenticated HTTP POST /control",
+    "tray_implementation": "Win32 Shell_NotifyIconW (ctypes)",
+    "bundling_technology": "PyInstaller 6.22.3 onedir windowed",
+    "installer_system": "Inno Setup 6.7.3 per-user (lowest privileges)"
+  }
+}
