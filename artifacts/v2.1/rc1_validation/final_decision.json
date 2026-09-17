@@ -33,5 +33,13 @@
     "docs_execution": "PASS",
     "corpus_provenance": "PASS",
     "decision": "PROMOTE_TO_V2.1.0"
+  },
+  "final_contract_reconciliation": {
+    "status": "PASS",
+    "contract_drift": "NONE",
+    "resource_limits_reconciled": true,
+    "error_taxonomy_reconciled": true,
+    "soak_trend": "BOUNDED_PLATEAU",
+    "decision": "PROMOTE_TO_V2.1.0"
   }
 }

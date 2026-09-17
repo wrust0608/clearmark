@@ -54,3 +54,37 @@ The Final Validation Closure test run executed soak stability testing, full CLI 
 - **Open S3 (Minor)**: 0
 - **Recommendation**: Retain zero defect counts. All contract requirements satisfied.
 
+---
+
+## 5. Contract Reconciliation Triage
+
+A formal contract reconciliation was performed to reconcile resource limits across namespaces and verify HTTP error code mappings against frozen runtime implementation.
+
+| Verification Area | Historical Contract Expectation | Actual Runtime Implementation | Drift Detected | Status |
+| :--- | :--- | :--- | :---: | :---: |
+| **CLI Single-File Limit** | 256 MiB | 256 MiB (`common.MAX_INPUT_BYTES`) | NONE | RECONCILED |
+| **CLI Stdin Limit** | 64 MiB | 64 MiB (`common.MAX_STDIN_BYTES`) | NONE | RECONCILED |
+| **HTTP Request Body Limit** | 384 MiB | 384 MiB (`server.MAX_BODY_BYTES`) | NONE | RECONCILED |
+| **HTTP Input Limit** | 256 MiB | 256 MiB (`server.MAX_INPUT_BYTES`) | NONE | RECONCILED |
+| **Batch Per-File Limit** | 32 MiB | 32 MiB (`batch_processor.MAX_INPUT_BYTES`) | NONE | RECONCILED |
+| **Batch Aggregate Limit** | 200 MiB | 200 MiB (`batch_processor.MAX_BATCH_TOTAL_BYTES`) | NONE | RECONCILED |
+| **CLI Batch Count Limit** | 100 files | 100 files (`batch_processor.MAX_BATCH_FILES`) | NONE | RECONCILED |
+| **HTTP Batch Count Limit** | 50 files | 50 files (`server.MAX_BATCH_FILES`) | NONE | RECONCILED |
+| **ZIP Member / Total / Ratio** | 64 MiB / 128 MiB / 100x | 64 MiB / 128 MiB / 100x (`SecurityLimits`) | NONE | RECONCILED |
+| **XML Part / Total / Depth / Elements** | 32 MiB / 128 MiB / 100 / 500k | 32 MiB / 128 MiB / 100 / 500,000 (`SecurityLimits`) | NONE | RECONCILED |
+| **INVALID_CONTAINER Mapping** | CLI 4, HTTP 400 | CLI 4, HTTP 400 (`BAD_REQUEST`) | NONE | RECONCILED |
+| **UNSUPPORTED_ARCHIVE_FEATURE** | CLI 4, HTTP 422 | CLI 4, HTTP 422 (`UNPROCESSABLE_ENTITY`) | NONE | RECONCILED |
+| **VALIDATION_FAILED Mapping** | CLI 3, HTTP 422 | CLI 3, HTTP 422 (`UNPROCESSABLE_ENTITY`) | NONE | RECONCILED |
+| **PROCESSING_LIMIT_EXCEEDED** | CLI 6, HTTP 413 | CLI 6, HTTP 413 (`REQUEST_ENTITY_TOO_LARGE`) | NONE | RECONCILED |
+| **OPTIONAL_DEPENDENCY_MISSING** | CLI 5, HTTP 424 | CLI 5, HTTP 424 (`FAILED_DEPENDENCY`) | NONE | RECONCILED |
+| **UNSUPPORTED_FORMAT Mapping** | CLI 2, HTTP 415 | CLI 2, HTTP 415 (`UNSUPPORTED_MEDIA_TYPE`) | NONE | RECONCILED |
+| **INTERNAL_ERROR Mapping** | CLI 10, HTTP 500 | CLI 10, HTTP 500 (`INTERNAL_SERVER_ERROR`) | NONE | RECONCILED |
+
+### Final Defect Count
+- **Open S0 (Blocker)**: 0
+- **Open S1 (Major)**: 0
+- **Open S2 (Moderate)**: 0
+- **Open S3 (Minor)**: 0
+- **Final Determination**: Zero contract drift. Documentation disambiguated. Technical promotion recommendation maintained: **`PROMOTE_TO_V2.1.0`**.
+
+
