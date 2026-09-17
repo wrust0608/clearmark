@@ -66,3 +66,29 @@ This document records the exact historical state of all ClearMark GitHub Release
 | `FINAL_REVIEW_PACKAGE_v2.1.0-RC1.zip.sha256` | 103 | `sha256:008193e02ca824fb91750c6885b83a57875bd51062000f436bda5a6345631430` | `artifacts/v2.1/release_candidate/FINAL_REVIEW_PACKAGE_v2.1.0-RC1.zip.sha256` |
 | `PACKAGE_AUDIT.json` | 1,127 | `sha256:87595a2dae8797d53f42ebe2551105529dd9191b99e34803cc9e549400479bf1` | `artifacts/v2.1/release_candidate/PACKAGE_AUDIT.json` |
 | `PACKAGE_CONTENTS.txt` | 32,068 | `sha256:bc06578ef4e87c690eddfd191fede7cf2e5847e52f2055395312ad1c17b766d7` | `artifacts/v2.1/release_candidate/PACKAGE_CONTENTS.txt` |
+
+---
+
+## Normalized Post-Cleanup Release State
+
+Following the presentation hygiene standardization:
+
+### 1. `v2.2.0-rc1` (Current Windows Desktop Pre-Release)
+- **Title**: `ClearMark v2.2.0-rc1 — Windows Desktop`
+- **Active Assets**:
+  - `ClearMark-v2.2.0-rc1-Windows-x64-Setup.exe` (`cb469d1be8e650043e6440f9e7716f29cb5d46e39f123c589dac4c05865a44a5`)
+  - `ClearMark-v2.2.0-rc1-Windows-x64-Portable.zip` (`41fff9d8320e196fc4306051d501b9cc6db20c439e4822ce752723d642d25e0b`)
+  - `ClearMark-v2.2.0-rc1-SHA256SUMS.txt`
+
+### 2. `v2.1.0` (Core Stable)
+- **Title**: `ClearMark v2.1.0 — Core Stable`
+- **Active Assets**:
+  - `FINAL_RELEASE_PACKAGE_v2.1.0.zip` (`6e58055c49e94abe3437048d78affa53fbf0a34e5992e50621b6c50751ac79f1`)
+  - `FINAL_RELEASE_PACKAGE_v2.1.0.zip.sha256`
+
+### 3. `v2.1.0-rc1` (Archived Pre-Release)
+- **Title**: `ClearMark v2.1.0-rc1 — Archived Release Candidate`
+- **Active Assets**:
+  - `FINAL_REVIEW_PACKAGE_v2.1.0-RC1.zip` (`33616f74730a0e026efa751d1fb5d86d5f310e2d66f6de3d34afec3635d716d9`)
+  - `FINAL_REVIEW_PACKAGE_v2.1.0-RC1.zip.sha256`
+
