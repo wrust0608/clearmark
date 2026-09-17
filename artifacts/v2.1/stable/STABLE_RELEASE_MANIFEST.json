@@ -1,0 +1,24 @@
+{
+  "release": "ClearMark v2.1.0",
+  "tag": "v2.1.0",
+  "promotion_mode": "BYTE_IDENTICAL_RC1_PROMOTION",
+  "artifact_count": 4,
+  "artifacts": {
+    "FINAL_RELEASE_PACKAGE_v2.1.0.zip": {
+      "size_bytes": 2043966,
+      "sha256": "33616f74730a0e026efa751d1fb5d86d5f310e2d66f6de3d34afec3635d716d9"
+    },
+    "FINAL_RELEASE_PACKAGE_v2.1.0.zip.sha256": {
+      "size_bytes": 100,
+      "sha256": "52c0c677104f523f6b39d8c7bf0506f419f85c6d49464084c63946df9b10c5a4"
+    },
+    "PACKAGE_AUDIT.json": {
+      "size_bytes": 1122,
+      "sha256": "49acdc1f0f141c166f8112b0ee8ee4a0802222f7e578433e4e2349c988ee47e6"
+    },
+    "PACKAGE_CONTENTS.txt": {
+      "size_bytes": 32068,
+      "sha256": "bc06578ef4e87c690eddfd191fede7cf2e5847e52f2055395312ad1c17b766d7"
+    }
+  }
+}
