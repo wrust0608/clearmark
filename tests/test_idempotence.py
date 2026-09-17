@@ -687,6 +687,8 @@ IDEMPOTENCE_CASES = [
     # Audio / Video Formats
     {
         "format": "wav",
+        "canonical_policy": "audio",
+        "is_alias": True,
         "category": "audio_video",
         "clean_builder": make_clean_wav,
         "positive_builder": make_carrier_wav,
@@ -696,6 +698,8 @@ IDEMPOTENCE_CASES = [
     },
     {
         "format": "mp3",
+        "canonical_policy": "audio",
+        "is_alias": True,
         "category": "audio_video",
         "clean_builder": make_clean_mp3,
         "positive_builder": make_carrier_mp3,
@@ -705,6 +709,8 @@ IDEMPOTENCE_CASES = [
     },
     {
         "format": "mp4",
+        "canonical_policy": "video",
+        "is_alias": True,
         "category": "audio_video",
         "clean_builder": make_clean_mp4,
         "positive_builder": make_carrier_mp4,
@@ -713,6 +719,12 @@ IDEMPOTENCE_CASES = [
         "verify_supported": False,
     },
 ]
+
+# Add canonical_policy for all other cases
+for _c in IDEMPOTENCE_CASES:
+    if "canonical_policy" not in _c:
+        _c["canonical_policy"] = _c["format"]
+        _c["is_alias"] = False
 
 
 def _get_fixture_bytes(case: dict, fixture_type: str = "clean") -> bytes:
@@ -839,52 +851,72 @@ def test_already_clean_input_returns_exact_identity(case):
 
 
 # ==============================================================================
-# 3. MODES TESTED INDEPENDENTLY (Section 9 & 10)
+# 3. MODES TESTED INDEPENDENTLY (Section 14)
 # ==============================================================================
 
+MODE_TEST_CASES = [
+    (case, mode)
+    for case in IDEMPOTENCE_CASES
+    for mode in case["modes"]
+]
 
-@pytest.mark.parametrize("case", IDEMPOTENCE_CASES, ids=lambda c: c["format"])
-def test_modes_tested_independently(case):
-    """For each supported mode m: C_m(C_m(x)) == C_m(x)."""
+
+@pytest.mark.parametrize(
+    ("case", "mode"),
+    MODE_TEST_CASES,
+    ids=[f"{c['format']}-{m.value}" for c, m in MODE_TEST_CASES],
+)
+def test_mode_specific_fixed_point(case, mode):
+    """Explicit mode-specific fixed point: C_m(C_m(x)) == C_m(x) (Section 14).
+    Independently exercises each advertised mode (SAFE, BALANCED, AGGRESSIVE) as a distinct pytest execution.
+    """
     pipeline = Pipeline()
     x = _get_fixture_bytes(case, "positive")
     filename = case["filename"]
 
-    for mode in case["modes"]:
-        # Pass 1
-        y, rep1 = pipeline.clean(x, filename=filename, mode=mode)
-        # Pass 2
-        z, rep2 = pipeline.clean(y, filename=filename, mode=mode)
+    # Pass 1
+    y, rep1 = pipeline.clean(x, filename=filename, mode=mode)
+    # Pass 2
+    z, rep2 = pipeline.clean(y, filename=filename, mode=mode)
 
-        assert z == y, f"Mode {mode.value} idempotence failed for {case['format']}"
-        assert _sha256(z) == _sha256(y)
-        assert rep2.status == PipelineStatus.NO_CHANGE_REQUIRED
-        assert len(rep2.mutation_plan.mutations) == 0
+    assert z == y, f"Mode {mode.value} byte fixed point failed for {case['format']}"
+    assert _sha256(z) == _sha256(y)
+    assert rep2.status == PipelineStatus.NO_CHANGE_REQUIRED
+    assert len(rep2.mutation_plan.mutations) == 0
+    assert len(rep2.mutation_plan.changed_parts) == 0
 
 
 # ==============================================================================
-# 4. NORMALIZE_SPACES OPTION INDEPENDENCE (Section 11)
+# 4. NORMALIZE_SPACES OPTION INDEPENDENCE (Section 15)
 # ==============================================================================
 
 
-def test_normalize_spaces_option_independence():
-    """Verify C_norm(C_norm(x)) == C_norm(x) for text with normalize_spaces=True and False."""
+def test_normalize_spaces_false_fixed_point():
+    """Verify C_false(C_false(x)) == C_false(x) with normalize_spaces=False (Section 15)."""
     pipeline = Pipeline()
     text_data = "Line with    multiple   spaces and\u200Bmarks.\nSecond   line.".encode("utf-8")
 
-    # 1. normalize_spaces=False
     out_f1, rep_f1 = pipeline.clean(text_data, filename="doc.txt", options={"normalize_spaces": False})
     out_f2, rep_f2 = pipeline.clean(out_f1, filename="doc.txt", options={"normalize_spaces": False})
     assert out_f2 == out_f1
+    assert _sha256(out_f2) == _sha256(out_f1)
     assert rep_f2.status == PipelineStatus.NO_CHANGE_REQUIRED
     assert len(rep_f2.mutation_plan.mutations) == 0
+    assert len(rep_f2.mutation_plan.changed_parts) == 0
 
-    # 2. normalize_spaces=True
+
+def test_normalize_spaces_true_fixed_point():
+    """Verify C_true(C_true(x)) == C_true(x) with normalize_spaces=True (Section 15)."""
+    pipeline = Pipeline()
+    text_data = "Line with    multiple   spaces and\u200Bmarks.\nSecond   line.".encode("utf-8")
+
     out_t1, rep_t1 = pipeline.clean(text_data, filename="doc.txt", options={"normalize_spaces": True})
     out_t2, rep_t2 = pipeline.clean(out_t1, filename="doc.txt", options={"normalize_spaces": True})
     assert out_t2 == out_t1
+    assert _sha256(out_t2) == _sha256(out_t1)
     assert rep_t2.status == PipelineStatus.NO_CHANGE_REQUIRED
     assert len(rep_t2.mutation_plan.mutations) == 0
+    assert len(rep_t2.mutation_plan.changed_parts) == 0
 
 
 # ==============================================================================
@@ -985,9 +1017,30 @@ def test_repeated_same_input_determinism():
 
     assert a == b
     assert _sha256(a) == _sha256(b)
-    # Mutation plan determinism (Section 24)
     assert rep_a.mutation_plan.mutations == rep_b.mutation_plan.mutations
     assert rep_a.mutation_plan.changed_parts == rep_b.mutation_plan.changed_parts
+
+
+def test_mutation_plan_determinism():
+    """Verify plan(x, mode, options) is stable in count, changed parts, ordering, and representation (Section 17)."""
+    pipeline = Pipeline()
+    test_docx = (DOCX_FIXTURES_DIR / "carrier_zwsp.docx").read_bytes()
+
+    _, rep1 = pipeline.clean(test_docx, filename="carrier.docx")
+    _, rep2 = pipeline.clean(test_docx, filename="carrier.docx")
+
+    plan1 = rep1.mutation_plan
+    plan2 = rep2.mutation_plan
+
+    # Mutation count stability
+    assert len(plan1.mutations) == len(plan2.mutations)
+    # Changed parts stability
+    assert plan1.changed_parts == plan2.changed_parts
+    # Exact mutation ordering stability (no nondeterministic set iteration)
+    assert plan1.mutations == plan2.mutations
+    # Serialized semantic representation stability
+    import dataclasses
+    assert json.dumps(dataclasses.asdict(plan1), sort_keys=True) == json.dumps(dataclasses.asdict(plan2), sort_keys=True)
 
 
 def test_dry_run_fixed_point_on_first_output(tmp_path, monkeypatch):
@@ -1222,32 +1275,126 @@ def test_in_place_idempotence(tmp_path: Path, capsys):
 
 
 # ==============================================================================
-# 8. SECURITY & ENVIRONMENT BOUNDARIES (Section 38 & 39)
+# 8. PDF STATUS SEMANTICS & DEPENDENCY BOUNDARIES (Sections 6, 7, 8, 9, 10)
 # ==============================================================================
 
 
-def test_pdf_optional_dependency_unavailable_truthful_behavior():
-    """Verify PDF returns truthful status when optional binaries (qpdf/ghostscript) are unavailable."""
+def test_pdf_positive_witness_missing_dependency():
+    """Section 8: Positive PDF witness containing an /Info dictionary AI watermark.
+    Because exiftool is unavailable, the cleaner cannot strip /Info metadata.
+    Must truthfully return OPTIONAL_DEPENDENCY_MISSING, NOT NO_CHANGE_REQUIRED.
+    """
     pipeline = Pipeline()
-    # Minimal PDF data
-    pdf_data = b"%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF"
-    cleaned, rep = pipeline.clean(pdf_data, filename="sample.pdf")
+    pdf_with_info = (
+        b"%PDF-1.4\n"
+        b"1 0 obj\n"
+        b"<< /Author (AI generated) /Title (AIGC) >>\n"
+        b"endobj\n"
+        b"trailer\n"
+        b"<< /Info 1 0 R >>\n"
+        b"%%EOF\n"
+    )
+    insp = pipeline.inspect(pdf_with_info, filename="witness.pdf")
+    assert insp.inspection.detection_status == DetectionStatus.DETECTED
+    assert any(
+        "AIGC" in str(f.reason) or "AI generated" in str(f.reason) or f.category == "ai_metadata"
+        for f in insp.inspection.findings
+    )
 
-    # If already clean and no tools, returns NO_CHANGE_REQUIRED with unmodified bytes
-    assert cleaned == pdf_data
+    cleaned, rep = pipeline.clean(pdf_with_info, filename="witness.pdf")
+    # Truthful status: must NOT report NO_CHANGE_REQUIRED
+    assert rep.status == PipelineStatus.ERROR
+    assert rep.error_code == ErrorCode.OPTIONAL_DEPENDENCY_MISSING
+    assert rep.output.changed is False
+    assert cleaned == pdf_with_info
+
+
+def test_pdf_bounded_fallback_xmp_blanking_fixed_point():
+    """Section 8 (Model B): Bounded fallback capability on an XMP packet carrier.
+    Pure-stdlib cleaner CAN blank XMP packets in-place preserving byte offsets.
+    Pass 1: CLEANED (XMP blanked)
+    Pass 2: NO_CHANGE_REQUIRED with empty plan, byte fixed point z == y.
+    """
+    pipeline = Pipeline()
+    xmp = (
+        b"<?xpacket begin='' id='W5M0MpCehiHzreSzNTczkc9d'?>"
+        b"<x:xmpmeta xmlns:x='adobe:ns:meta/'>"
+        b"<rdf:RDF xmlns:rdf='http://www.w3.org/1999/02/22-rdf-syntax-ns#'>"
+        b"<rdf:Description><digitalSourceType>trainedAlgorithmicMedia</digitalSourceType></rdf:Description>"
+        b"</rdf:RDF></x:xmpmeta><?xpacket end='w'?>"
+    )
+    pdf = b"%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n" + xmp + b"\n%%EOF\n"
+
+    # Pass 1
+    y, rep1 = pipeline.clean(pdf, filename="xmp.pdf")
+    assert rep1.status == PipelineStatus.CLEANED
+    assert rep1.output.changed is True
+    assert any("blanked XMP" in str(m.get("desc", "")) for m in rep1.mutation_plan.mutations)
+
+    # Pass 2
+    z, rep2 = pipeline.clean(y, filename="xmp.pdf")
+    assert rep2.status == PipelineStatus.NO_CHANGE_REQUIRED
+    assert rep2.output.changed is False
+    assert len(rep2.mutation_plan.mutations) == 0
+    assert len(rep2.mutation_plan.changed_parts) == 0
+    assert z == y
+    assert _sha256(z) == _sha256(y)
+
+
+def test_pdf_clean_counterexample():
+    """Section 9: A simple already-clean PDF without AI/C2PA metadata.
+    Stdlib fallback inspects document-level metadata and confirms no actionable markers.
+    Must return NO_CHANGE_REQUIRED with empty plan and exact original bytes.
+    """
+    pipeline = Pipeline()
+    clean_pdf = b"%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF\n"
+
+    insp = pipeline.inspect(clean_pdf, filename="clean.pdf")
+    assert insp.inspection.detection_status == DetectionStatus.NOT_DETECTED
+    assert len(insp.inspection.findings) == 0
+
+    cleaned, rep = pipeline.clean(clean_pdf, filename="clean.pdf")
+    assert cleaned == clean_pdf
+    assert _sha256(cleaned) == _sha256(clean_pdf)
     assert rep.status == PipelineStatus.NO_CHANGE_REQUIRED
+    assert rep.output.changed is False
+    assert rep.output.would_change is False
+    assert len(rep.mutation_plan.mutations) == 0
+    assert len(rep.mutation_plan.changed_parts) == 0
 
 
-def test_unsupported_format_stability():
-    """Verify unsupported inputs consistently produce UNSUPPORTED with 0 writes and 0 network."""
+# ==============================================================================
+# 9. UNSUPPORTED FORMAT STABILITY (Section 21)
+# ==============================================================================
+
+
+def test_unsupported_format_stability(tmp_path, monkeypatch):
+    """Section 21: Truly unsupported input repeatedly returns UNSUPPORTED with 0 writes and 0 network."""
     pipeline = Pipeline()
     unknown_bytes = b"\x00\x01\x02\x03\x04\x05unknownformat"
 
-    rep1 = pipeline.inspect(unknown_bytes, filename="data.xyz")
-    assert rep1.status == PipelineStatus.UNSUPPORTED
-    assert rep1.error_code == ErrorCode.UNSUPPORTED_FORMAT
+    # Guard against socket network connections
+    def _forbidden_socket(*args, **kwargs):
+        raise AssertionError("Network socket call attempted on unsupported format!")
+    monkeypatch.setattr(socket, "socket", _forbidden_socket)
 
-    cleaned, rep2 = pipeline.clean(unknown_bytes, filename="data.xyz")
-    assert cleaned == unknown_bytes
-    assert rep2.status == PipelineStatus.UNSUPPORTED
-    assert rep2.error_code == ErrorCode.UNSUPPORTED_FORMAT
+    # Guard against writes
+    def _forbidden_write(*args, **kwargs):
+        raise AssertionError("Write operation invoked on unsupported format!")
+    import service.scripts.common as common_mod
+    monkeypatch.setattr(common_mod, "safe_write_bytes", _forbidden_write)
+    monkeypatch.setattr(os, "replace", _forbidden_write)
+
+    # Repeated executions
+    for _ in range(3):
+        rep_insp = pipeline.inspect(unknown_bytes, filename="data.xyz")
+        assert rep_insp.status == PipelineStatus.UNSUPPORTED
+        assert rep_insp.error_code == ErrorCode.UNSUPPORTED_FORMAT
+        assert rep_insp.inspection.detection_status == DetectionStatus.UNSUPPORTED
+
+        cleaned, rep_clean = pipeline.clean(unknown_bytes, filename="data.xyz")
+        assert cleaned == unknown_bytes
+        assert rep_clean.status == PipelineStatus.UNSUPPORTED
+        assert rep_clean.error_code == ErrorCode.UNSUPPORTED_FORMAT
+        assert rep_clean.output.changed is False
+        assert rep_clean.privacy.network_used is False

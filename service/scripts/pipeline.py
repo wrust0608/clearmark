@@ -589,6 +589,8 @@ class Pipeline:
                 detectors_run.append("ContainerMetaInspector")
                 c_report = inspect_container(Path(name), data=data)
                 for f in getattr(c_report, "findings", []):
+                    if "unavailable" in str(f).lower() or "not found" in str(f).lower():
+                        continue
                     findings.append(
                         Finding(
                             detector_id="ContainerMetaInspector",
@@ -1086,6 +1088,21 @@ class Pipeline:
                 for a in res.get("actions", []):
                     if not str(a).lower().startswith("no "):
                         mutations_applied.append({"action": "container_clean", "desc": str(a)})
+            if fmt == "pdf" and cleaned_bytes == data and (res.get("still_has_ai_metadata") or res.get("still_has_c2pa")):
+                report = CleaningReport(
+                    status=PipelineStatus.ERROR,
+                    input=ident,
+                    inspection=insp_report.inspection,
+                    policy=PolicySelection(mode=mode, format_policy=fmt),
+                    mutation_plan=MutationRecord(),
+                    validation=ValidationOutcome(status="SKIPPED", warnings=res.get("actions", [])),
+                    output=OutputRecord(changed=False, would_change=False, size=size, sha256=sha),
+                    privacy=PrivacySummary(network_used=False),
+                    performance_elapsed_ms=(time.perf_counter() - t0) * 1000.0,
+                    error_code=ErrorCode.OPTIONAL_DEPENDENCY_MISSING,
+                    error_message="Actionable PDF metadata detected but required cleaning tools (exiftool, ghostscript, qpdf) are unavailable",
+                )
+                return data, report
         elif fmt in ("mp4", "mov", "m4a", "m4v", "wav", "mp3", "flac", "audio", "video"):
             import tempfile
             from av_meta import clean_av
