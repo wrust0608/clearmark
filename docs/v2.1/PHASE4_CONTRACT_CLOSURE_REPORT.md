@@ -2,8 +2,7 @@
 
 > **Historical Implementation Commit**: `085176ace00a776b91ece01621c23b15195e0418` (`feat(batch): complete Phase 4 isolated batch processing engine`)  
 > **Production Filesystem Fix Commit (Commit A)**: `dfa948da73f5e000eb564f35415968242e338845` (`fix(batch): enforce Phase 4 batch contract invariants`)  
-> **Production Exit-Contract Fix Commit (Commit B)**: `2e1fa3b3161626b6cae7d2a143311fa1b480d7ac` (`fix(batch): preserve canonical CLI exit namespace`)  
-> **Evidence & Documentation Closure Commit (Commit C)**: `3370fcc7b0ef0002c30748d410293e32cd790dd0` (`test(batch): finalize pre-Phase12 public contract`)  
+> **Canonical Evidence & Documentation Closure Commit (Commit C)**: `1fb5cba5ef243021bf53ef4f1498aedf76ccfa16` (`test(batch): finalize pre-Phase12 public contract`, amended from historical pre-amend commit `3370fcc7b0ef0002c30748d410293e32cd790dd0`)  
 > **Gate Status**: **APPROVED / PASS**  
 > **Canonical Golden DOCX SHA256**: `c05ca5c1be3b020b75d5763cf22061879a255b3c4f57b0455ae562b54809f58d` (VERIFIED)  
 > **Canonical Candidate DOCX SHA256**: `7aa5549f6a0e0b78fa39245c0e79503b2cc9defd6cffbfa5c8a833072d430297` (VERIFIED)  

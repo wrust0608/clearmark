@@ -392,3 +392,126 @@ def test_pdf_model_b_bounded_fallback_documented():
         text = doc_path.read_text(encoding="utf-8")
         assert "Model B" in text or "Model-B" in text or "bounded fallback" in text.lower()
         assert "OPTIONAL_DEPENDENCY_MISSING" in text
+
+
+# ============================================================================
+# 12. RESOURCE LIMIT CROSS-CONTRACT HTTP STATUS VERIFICATION
+# ============================================================================
+
+def test_resource_limit_cross_contract_http_status():
+    """Verify numeric resource limits map to PROCESSING_LIMIT_EXCEEDED (HTTP 413)."""
+    cap_text = CAPABILITIES_DOC.read_text(encoding="utf-8")
+
+    # Numeric resource ceilings must map to HTTP 413, not HTTP 422
+    assert "exit 6 / HTTP 413" in cap_text
+    assert error_code_to_http_status(ErrorCode.PROCESSING_LIMIT_EXCEEDED) == 413
+    assert error_code_to_http_status(ErrorCode.UNSUPPORTED_ARCHIVE_FEATURE) == 422
+    assert error_code_to_http_status(ErrorCode.INVALID_CONTAINER) == 400
+    assert error_code_to_http_status(ErrorCode.VALIDATION_FAILED) == 422
+
+    # Verify that the resource limits table does not map numeric ceilings to 422
+    for ceiling in (
+        "ZIP Archive Member Count",
+        "ZIP Member Uncompressed",
+        "ZIP Total Uncompressed",
+        "ZIP Compression Ratio",
+        "XML Part Byte Size",
+        "XML Total Byte Size",
+        "XML Max Nesting Depth",
+        "XML Max Elements",
+    ):
+        pattern = rf"\|\s*\*\*{ceiling}\*\*\s*\|\s*[^|]+\|\s*[^|]+\|\s*(.*?)\s*\|"
+        m = re.search(pattern, cap_text)
+        assert m is not None, f"Ceiling {ceiling} not found in capabilities doc"
+        outcome = m.group(1)
+        assert "HTTP 413" in outcome, f"Ceiling {ceiling} outcome should specify HTTP 413, got: {outcome}"
+        assert "HTTP 422" not in outcome, f"Ceiling {ceiling} erroneously specifies HTTP 422"
+
+
+# ============================================================================
+# 13. BATCH ITEM CEILING CLI VS HTTP SCOPE DISTINCTION
+# ============================================================================
+
+def test_batch_limit_cli_vs_http_distinction():
+    """Verify distinct defaults for CLI batch (100) vs HTTP /batch (50)."""
+    assert batch_processor.MAX_BATCH_FILES == 100
+    assert server.MAX_BATCH_FILES == 50
+
+    cap_text = CAPABILITIES_DOC.read_text(encoding="utf-8")
+    readme_text = README_PATH.read_text(encoding="utf-8")
+
+    # Both documents must clearly distinguish the 100 (CLI) and 50 (HTTP) limits
+    for doc in (cap_text, readme_text):
+        assert "CLI Batch Item Count" in doc or "Batch Item Count" in doc
+        assert "100" in doc
+        assert "50" in doc
+        assert "HTTP" in doc and "batch" in doc
+
+
+# ============================================================================
+# 14. CONTEXTUAL UNICODE PRESERVATION DOCUMENTATION TRUTH
+# ============================================================================
+
+def test_contextual_unicode_documentation_truth():
+    """Verify docs do not claim unconditional strip of U+200C/U+200D and document contextual preservation."""
+    guarantees_text = GUARANTEES_DOC.read_text(encoding="utf-8")
+    readme_text = README_PATH.read_text(encoding="utf-8")
+
+    for doc in (guarantees_text, readme_text):
+        # Must document contextual preservation
+        assert "contextual" in doc.lower()
+        assert "emoji" in doc.lower()
+
+    # In format_guarantees, verify explicit mention that U+200C and U+200D are not unconditionally stripped
+    assert "never unconditionally stripped" in guarantees_text.lower() or "strictly preserved" in guarantees_text.lower()
+    assert "U+200C" in guarantees_text and "U+200D" in guarantees_text
+    assert "Arabic" in guarantees_text or "Persian" in guarantees_text or "Devanagari" in guarantees_text
+
+
+# ============================================================================
+# 15. CANONICAL AUDIO/VIDEO IN-PROCESS TRUTH
+# ============================================================================
+
+def test_canonical_av_clean_in_process_truth():
+    """Verify docs state canonical cleaning is 100% in-process with 0 subprocesses and no ffmpeg."""
+    guarantees_text = GUARANTEES_DOC.read_text(encoding="utf-8")
+    cap_text = CAPABILITIES_DOC.read_text(encoding="utf-8")
+
+    # Format guarantees must state canonical cleaning is 100% in-process
+    assert "100% in-process" in guarantees_text
+    assert "zero subprocesses" in guarantees_text.lower()
+
+    # Standalone purifiers vs canonical pipeline distinction
+    assert "standalone" in guarantees_text.lower()
+    assert "ffmpeg" in guarantees_text.lower()
+
+    # Capabilities matrix limitations note
+    assert "standalone purifier" in cap_text.lower()
+
+
+# ============================================================================
+# 16. XLSX SHARED STRING INDICES INVARIANT WORDING
+# ============================================================================
+
+def test_xlsx_shared_string_indices_invariant_wording():
+    """Verify XLSX shared string invariant documentation specifies unchanged indices."""
+    guarantees_text = GUARANTEES_DOC.read_text(encoding="utf-8")
+    cap_text = CAPABILITIES_DOC.read_text(encoding="utf-8")
+
+    for doc in (guarantees_text, cap_text):
+        assert "indices remain unchanged" in doc.lower() or "without re-indexing" in doc.lower()
+
+
+# ============================================================================
+# 17. PHASE 4 COMMIT PROVENANCE CONSISTENCY
+# ============================================================================
+
+def test_phase4_commit_provenance_consistency():
+    """Verify canonical closure 1fb5cba5 and historical pre-amend 3370fcc7 are consistently documented."""
+    roadmap_text = (REPO_ROOT / "docs" / "v2.1" / "ROADMAP.md").read_text(encoding="utf-8")
+    p4_report_text = (REPO_ROOT / "docs" / "v2.1" / "PHASE4_CONTRACT_CLOSURE_REPORT.md").read_text(encoding="utf-8")
+
+    for doc in (roadmap_text, p4_report_text):
+        assert "1fb5cba5ef243021bf53ef4f1498aedf76ccfa16" in doc
+        assert "3370fcc7b0ef0002c30748d410293e32cd790dd0" in doc
+

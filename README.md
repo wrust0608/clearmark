@@ -10,7 +10,7 @@ ClearMark operates under an **inspection-first**, **security-bounded**, and **pr
 
 ### Supported Capabilities
 - **Scrubs Supported Metadata & Provenance Carriers**: Removes known provenance metadata structures (e.g. standard EXIF, XMP, IPTC tags, C2PA/JUMBF manifests, and document properties) across 23 canonical format policies.
-- **Normalizes Covert Unicode Watermarks**: Strips zero-width invisible characters (`U+200B`–`U+200D`, `U+E0001`–`U+E007F`) and normalizes homoglyphs in supported text formats.
+- **Removes Covert Unicode Watermarks While Preserving Contextual Joiners**: Removes supported invisible-character carriers while preserving contextually legitimate joiners such as emoji ZWJ sequences (e.g. compound emojis) and Arabic/Persian/Devanagari shaping characters. Normalizes homoglyphs in supported text formats.
 - **Preserves Document Invariants (OOXML)**: Employs minimal targeted patching for DOCX, XLSX, and PPTX files. Untouched parts are passed through byte-for-byte (`LEVEL_A` raw OPC preservation).
 - **Two-File Fidelity Verification**: Provides executable fidelity verification for DOCX, XLSX, and PPTX candidate files against original sources.
 
@@ -161,7 +161,8 @@ To protect system stability, ClearMark enforces deterministic resource bounds:
 | **HTTP Input Payload** | `256 MiB` | `server.MAX_INPUT_BYTES` |
 | **Batch Single-File** | `32 MiB` | `batch_processor.MAX_INPUT_BYTES` |
 | **Batch Aggregate Size** | `200 MiB` | `batch_processor.MAX_BATCH_TOTAL_BYTES` |
-| **Batch Item Count** | `100` files | `batch_processor.MAX_BATCH_FILES` |
+| **CLI Batch Item Count** | `100` files | `batch_processor.MAX_BATCH_FILES` |
+| **HTTP /batch Request Item Count** | `50` files | `server.MAX_BATCH_FILES` |
 | **Archive Decompression Ratio**| `100x` | `security.SecurityLimits.max_compression_ratio` |
 | **ZIP Member Uncompressed** | `64 MiB` | `security.SecurityLimits.max_member_uncompressed_bytes` |
 | **ZIP Total Uncompressed** | `128 MiB` | `security.SecurityLimits.max_total_uncompressed_bytes` |

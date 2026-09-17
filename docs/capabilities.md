@@ -11,7 +11,7 @@ ClearMark registers **23 canonical policies** covering **37 file extensions** (2
 
 | Canonical Policy | User Extensions | Inspection | Cleaning | Verify | Runtime State | Modes | Fidelity | Dependencies | Key Limitations |
 |:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|
-| `audio` | `.mp3, .wav, .flac, .aac, .ogg, .m4a` | `tags, id3, xmp, c2pa, audio_watermark` | `tag_strip, c2pa_strip, audio_watermark_notch` | `NONE` | `AVAILABLE` | `safe, balanced, aggressive` | `LEVEL_C` | `ffmpeg` | In-process tag/metadata stripping; notch filtering requires balanced/aggressive modes. |
+| `audio` | `.mp3, .wav, .flac, .aac, .ogg, .m4a` | `tags, id3, xmp, c2pa, audio_watermark` | `tag_strip, c2pa_strip, audio_watermark_notch` | `NONE` | `AVAILABLE` | `safe, balanced, aggressive` | `LEVEL_C` | `ffmpeg` | In-process tag/metadata stripping; notch filtering is a standalone purifier option requiring ffmpeg. |
 | `avif` | `.avif` | `EXIF, XMP, IPTC, C2PA, pixel_watermark` | `metadata, EXIF, XMP, metadata_strip, c2pa_strip, pixel_watermark_inpaint` | `NONE` | `AVAILABLE` | `safe, balanced, aggressive` | `LEVEL_C` | `c2patool, exiftool` | Container metadata stripping; pixel inpainting bounded by raster limits. |
 | `bmp` | `.bmp` | `EXIF, XMP, IPTC, C2PA, pixel_watermark` | `metadata, EXIF, XMP, metadata_strip, c2pa_strip, pixel_watermark_inpaint` | `NONE` | `AVAILABLE` | `safe, balanced, aggressive` | `LEVEL_C` | `c2patool, exiftool` | Standard header metadata stripping; no deep container structures. |
 | `docx` | `.docx` | `metadata, docProps, customXml, unicode_carriers, media_c2pa` | `docProps_scrub, customXml_drop, unicode_carrier_remove, media_meta_strip, raw_opc_preservation` | `structural_invariants, raw_opc_invariants, visible_text_exact` | `AVAILABLE` | `safe, balanced, aggressive` | `LEVEL_A, LEVEL_B, LEVEL_C, LEVEL_D` | `NONE` | Frozen v2.0 OPC core; strict invariant validation; non-target parts byte-preserved. |
@@ -33,7 +33,13 @@ ClearMark registers **23 canonical policies** covering **37 file extensions** (2
 | `txt` | `.txt` | `invisible_unicode, homoglyphs, stylometry, c2pa` | `invisible_unicode_remove, homoglyph_normalize, semantic_rewrite` | `NONE` | `AVAILABLE` | `safe, balanced, aggressive` | `LEVEL_C` | `NONE` | Unicode zero-width and homoglyph normalization; line break invariants preserved. |
 | `video` | `.mp4, .mkv, .mov, .avi, .webm` | `tags, id3, xmp, c2pa, audio_watermark` | `tag_strip, c2pa_strip, audio_watermark_notch` | `NONE` | `AVAILABLE` | `safe, balanced, aggressive` | `LEVEL_C` | `ffmpeg` | In-process container tag/metadata stripping; track streams passed through. |
 | `webp` | `.webp` | `EXIF, XMP, IPTC, C2PA, pixel_watermark` | `metadata, EXIF, XMP, metadata_strip, c2pa_strip, pixel_watermark_inpaint` | `NONE` | `AVAILABLE` | `safe, balanced, aggressive` | `LEVEL_C` | `c2patool, exiftool` | RIFF chunk stripping (EXIF, XMP); VP8/VP8L bitstream untouched in safe mode. |
-| `xlsx` | `.xlsx` | `metadata, docProps, sharedStrings, inlineStrings` | `docProps_scrub, sharedStrings_carrier_remove, inlineStrings_carrier_remove, raw_opc_preservation` | `structural_invariants, raw_opc_invariants, formula_exact, style_invariants, shared_string_invariants` | `AVAILABLE` | `safe, balanced, aggressive` | `LEVEL_A, LEVEL_B, LEVEL_C, LEVEL_D` | `NONE` | Shared strings index stability; formulas and styles preserved; raw OPC preservation. |
+| `xlsx` | `.xlsx` | `metadata, docProps, sharedStrings, inlineStrings` | `docProps_scrub, sharedStrings_carrier_remove, inlineStrings_carrier_remove, raw_opc_preservation` | `structural_invariants, raw_opc_invariants, formula_exact, style_invariants, shared_string_invariants` | `AVAILABLE` | `safe, balanced, aggressive` | `LEVEL_A, LEVEL_B, LEVEL_C, LEVEL_D` | `NONE` | Shared strings index stability; shared-string indices and referring cell indices remain unchanged; formulas and styles preserved; raw OPC preservation. |
+
+> [!NOTE]
+> **Dependency Semantics**:
+> - **Canonical Cleaning**: Standard in-process cleaning for all 22 `AVAILABLE` policies requires **zero external binaries**. It runs 100% locally via standard library modules without spawning subprocesses.
+> - **Conditional / Optional Dependencies**: Binaries listed under `Dependencies` (e.g. `c2patool`, `exiftool`, `ffmpeg`) are optional and utilized solely for extended external purifiers or specialized command options.
+> - **PDF Deep Cleaning**: PDF relies on Model B bounded fallback; deep raster inpainting, attachments, and distillation conditionally require `ghostscript`, `qpdf`, or `c2patool`.
 
 ---
 
@@ -49,19 +55,26 @@ Every ClearMark execution path enforces strict bounding constants to prevent out
 | **HTTP Request Body** | `384 MiB` (402,653,184 bytes) | `server.MAX_BODY_BYTES` | Rejects multipart/JSON body; HTTP 413 |
 | **Batch Single-File Ceiling** | `32 MiB` (33,554,432 bytes) | `batch_processor.MAX_INPUT_BYTES` | Skips file with per-item `LIMIT_EXCEEDED` error |
 | **Batch Aggregate Ceiling** | `200 MiB` (209,715,200 bytes) | `batch_processor.MAX_BATCH_TOTAL_BYTES` | Halts batch before processing; exit 6 / HTTP 413 |
-| **Batch Item Count** | `100` files | `batch_processor.MAX_BATCH_FILES` | Halts batch before processing; exit 6 / HTTP 413 |
+| **CLI Batch Item Count** | `100` files | `batch_processor.MAX_BATCH_FILES` | Halts batch before processing; exit 6 |
+| **HTTP /batch Request Item Count** | `50` files | `server.MAX_BATCH_FILES` | Rejects batch request; HTTP 413 |
 | **Batch Inline Output Delivery** | `32 MiB` (33,554,432 bytes) | `batch_processor.MAX_BATCH_INLINE_OUTPUT_BYTES` | Switches response mode to report-only; prevents server OOM |
-| **ZIP Archive Member Count** | `10,000` entries | `security.SecurityLimits.max_member_count` | Rejects archive during preflight; exit 6 / HTTP 422 |
-| **ZIP Member Uncompressed** | `64 MiB` (67,108,864 bytes) | `security.SecurityLimits.max_member_uncompressed_bytes` | Aborts archive member read; exit 6 / HTTP 422 |
-| **ZIP Total Uncompressed** | `128 MiB` (134,217,728 bytes) | `security.SecurityLimits.max_total_uncompressed_bytes` | Aborts archive processing; exit 6 / HTTP 422 |
-| **ZIP Compression Ratio** | `100x` (100.0:1) | `security.SecurityLimits.max_compression_ratio` | Rejects decompression bomb; exit 6 / HTTP 422 |
-| **XML Part Byte Size** | `32 MiB` (33,554,432 bytes) | `security.SecurityLimits.max_xml_part_bytes` | Rejects oversized XML document part; exit 6 / HTTP 422 |
-| **XML Total Byte Size** | `128 MiB` (134,217,728 bytes) | `security.SecurityLimits.max_total_xml_bytes` | Rejects oversized package XML; exit 6 / HTTP 422 |
-| **XML Max Nesting Depth** | `100` levels | `security.SecurityLimits.max_xml_depth` | Rejects recursive XML entity structure; exit 6 / HTTP 422 |
-| **XML Max Elements** | `500,000` elements | `security.SecurityLimits.max_xml_elements` | Rejects quadratic element expansion; exit 6 / HTTP 422 |
+| **ZIP Archive Member Count** | `10,000` entries | `security.SecurityLimits.max_member_count` | Rejects archive during preflight; exit 6 / HTTP 413 |
+| **ZIP Member Uncompressed** | `64 MiB` (67,108,864 bytes) | `security.SecurityLimits.max_member_uncompressed_bytes` | Aborts archive member read; exit 6 / HTTP 413 |
+| **ZIP Total Uncompressed** | `128 MiB` (134,217,728 bytes) | `security.SecurityLimits.max_total_uncompressed_bytes` | Aborts archive processing; exit 6 / HTTP 413 |
+| **ZIP Compression Ratio** | `100x` (100.0:1) | `security.SecurityLimits.max_compression_ratio` | Rejects decompression bomb; exit 6 / HTTP 413 |
+| **XML Part Byte Size** | `32 MiB` (33,554,432 bytes) | `security.SecurityLimits.max_xml_part_bytes` | Rejects oversized XML document part; exit 6 / HTTP 413 |
+| **XML Total Byte Size** | `128 MiB` (134,217,728 bytes) | `security.SecurityLimits.max_total_xml_bytes` | Rejects oversized package XML; exit 6 / HTTP 413 |
+| **XML Max Nesting Depth** | `100` levels | `security.SecurityLimits.max_xml_depth` | Rejects recursive XML entity structure; exit 6 / HTTP 413 |
+| **XML Max Elements** | `500,000` elements | `security.SecurityLimits.max_xml_elements` | Rejects quadratic element expansion; exit 6 / HTTP 413 |
 
 > [!NOTE]
-> **Context Matters**: A 50 MiB file is permitted via single-file CLI (`watermarks clean input.docx`), but will be rejected if piped via stdin (64 MiB limit) or included in a batch operation (32 MiB per-file batch limit).
+> **Semantic Separation of Preflight Errors**:
+> - **Numeric Resource Ceilings**: Breaches trigger `PROCESSING_LIMIT_EXCEEDED` (CLI Exit 6 / HTTP 413).
+> - **Unsupported Archive Features**: Explicitly rejected archive features (e.g. ZIP64, ZipSlip, encrypted members) trigger `UNSUPPORTED_ARCHIVE_FEATURE` (CLI Exit 4 / HTTP 422).
+> - **Malformed Containers**: Syntax errors or truncated structures trigger `INVALID_CONTAINER` (CLI Exit 4 / HTTP 400).
+> - **Fidelity / Invariant Failures**: Post-clean verification failures trigger `VALIDATION_FAILED` (CLI Exit 3 / HTTP 422).
+>
+> **Batch Item Limits**: The CLI batch engine caps queue size at 100 files (`batch_processor.MAX_BATCH_FILES`), while the HTTP service defaults to 50 files per request (`server.MAX_BATCH_FILES`) to maintain bounded request latency and memory. Both can be configured via `WATERMARKS_MAX_BATCH_FILES`.
 
 ---
 

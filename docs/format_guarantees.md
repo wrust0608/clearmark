@@ -49,7 +49,7 @@ The DOCX subsystem uses the frozen v2.0 engine located in `service/scripts/docx/
 - **Post-Clean Verification**: Automated 4-layer verification verifies package integrity, raw OPC hash equality on non-target members, and visible text equality.
 
 ### XLSX Guarantees
-- **Shared String Stability**: Stripping provenance carriers from shared strings maintains the integrity of the string table (`xl/sharedStrings.xml`) and updates all cell index references accurately.
+- **Shared String Stability**: Shared strings are updated in place within their existing `<si>` elements without re-indexing or deduplication. Shared-string indices and referring cell indices (`<c t="s"><v>N</v></c>`) remain unchanged.
 - **Formula & Calculation Safety**: Formula strings, calculation chains, array formulas, and cell coordinate grids are strictly preserved.
 - **Styles & Formatting Fidelity**: Number formats, fonts, fills, borders, cell styles, and conditional formatting rules remain byte-stable or structurally invariant.
 - **Raw OPC Pass-Through**: Untouched sheets, drawing definitions, and binary workbook parts are copied directly via raw byte pass-through.
@@ -75,7 +75,7 @@ Generic containers do not use the OOXML raw OPC pass-through engine. Their guara
 ## 5. Text & Unicode Formats (TXT, MD, HTML, LaTeX)
 
 Text cleaners target covert algorithmic watermarks embedded in character streams:
-- **Zero-Width & Invisible Characters**: Scans and strips zero-width spaces (`U+200B`), zero-width non-joiners (`U+200C`), zero-width joiners (`U+200D`), left-to-right/right-to-left marks (`U+200E`, `U+200F`), and tag characters (`U+E0001`–`U+E007F`).
+- **Carrier Classification & Contextual Preservation**: Scans and strips covert invisible-character watermark sequences (such as isolated zero-width spaces `U+200B`, left-to-right/right-to-left marks `U+200E`/`U+200F`, and tag characters `U+E0001`–`U+E007F`). Legitimate contextual joiners are strictly preserved: emoji ZWJ sequences (e.g. `U+200D` between emoji bases for family and professional glyphs) and orthographic script joiners (`U+200C` ZWNJ and `U+200D` ZWJ in Arabic, Persian, and Devanagari conjuncts) are identified and kept intact. `U+200C` and `U+200D` are never unconditionally stripped; only unattached, isolated, or covert carrier occurrences are pruned.
 - **Homoglyph Normalization**: Normalizes lookalike Cyrillic, Greek, or mathematical symbols back to standard Latin characters according to Unicode equivalence tables.
 - **Line Break & Encoding Invariants**: File line endings (CRLF vs LF) and character encodings (UTF-8) are strictly preserved.
 - **Markup Protection**: For Markdown, HTML, and LaTeX, syntax characters (tags, code fences, inline formulas, and command macros) are preserved.
@@ -101,9 +101,9 @@ ClearMark clearly differentiates between structural metadata carriers and crypto
 
 ## 8. Audio & Video Formats (WAV, MP3, FLAC, MP4, MKV, etc.)
 
-- **In-Process Container Processing**: Standard cleaning of RIFF/WAV metadata chunks and ISOBMFF/MP4 user data boxes (`udta`, `uuid`) is performed **100% in-process** via Python standard library byte-level parsers.
+- **Canonical In-Process Cleaning**: Canonical cleaning for audio (WAV, MP3, FLAC) and video (MP4) containers operates **100% in-process** via Python standard library byte parsers across all supported modes (`safe`, `balanced`, `aggressive`). Canonical pipeline cleaning spawns **zero subprocesses** and does **not** require or invoke `ffmpeg`.
 - **Audio/Video Stream Invariance**: Elementary audio (PCM, AAC, MP3) and video (H.264, HEVC) bitstreams are passed through unchanged in `safe` mode without re-encoding.
-- **Optional Tools**: External processing utilities (such as `ffmpeg`) are optional and utilized solely for standalone external purifiers or notch filtering under `aggressive` mode.
+- **Standalone Purifiers vs Canonical Pipeline**: External utilities (`ffmpeg`) are utilized solely for standalone destructive purifiers (e.g. `audio_purify` invoked via service endpoint option `remove_audio_watermark`), which apply acoustic transformations. The canonical pipeline clean path does not invoke these external tools.
 
 ---
 

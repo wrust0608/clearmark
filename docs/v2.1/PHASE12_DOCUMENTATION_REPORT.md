@@ -79,7 +79,8 @@ All documented limits match production constants:
 | HTTP request body | `384 MiB` | `server.MAX_BODY_BYTES` (402,653,184 B) | **MATCH** |
 | Batch single-file ceiling | `32 MiB` | `batch_processor.MAX_INPUT_BYTES` (33,554,432 B) | **MATCH** |
 | Batch aggregate ceiling | `200 MiB` | `batch_processor.MAX_BATCH_TOTAL_BYTES` (209,715,200 B) | **MATCH** |
-| Batch file count | `100` | `batch_processor.MAX_BATCH_FILES` (100) | **MATCH** |
+| CLI Batch file count | `100` | `batch_processor.MAX_BATCH_FILES` (100) | **MATCH** |
+| HTTP /batch Request file count | `50` | `server.MAX_BATCH_FILES` (50) | **MATCH** |
 | Batch inline output ceiling | `32 MiB` | `batch_processor.MAX_BATCH_INLINE_OUTPUT_BYTES` (33,554,432 B) | **MATCH** |
 | ZIP member count | `10,000` | `security.SecurityLimits.max_member_count` | **MATCH** |
 | ZIP member uncompressed | `64 MiB` | `security.SecurityLimits.max_member_uncompressed_bytes` (67,108,864 B) | **MATCH** |
@@ -115,6 +116,16 @@ Matches `error_code_to_http_status()`:
 - **`NO_CHANGE_REQUIRED` Scope**: Explicitly documented as "no authorized mutation planned for checked/supported surfaces"; not a universal guarantee that every proprietary carrier is absent.
 - **PDF Model B Bounded Fallback**: Explicitly documented that stdlib inspects/cleans standard metadata dictionaries, but deep raster inpainting or attachment distillation returns `OPTIONAL_DEPENDENCY_MISSING` (exit 5 / HTTP 424) if optional tools are missing. It never returns `NO_CHANGE_REQUIRED`.
 
+### 4.6 Semantic Truthfulness Closures
+- **Resource Limits vs Archive Features**: Numeric resource limits (ZIP count/sizes, XML depth/sizes/elements) trigger `PROCESSING_LIMIT_EXCEEDED` (CLI Exit 6 / HTTP 413). Unsupported archive features (e.g. ZIP64, ZipSlip, encrypted members) trigger `UNSUPPORTED_ARCHIVE_FEATURE` (CLI Exit 4 / HTTP 422). Malformed structures trigger `INVALID_CONTAINER` (CLI Exit 4 / HTTP 400).
+- **Contextual Unicode Preservation**: `U+200C` and `U+200D` are **not** unconditionally stripped. Contextually legitimate joiners (emoji ZWJ sequences across emoji bases, Arabic/Persian/Devanagari script shaping joiners) are preserved as `action == "keep"`. Only isolated, unattached, or covert watermark carrier occurrences are pruned.
+- **Canonical Audio/Video Cleaning**: Canonical `watermarks clean` for audio (WAV, MP3, FLAC) and video (MP4) is **100% in-process** via `clean_av()` without spawning subprocesses or requiring `ffmpeg`. The `ffmpeg` dependency and `audio_watermark_notch` operation are strictly reserved for standalone external purifiers or the HTTP service option `remove_audio_watermark`.
+- **XLSX Shared-String Invariants**: Shared strings are updated in place within their existing `<si>` positions without re-indexing or deduplication. Shared-string indices and referring cell indices (`<c t="s"><v>N</v></c>`) remain unchanged.
+- **Phase 4 Commit Provenance**: Canonical Phase 4 evidence/docs closure is `1fb5cba5ef243021bf53ef4f1498aedf76ccfa16` (amended from historical pre-amend commit `3370fcc7b0ef0002c30748d410293e32cd790dd0`).
+- **Phase 12 Commit Provenance**:
+  - Documentation implementation commit: `c6a4b3a4a98404a9e4070a2719a997ecab7289ee` (commit `c6a4b3afbc1d58e30d39202746449f089735bb3d`)
+  - Semantic truthfulness closure commit: `2e4e31c8a15230c41e5089cd52838c6e8d324549`
+
 ### 4.6 Clean Hygiene Audits
 - **CLI Command Syntax**: All CLI invocations in `README.md` use valid subcommands (`inspect`, `clean`, `batch`, `verify`, `capabilities`) and real options (`--mode`, `--json`, `--dry-run`, `--in-place`, `-o`, `-r`, `--output-dir`, `--reports-dir`).
 - **Relative Markdown Links**: 100% of relative links across `README.md`, `docs/capabilities.md`, and `docs/format_guarantees.md` resolve to existing targets (0 broken links).
@@ -127,14 +138,14 @@ Matches `error_code_to_http_status()`:
 
 | Suite | Scope | Target Baseline | Result | Status |
 |:---|:---|:---|:---|:---|
-| **Phase 12 Consistency** | `tests/test_docs_capabilities_consistency.py` | New gate | **11 passed in 0.19s** | **PASS** |
+| **Phase 12 Consistency** | `tests/test_docs_capabilities_consistency.py` | 11 passed | **17 passed in 0.25s** | **PASS** |
 | **Capabilities Contract** | `tests/test_capabilities_endpoint.py`, `tests/test_cli_v21.py`, `tests/test_api_v21.py` | 35 passed | **35 passed in 3.79s** | **PASS** |
 | **Phase 4 Batch Contract** | `tests/test_batch_contract_closure.py` | 23 passed | **23 passed in 2.46s** | **PASS** |
-| **Phase 9 Security** | `tests/test_malformed_archives.py` | 141 passed | **141 passed in 1.71s** | **PASS** |
-| **Phase 10 Idempotence** | `tests/test_idempotence.py`, `tests/test_property_unicode.py` | 139 passed | **139 passed in 5.67s** | **PASS** |
-| **Format Lossless Regr.** | `tests/test_docx_body_carriers.py`, `tests/test_xlsx_lossless.py`, `tests/test_pptx_lossless.py` | 135 passed | **135 passed in 13.27s** | **PASS** |
-| **Performance Harness** | `tests/test_performance_harness.py` | 11 passed | **11 passed in 23.86s** | **PASS** |
-| **Canonical Full Pytest** | Complete test repository (`pytest -ra`) | 1935 passed, 152 skipped | **1946 passed, 152 skipped in 118.51s** | **PASS** |
+| **Phase 9 Security** | `tests/test_malformed_archives.py` | 141 passed | **141 passed in 1.46s** | **PASS** |
+| **Phase 10 Idempotence** | `tests/test_idempotence.py`, `tests/test_property_unicode.py` | 139 passed | **139 passed in 11.35s** | **PASS** |
+| **Format Lossless Regr.** | `tests/test_docx_body_carriers.py`, `tests/test_xlsx_lossless.py`, `tests/test_pptx_lossless.py` | 135 passed | **135 passed in 22.00s** | **PASS** |
+| **Performance Harness** | `tests/test_performance_harness.py` | 11 passed | **11 passed in 50.34s** | **PASS** |
+| **Canonical Full Pytest** | Complete test repository (`pytest -ra`) | 1946 passed, 152 skipped | **1952 passed, 152 skipped in 198.43s** | **PASS** |
 
 - **Warnings**: 0
 - **Failures**: 0
