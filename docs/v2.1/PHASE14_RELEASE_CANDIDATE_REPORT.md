@@ -42,8 +42,8 @@ All 62 requirements of the Phase 14 specification were strictly satisfied:
 | **Source Code Commit** | `32e1a2c3afae7d6b738630787ce4d2f7b3640c56` | VERIFIED |
 | **Evidence Closure Commit**| `4321724ceadb3d699c826bb1115c6189c5f620ad` | VERIFIED |
 | **Packaging Builder Commit**| `02e86b334188b200b3967d7a8d5e1dc862e31ea2` | VERIFIED |
-| **Audit Closure Commit**| `89e34d1` | VERIFIED |
-| **Baseline Baseline** | `v2.0.0` (`758d3085b8868566209a82ea981a32aa61147a44`) | VERIFIED |
+| **Audit Closure Commit**| `89e34d113182a04ab48005796d45f9714d69eb7e` | VERIFIED |
+| **Stable Baseline** | `v2.0.0` (`758d3085b8868566209a82ea981a32aa61147a44`) | VERIFIED |
 | **Phase 13 release_ready**| `true` | VERIFIED |
 | **Phase 13 overall_status**| `PASS` | VERIFIED |
 | **Production Code Diff** | Zero lines changed in `service/` | VERIFIED |
