@@ -121,7 +121,7 @@ A comprehensive Final Validation Closure run was executed against `ClearMark v2.
   - `3 VALIDATION_FAILED`: Post-cleaning validation failure on corrupted XML structure.
   - `4 INVALID_INPUT`: Malformed archives, truncated containers, unparseable input.
   - `5 DEPENDENCY_MISSING`: PDF files requiring external metadata tools when unavailable.
-  - `6 LIMIT_EXCEEDED`: Files exceeding 32 MiB size limit.
+  - `6 LIMIT_EXCEEDED`: Processing input exceeded the applicable architectural limit, including the 256 MiB top-level input limit, 64 MiB stdin limit, 32 MiB batch per-file limit, 200 MiB batch aggregate limit, or applicable container/XML security limits.
   - `7 BATCH_PARTIAL_FAILURE`: Batch execution with isolated individual file failures.
   - `10 INTERNAL_ERROR`: Unhandled exception simulation.
 - **Output Purity**: `--json` stdout contains 100% valid JSON with zero stderr or diagnostic contamination.

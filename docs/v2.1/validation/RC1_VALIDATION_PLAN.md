@@ -24,7 +24,7 @@ This document establishes the comprehensive, autonomous validation program for *
 | **V4** | **Real-World Corpus** | 23 policies evaluated with representative synthetic samples | Original hashed -> inspected -> dry-run verified -> cleaned -> idempotence verified -> timing logged |
 | **V5** | **Office Lossless Fidelity** | Structural invariant validators for DOCX, XLSX, PPTX, Unicode text | `fidelity_guaranteed: True`, strict OPC container preservation, zero visible text corruption |
 | **V6** | **Negative / Security** | Hostile, truncated, and malformed files | Preflight fail-closed rejection before mutation, no traversal, no crash |
-| **V7** | **Batch & Stress** | 100-file valid batch, mixed batch, 1–100 MiB stress files | 100% reconciliation, fault isolation, strict 32 MiB single-file limit enforcement |
+| **V7** | **Batch & Stress** | 100-file valid batch, mixed batch, 1–100 MiB stress files | 100% reconciliation, fault isolation, strict 32 MiB batch per-file limit enforcement |
 | **V8** | **Documentation Truthfulness** | Parity between documentation, CLI help, and runtime capabilities | Zero contradictions, consistency tests pass |
 | **V9** | **Soak & Stability** | Multi-cycle processing loops | Zero memory growth/leakage, identical repeated clean outputs |
 | **V10** | **Final Decision** | Defect triage & promotion gating | 0 S0 (blocker), 0 S1 (major) -> `PROMOTE_TO_V2.1.0` |

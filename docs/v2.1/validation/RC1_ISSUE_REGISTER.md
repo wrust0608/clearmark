@@ -24,7 +24,7 @@ No defect or regression was discovered during the autonomous execution of the Cl
 1. **Hostile / Malformed Archives**:
    - Inert ZipSlip, ZipBomb, XXE, truncated containers correctly rejected fail-closed before mutation.
 2. **Stress Sizing**:
-   - Single-file 32 MiB production limit strictly enforced on 50 MiB and 100 MiB text stress fixtures (`PROCESSING_LIMIT_EXCEEDED`).
+   - Batch per-file 32 MiB production limit strictly enforced on 50 MiB and 100 MiB text stress fixtures (`PROCESSING_LIMIT_EXCEEDED`), distinguished from the 256 MiB top-level single-file input limit.
 3. **Batch Fault Isolation**:
    - Mixed valid/malformed batch verified: 3 cleaned, 1 unsupported, 1 malformed gracefully isolated; 100% mathematical reconciliation.
 4. **Format Policy Coverage**:
