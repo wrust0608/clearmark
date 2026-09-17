@@ -190,23 +190,54 @@ def get_collision_safe_batch_path(
     return candidate
 
 
+def _is_subpath_or_equal(child: Union[Path, str], parent: Union[Path, str]) -> bool:
+    """Check if child is equal to or a subpath of parent (case-insensitive and canonical)."""
+    try:
+        c_resolved = os.path.normcase(str(Path(child).resolve()))
+        p_resolved = os.path.normcase(str(Path(parent).resolve()))
+        if c_resolved == p_resolved:
+            return True
+        if not p_resolved.endswith(os.sep):
+            p_resolved += os.sep
+        return c_resolved.startswith(p_resolved)
+    except Exception:
+        return False
+
+
+def _is_link_or_junction(p: Union[Path, str]) -> bool:
+    """Check if path is a symlink or junction/reparse point."""
+    try:
+        path_obj = Path(p) if not isinstance(p, Path) else p
+        if path_obj.is_symlink():
+            return True
+        if hasattr(path_obj, "is_junction") and path_obj.is_junction():
+            return True
+        if hasattr(os.path, "isjunction") and os.path.isjunction(str(p)):
+            return True
+    except Exception:
+        pass
+    return False
+
+
 def discover_input_files(
     inputs: list[Union[Path, str]],
     recursive: bool = False,
+    exclude_dirs: Optional[list[Path]] = None,
 ) -> list[Tuple[Path, Optional[Path]]]:
     """Safely discover files to process.
 
     Returns a list of tuples: (absolute_file_path, relative_path_if_directory).
     Explicit files preserve exact user ordering.
     Directory files are sorted by normalized relative path.
-    Symlinks are not followed by default.
+    Symlinks and junctions are not followed by default.
+    Paths inside exclude_dirs are excluded.
     """
     discovered: list[Tuple[Path, Optional[Path]]] = []
 
     for inp in inputs:
         p = Path(inp)
-        # Check if symlink (reject following by default)
-        if p.is_symlink():
+        # Check if symlink or junction (reject following by default)
+        if _is_link_or_junction(p):
             discovered.append((p, None))
             continue
 
@@ -216,6 +247,11 @@ def discover_input_files(
             continue
 
         p_resolved = p.resolve()
+
+        # If an explicit path is itself inside an excluded directory, exclude it
+        if exclude_dirs and any(_is_subpath_or_equal(p_resolved, ed) for ed in exclude_dirs):
+            continue
+
         if p_resolved.is_file():
             discovered.append((p_resolved, None))
         elif p_resolved.is_dir():
@@ -223,15 +259,32 @@ def discover_input_files(
             if recursive:
                 for root, dirs, files in os.walk(p_resolved, followlinks=False):
                     root_path = Path(root)
+                    # Filter subdirectories in-place: skip symlinks, junctions, and excluded directories
+                    pruned_dirs = []
+                    for d in dirs:
+                        dir_candidate = root_path / d
+                        if _is_link_or_junction(dir_candidate):
+                            continue
+                        if exclude_dirs and any(_is_subpath_or_equal(dir_candidate, ed) for ed in exclude_dirs):
+                            continue
+                        pruned_dirs.append(d)
+                    dirs[:] = pruned_dirs
+
                     for f in files:
                         fp = root_path / f
-                        if not fp.is_symlink() and fp.is_file():
-                            dir_files.append(fp)
+                        if _is_link_or_junction(fp) or not fp.is_file():
+                            continue
+                        if exclude_dirs and any(_is_subpath_or_equal(fp, ed) for ed in exclude_dirs):
+                            continue
+                        dir_files.append(fp)
             else:
                 try:
                     for child in p_resolved.iterdir():
-                        if not child.is_symlink() and child.is_file():
-                            dir_files.append(child)
+                        if _is_link_or_junction(child) or not child.is_file():
+                            continue
+                        if exclude_dirs and any(_is_subpath_or_equal(child, ed) for ed in exclude_dirs):
+                            continue
+                        dir_files.append(child)
                 except OSError:
                     pass
 
@@ -288,7 +341,29 @@ class BatchProcessor:
         batch_id = str(uuid.uuid4())
         started_at = datetime.now(timezone.utc).isoformat()
 
-        discovered = discover_input_files(inputs, recursive=recursive)
+        out_dir_path = Path(output_dir).resolve() if output_dir else None
+        rep_dir_path = Path(reports_dir).resolve() if reports_dir else None
+
+        # Policy B: Explicitly reject if output_dir == input_dir or reports_dir == input_dir
+        for inp in inputs:
+            inp_p = Path(inp)
+            try:
+                inp_resolved = inp_p.resolve()
+            except Exception:
+                continue
+            if inp_resolved.is_dir():
+                inp_norm = os.path.normcase(str(inp_resolved))
+                if out_dir_path and os.path.normcase(str(out_dir_path)) == inp_norm:
+                    raise ValueError(
+                        f"Output directory cannot be identical to input directory: {inp_p}"
+                    )
+                if rep_dir_path and os.path.normcase(str(rep_dir_path)) == inp_norm:
+                    raise ValueError(
+                        f"Reports directory cannot be identical to input directory: {inp_p}"
+                    )
+
+        exclude_dirs = [p for p in (out_dir_path, rep_dir_path) if p is not None]
+        discovered = discover_input_files(inputs, recursive=recursive, exclude_dirs=exclude_dirs)
 
         if len(discovered) > self.max_batch_files:
             raise BatchLimitExceededError(
@@ -298,7 +373,7 @@ class BatchProcessor:
         # Preliminary total byte sum check on accessible files
         total_discovered_bytes = 0
         for fp, _ in discovered:
-            if fp.is_file() and not fp.is_symlink():
+            if fp.is_file() and not _is_link_or_junction(fp):
                 try:
                     total_discovered_bytes += fp.stat().st_size
                 except OSError:
@@ -309,12 +384,10 @@ class BatchProcessor:
                 f"Batch total bytes ({total_discovered_bytes}) exceeds limit of {self.max_batch_bytes}"
             )
 
-        out_dir_path = Path(output_dir).resolve() if output_dir else None
-        if out_dir_path:
+        if out_dir_path and not dry_run:
             os.makedirs(out_dir_path, exist_ok=True)
 
-        rep_dir_path = Path(reports_dir).resolve() if reports_dir else None
-        if rep_dir_path:
+        if rep_dir_path and not dry_run:
             os.makedirs(rep_dir_path, exist_ok=True)
 
         allocated_paths: Set[Path] = set()
@@ -342,14 +415,14 @@ class BatchProcessor:
                     items.append(item_res)
                     continue
 
-                if file_path.is_symlink():
+                if _is_link_or_junction(file_path):
                     item_res = BatchItemResult(
                         index=idx,
                         input_path=display_path,
                         format=file_path.suffix.lower().lstrip(".") or "unknown",
                         status="ERROR",
                         error_code="UNSUPPORTED_ARCHIVE_FEATURE",
-                        error_message_safe="Symlinks are not followed for safety",
+                        error_message_safe="Symlinks and junctions are not followed for safety",
                         elapsed_ms=(time.perf_counter() - t0) * 1000,
                     )
                     summary.errors += 1
@@ -454,7 +527,7 @@ class BatchProcessor:
                 items.append(item_res)
 
                 # 6. Optional per-file report
-                if rep_dir_path:
+                if rep_dir_path and not dry_run:
                     safe_stem = "".join(c for c in file_path.stem if c.isalnum() or c in ("-", "_")).strip() or "file"
                     report_file = rep_dir_path / f"{idx + 1:04d}-{safe_stem}.json"
                     report_file.write_text(json.dumps(rep_dict, indent=2), encoding="utf-8")
@@ -493,7 +566,7 @@ class BatchProcessor:
             operation=operation,
         )
 
-        if rep_dir_path:
+        if rep_dir_path and not dry_run:
             batch_report_file = rep_dir_path / "batch_report.json"
             batch_report_file.write_text(json.dumps(batch_report.to_dict(), indent=2), encoding="utf-8")
 
