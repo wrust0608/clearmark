@@ -1,0 +1,264 @@
+{
+  "status": "PASS",
+  "server_startup_shutdown_cycles": [
+    {
+      "cycle": 1,
+      "port": 62821,
+      "duration_s": 0.5824,
+      "rss_before_mib": 24.8,
+      "rss_after_mib": 32.62,
+      "temp_delta": 0,
+      "status": "PASS"
+    },
+    {
+      "cycle": 2,
+      "port": 59946,
+      "duration_s": 0.5302,
+      "rss_before_mib": 32.72,
+      "rss_after_mib": 32.75,
+      "temp_delta": 0,
+      "status": "PASS"
+    },
+    {
+      "cycle": 3,
+      "port": 58544,
+      "duration_s": 0.5359,
+      "rss_before_mib": 32.77,
+      "rss_after_mib": 32.79,
+      "temp_delta": 0,
+      "status": "PASS"
+    },
+    {
+      "cycle": 4,
+      "port": 50419,
+      "duration_s": 0.5129,
+      "rss_before_mib": 32.79,
+      "rss_after_mib": 32.8,
+      "temp_delta": 0,
+      "status": "PASS"
+    },
+    {
+      "cycle": 5,
+      "port": 58010,
+      "duration_s": 0.5268,
+      "rss_before_mib": 32.81,
+      "rss_after_mib": 32.82,
+      "temp_delta": 0,
+      "status": "PASS"
+    },
+    {
+      "cycle": 6,
+      "port": 50635,
+      "duration_s": 0.5163,
+      "rss_before_mib": 32.83,
+      "rss_after_mib": 32.84,
+      "temp_delta": 0,
+      "status": "PASS"
+    },
+    {
+      "cycle": 7,
+      "port": 60869,
+      "duration_s": 0.5281,
+      "rss_before_mib": 32.84,
+      "rss_after_mib": 32.84,
+      "temp_delta": 0,
+      "status": "PASS"
+    },
+    {
+      "cycle": 8,
+      "port": 65251,
+      "duration_s": 0.5304,
+      "rss_before_mib": 32.84,
+      "rss_after_mib": 32.84,
+      "temp_delta": 0,
+      "status": "PASS"
+    },
+    {
+      "cycle": 9,
+      "port": 64297,
+      "duration_s": 0.5304,
+      "rss_before_mib": 32.84,
+      "rss_after_mib": 32.85,
+      "temp_delta": 0,
+      "status": "PASS"
+    },
+    {
+      "cycle": 10,
+      "port": 52486,
+      "duration_s": 0.5318,
+      "rss_before_mib": 32.85,
+      "rss_after_mib": 32.85,
+      "temp_delta": 0,
+      "status": "PASS"
+    }
+  ],
+  "sequential_clean_sessions": [
+    {
+      "session": 1,
+      "duration_s": 0.2279,
+      "rss_before_mib": 32.85,
+      "rss_after_mib": 35.34,
+      "temp_delta": 0,
+      "status": "PASS"
+    },
+    {
+      "session": 2,
+      "duration_s": 0.1831,
+      "rss_before_mib": 35.36,
+      "rss_after_mib": 37.43,
+      "temp_delta": 0,
+      "status": "PASS"
+    },
+    {
+      "session": 3,
+      "duration_s": 0.1829,
+      "rss_before_mib": 37.43,
+      "rss_after_mib": 37.38,
+      "temp_delta": 0,
+      "status": "PASS"
+    },
+    {
+      "session": 4,
+      "duration_s": 0.1796,
+      "rss_before_mib": 37.41,
+      "rss_after_mib": 37.6,
+      "temp_delta": 0,
+      "status": "PASS"
+    },
+    {
+      "session": 5,
+      "duration_s": 0.1799,
+      "rss_before_mib": 37.64,
+      "rss_after_mib": 37.67,
+      "temp_delta": 0,
+      "status": "PASS"
+    },
+    {
+      "session": 6,
+      "duration_s": 0.1812,
+      "rss_before_mib": 37.72,
+      "rss_after_mib": 37.55,
+      "temp_delta": 0,
+      "status": "PASS"
+    },
+    {
+      "session": 7,
+      "duration_s": 0.1812,
+      "rss_before_mib": 37.56,
+      "rss_after_mib": 37.55,
+      "temp_delta": 0,
+      "status": "PASS"
+    },
+    {
+      "session": 8,
+      "duration_s": 0.1844,
+      "rss_before_mib": 37.6,
+      "rss_after_mib": 37.58,
+      "temp_delta": 0,
+      "status": "PASS"
+    },
+    {
+      "session": 9,
+      "duration_s": 0.1826,
+      "rss_before_mib": 37.63,
+      "rss_after_mib": 37.64,
+      "temp_delta": 0,
+      "status": "PASS"
+    },
+    {
+      "session": 10,
+      "duration_s": 0.1804,
+      "rss_before_mib": 37.64,
+      "rss_after_mib": 37.65,
+      "temp_delta": 0,
+      "status": "PASS"
+    }
+  ],
+  "batch_rerun_cycles": [
+    {
+      "run": 1,
+      "items": 100,
+      "duration_s": 0.0487,
+      "rss_before_mib": 37.81,
+      "rss_after_mib": 37.84,
+      "temp_delta": 0,
+      "status": "PASS"
+    },
+    {
+      "run": 2,
+      "items": 100,
+      "duration_s": 0.0469,
+      "rss_before_mib": 37.84,
+      "rss_after_mib": 37.84,
+      "temp_delta": 0,
+      "status": "PASS"
+    },
+    {
+      "run": 3,
+      "items": 100,
+      "duration_s": 0.0489,
+      "rss_before_mib": 37.84,
+      "rss_after_mib": 37.84,
+      "temp_delta": 0,
+      "status": "PASS"
+    }
+  ],
+  "ui_reload_reconnect": [
+    {
+      "cycle": 1,
+      "port": 60968,
+      "duration_s": 0.0279,
+      "status": "PASS"
+    },
+    {
+      "cycle": 2,
+      "port": 51944,
+      "duration_s": 0.0229,
+      "status": "PASS"
+    },
+    {
+      "cycle": 3,
+      "port": 51983,
+      "duration_s": 0.0361,
+      "status": "PASS"
+    }
+  ],
+  "idempotence_records": [
+    {
+      "format": "DOCX",
+      "pass1_sha256": "ed37819c05175cf251d0e57ae10e7736bf015eabb641ff7cfadf3ef54ef6e195",
+      "pass2_sha256": "ed37819c05175cf251d0e57ae10e7736bf015eabb641ff7cfadf3ef54ef6e195",
+      "pass2_changed": false,
+      "status": "PASS"
+    },
+    {
+      "format": "XLSX",
+      "pass1_sha256": "aba15328008c1d149804bbdcf94b18730f78d4bb1352e3cf03de60cafe55006e",
+      "pass2_sha256": "aba15328008c1d149804bbdcf94b18730f78d4bb1352e3cf03de60cafe55006e",
+      "pass2_changed": false,
+      "status": "PASS"
+    },
+    {
+      "format": "PPTX",
+      "pass1_sha256": "28ba2a18ccddb35439157b04d2dbe0a6f88081ca03b2460257d81ffce565de49",
+      "pass2_sha256": "28ba2a18ccddb35439157b04d2dbe0a6f88081ca03b2460257d81ffce565de49",
+      "pass2_changed": false,
+      "status": "PASS"
+    },
+    {
+      "format": "TXT",
+      "pass1_sha256": "38fdf87932dfdfa596a2d52cc7e298293ee79b1a7b6f94156ed0a0adc25cb89c",
+      "pass2_sha256": "38fdf87932dfdfa596a2d52cc7e298293ee79b1a7b6f94156ed0a0adc25cb89c",
+      "pass2_changed": false,
+      "status": "PASS"
+    },
+    {
+      "format": "PNG",
+      "pass1_sha256": "585f6801beefbbae067ab4711d62718cffffbd77d17990a1b70a7745d660361e",
+      "pass2_sha256": "585f6801beefbbae067ab4711d62718cffffbd77d17990a1b70a7745d660361e",
+      "pass2_changed": false,
+      "status": "PASS"
+    }
+  ],
+  "net_rss_growth_mib": 13.82
+}

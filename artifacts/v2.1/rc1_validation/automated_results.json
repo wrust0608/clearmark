@@ -8,5 +8,179 @@
   "V6_negative_security_corpus": "PASS",
   "V7_batch_and_stress": "PASS",
   "V8_ux_and_docs_consistency": "PASS",
-  "V9_soak_stability": "PASS"
+  "V9_soak_stability": "PASS",
+  "final_validation_closure": {
+    "timestamp": "2026-09-17T21:44:08Z",
+    "soak": {
+      "status": "PASS",
+      "startup_shutdown_cycles": 10,
+      "sequential_clean_cycles": 10,
+      "batch_reruns": 3,
+      "ui_reload_reconnect": 3,
+      "idempotence_checks": 5,
+      "net_rss_growth_mib": 13.82
+    },
+    "cli_contract": {
+      "status": "PASS",
+      "tests_count": 16,
+      "records": {
+        "inspect_success_code0": {
+          "code": 0,
+          "status": "PASS"
+        },
+        "inspect_unsupported_code2": {
+          "code": 2,
+          "status": "PASS"
+        },
+        "clean_success_code0": {
+          "code": 0,
+          "status": "PASS"
+        },
+        "clean_already_clean_code0": {
+          "code": 0,
+          "status": "PASS"
+        },
+        "clean_dry_run_zero_writes": {
+          "code": 0,
+          "status": "PASS"
+        },
+        "clean_in_place_success": {
+          "code": 0,
+          "status": "PASS"
+        },
+        "clean_unsupported_code2": {
+          "code": 2,
+          "status": "PASS"
+        },
+        "clean_invalid_mode_code4": {
+          "code": 4,
+          "status": "PASS"
+        },
+        "clean_corrupt_container_code4": {
+          "code": 4,
+          "status": "PASS"
+        },
+        "clean_dependency_missing_code5": {
+          "code": 5,
+          "status": "PASS"
+        },
+        "verify_success_code0": {
+          "code": 0,
+          "status": "PASS"
+        },
+        "verify_validation_failed_code3": {
+          "code": 3,
+          "status": "PASS"
+        },
+        "capabilities_code0": {
+          "code": 0,
+          "status": "PASS"
+        },
+        "batch_partial_failure_code7": {
+          "code": 7,
+          "status": "PASS"
+        },
+        "batch_limit_exceeded_code6": {
+          "code": 6,
+          "status": "PASS"
+        },
+        "internal_error_code10": {
+          "code": 10,
+          "status": "PASS"
+        }
+      }
+    },
+    "http_contract": {
+      "status": "PASS",
+      "mappings_tested": {
+        "GET_health_200": 200,
+        "GET_capabilities_200": 200,
+        "POST_inspect_200": 200,
+        "POST_clean_200": 200,
+        "POST_verify_200": 200,
+        "POST_clean_invalid_mode_400": 400,
+        "POST_clean_corrupt_zip_400": 400,
+        "POST_clean_unsupported_415": 415,
+        "POST_verify_unsupported_415": 415,
+        "POST_verify_invariant_fail_422": 422,
+        "POST_clean_dependency_missing_424": 424,
+        "POST_batch_200": 200,
+        "POST_batch_limit_exceeded_413": 413,
+        "zero_sensitive_text_leakage": "PASS"
+      }
+    },
+    "web_ui": {
+      "status": "PASS",
+      "node_unit_tests": "PASS (9/9 tests)",
+      "browser_smoke": {
+        "browser_version": "Chrome/153.0.8010.48",
+        "chrome_smoke": "PASS",
+        "reloads_tested": 3,
+        "safe_default": true,
+        "xss_safe": true
+      }
+    },
+    "visual_fidelity": {
+      "status": "PASS",
+      "tooling": "LibreOffice 26.8.0.3 (soffice.com)",
+      "docx_rendered_pages": 3,
+      "docx_page_match": true,
+      "xlsx_calc_open_render": "PASS (converted without repair prompts)",
+      "pptx_impress_open_render": "PASS (converted without repair prompts)",
+      "structural_invariants": "PASS"
+    },
+    "docs_execution": {
+      "status": "PASS",
+      "documented_commands_executed": [
+        "python -m service.scripts.cli inspect <docx> --json",
+        "watermarks clean <docx> --dry-run --json",
+        "watermarks clean <docx> -o <out>",
+        "watermarks verify <orig> <cand> --json",
+        "watermarks capabilities [--json]",
+        "watermarks batch <dir> -o <out> --json"
+      ],
+      "constants_verified": [
+        "common.MAX_INPUT_BYTES == 256 MiB",
+        "common.MAX_STDIN_BYTES == 64 MiB",
+        "server.MAX_BODY_BYTES == 384 MiB",
+        "server.MAX_INPUT_BYTES == 256 MiB",
+        "batch_processor.MAX_INPUT_BYTES == 32 MiB",
+        "batch_processor.MAX_BATCH_TOTAL_BYTES == 200 MiB",
+        "batch_processor.MAX_BATCH_FILES == 100",
+        "server.MAX_BATCH_FILES == 50",
+        "limits.max_compression_ratio == 100x",
+        "limits.max_member_uncompressed_bytes == 64 MiB",
+        "limits.max_total_uncompressed_bytes == 128 MiB",
+        "limits.max_member_count == 10,000",
+        "limits.max_xml_part_bytes == 32 MiB",
+        "limits.max_total_xml_bytes == 128 MiB",
+        "limits.max_xml_depth == 100",
+        "limits.max_xml_elements == 500,000"
+      ]
+    },
+    "corpus_provenance": {
+      "status": "PASS",
+      "corpus_name": "ClearMark_RC1_Validation_Corpus_v1",
+      "corpus_zip_sha256": "cf5e6dad07452cfe891a6c53f7e52af5fc6d3370c6fc3b52bf9c46f3b418d93b",
+      "bundled_policy_count": 22,
+      "project_fixture_augmentation_count": 1,
+      "final_canonical_policy_coverage": "23/23",
+      "heic_fixture_source": "tests/fixtures/sample_c2pa.heic",
+      "negative_fixture_count": 12,
+      "batch_fixture_count": 105,
+      "stress_fixture_sizes": [
+        "1 MiB",
+        "10 MiB",
+        "50 MiB",
+        "100 MiB"
+      ]
+    },
+    "decision": "PROMOTE_TO_V2.1.0",
+    "open_defects": {
+      "S0_blocker": 0,
+      "S1_major": 0,
+      "S2_moderate": 0,
+      "S3_minor": 0
+    }
+  }
 }

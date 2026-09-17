@@ -22,5 +22,16 @@
     "V8_ux_and_docs_consistency": "PASS",
     "V9_soak_stability": "PASS"
   },
-  "total_elapsed_seconds": 134.57
+  "total_elapsed_seconds": 134.57,
+  "final_validation_closure": {
+    "status": "PASS",
+    "soak_closure": "PASS",
+    "cli_full_contract": "PASS",
+    "http_full_contract": "PASS",
+    "browser_ui_acceptance": "PASS",
+    "visual_fidelity_automation": "PASS",
+    "docs_execution": "PASS",
+    "corpus_provenance": "PASS",
+    "decision": "PROMOTE_TO_V2.1.0"
+  }
 }
