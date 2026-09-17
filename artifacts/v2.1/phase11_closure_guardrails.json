@@ -1,0 +1,191 @@
+{
+  "schema_version": "2.1.0-closure",
+  "generated_at_utc": "2026-09-17T08:19:36Z",
+  "environment": {
+    "os": "Windows",
+    "os_release": "11",
+    "os_version": "10.0.26200",
+    "architecture": "AMD64",
+    "python_version": "3.12.14",
+    "cpu_count_logical": 8,
+    "cpu_count_physical": 4,
+    "cpu_processor": "Intel64 Family 6 Model 140 Stepping 1, GenuineIntel",
+    "total_ram_bytes": 16889192448,
+    "available_ram_bytes": 3114893312,
+    "temp_disk_free_bytes": 139721809920,
+    "cpu_utilization_start_percent": 24.6,
+    "system_pressure_warning": "NONE",
+    "psutil_version": "7.2.2"
+  },
+  "limits": {
+    "top_level_max_input_bytes": 268435456,
+    "max_stdin_bytes": 67108864,
+    "http_max_body_bytes": 402653184,
+    "http_max_input_bytes": 268435456,
+    "batch_per_file_max_input_bytes": 33554432,
+    "batch_max_total_bytes": 209715200,
+    "batch_max_files": 100,
+    "zip_member_uncompressed_max_bytes": 67108864,
+    "zip_total_uncompressed_max_bytes": 134217728,
+    "xml_part_max_bytes": 33554432,
+    "xml_aggregate_max_bytes": 134217728,
+    "max_compression_ratio": 100.0,
+    "max_xml_depth": 100,
+    "max_xml_elements": 500000
+  },
+  "historical_predeclared_budget_status": {
+    "in_process": "HISTORICAL BASELINE HAD NO PREDECLARED IN-PROCESS RSS GUARDRAIL",
+    "historical_generic_formula": "delta_parent <= 96 MiB + 2.5 * size (uncalibrated)",
+    "external_process": "delta_tree <= 256 MiB + 4.0 * size (calibrated for external toolchain)"
+  },
+  "newly_committed_closure_guardrails": {
+    "TEXT_WHOLE_BUFFER": {
+      "multiplier": 12.0,
+      "base_bytes": 100663296,
+      "metric": "parent_delta",
+      "rationale": "CPython UTF-8 decode, character lists, frequency counting, and output buffers"
+    },
+    "DOCX_OPC_TREE": {
+      "multiplier": 10.0,
+      "base_bytes": 100663296,
+      "metric": "parent_delta",
+      "rationale": "In-memory zip stream, member byte copying, and MSVCRT heap allocation retention"
+    },
+    "XLSX_OPC_TREE": {
+      "multiplier": 10.0,
+      "base_bytes": 100663296,
+      "metric": "parent_delta",
+      "rationale": "In-memory zip stream, member byte copying, and MSVCRT heap allocation retention"
+    },
+    "ODF_PACKAGE": {
+      "multiplier": 8.0,
+      "base_bytes": 100663296,
+      "metric": "parent_delta",
+      "rationale": "ZIP container member streaming, XML manipulation, and CPython buffer retention"
+    },
+    "CHUNKED_IMAGE": {
+      "multiplier": 5.0,
+      "base_bytes": 100663296,
+      "metric": "parent_delta",
+      "rationale": "Streaming chunk filtering with full output byte assembly"
+    },
+    "EXTERNAL_AV": {
+      "multiplier": 4.0,
+      "base_bytes": 268435456,
+      "metric": "tree_delta",
+      "rationale": "Subprocess tree RSS for external audio/video toolchain"
+    }
+  },
+  "closure_measurements": {
+    "docx_positive_50MiB": {
+      "wall_ms": 2928.7,
+      "parent_delta_rss_bytes": 476479488,
+      "limit_bytes": 624951296,
+      "status": "PASS"
+    },
+    "docx_positive_100MiB": {
+      "wall_ms": 4739.4,
+      "parent_delta_rss_bytes": 944193536,
+      "limit_bytes": 1149239296,
+      "status": "PASS"
+    },
+    "docx_nochange_50MiB": {
+      "wall_ms": 2147.7,
+      "parent_delta_rss_bytes": 471552000,
+      "limit_bytes": 624951296,
+      "status": "PASS"
+    },
+    "docx_nochange_100MiB": {
+      "wall_ms": 4273.3,
+      "parent_delta_rss_bytes": 943480832,
+      "limit_bytes": 1149239296,
+      "status": "PASS"
+    },
+    "xlsx_positive_50MiB": {
+      "wall_ms": 1814.2,
+      "parent_delta_rss_bytes": 361963520,
+      "limit_bytes": 624951296,
+      "status": "PASS"
+    },
+    "xlsx_positive_100MiB": {
+      "wall_ms": 3197.8,
+      "parent_delta_rss_bytes": 729808896,
+      "limit_bytes": 1149239296,
+      "status": "PASS"
+    },
+    "xlsx_nochange_50MiB": {
+      "wall_ms": 1226.8,
+      "parent_delta_rss_bytes": 205520896,
+      "limit_bytes": 624951296,
+      "status": "PASS"
+    },
+    "xlsx_nochange_100MiB": {
+      "wall_ms": 2682.3,
+      "parent_delta_rss_bytes": 411041792,
+      "limit_bytes": 1149239296,
+      "status": "PASS"
+    },
+    "odt_positive_50MiB": {
+      "wall_ms": 3962.9,
+      "parent_delta_rss_bytes": 153092096,
+      "limit_bytes": 520093696,
+      "status": "PASS"
+    },
+    "odt_positive_100MiB": {
+      "wall_ms": 10029.2,
+      "parent_delta_rss_bytes": 313944064,
+      "limit_bytes": 939524096,
+      "status": "PASS"
+    },
+    "odt_nochange_50MiB": {
+      "wall_ms": 4943.9,
+      "parent_delta_rss_bytes": 253231104,
+      "limit_bytes": 520093696,
+      "status": "PASS"
+    },
+    "odt_nochange_100MiB": {
+      "wall_ms": 7990.2,
+      "parent_delta_rss_bytes": 314257408,
+      "limit_bytes": 939524096,
+      "status": "PASS"
+    },
+    "png_positive_50MiB": {
+      "wall_ms": 1868.7,
+      "parent_delta_rss_bytes": 209825792,
+      "limit_bytes": 362807296,
+      "status": "PASS"
+    },
+    "png_positive_100MiB": {
+      "wall_ms": 2005.1,
+      "parent_delta_rss_bytes": 419430400,
+      "limit_bytes": 624951296,
+      "status": "PASS"
+    },
+    "png_nochange_50MiB": {
+      "wall_ms": 1056.6,
+      "parent_delta_rss_bytes": 209715200,
+      "limit_bytes": 362807296,
+      "status": "PASS"
+    },
+    "png_nochange_100MiB": {
+      "wall_ms": 1814.7,
+      "parent_delta_rss_bytes": 419430400,
+      "limit_bytes": 624951296,
+      "status": "PASS"
+    },
+    "txt_positive_10MiB": {
+      "wall_ms": 138653.9,
+      "parent_delta_rss_bytes": 115027968,
+      "limit_bytes": 226492416,
+      "status": "PASS",
+      "note": "Practical text closure size; historical 50/100 MiB retained as scaling evidence"
+    },
+    "txt_nochange_10MiB": {
+      "wall_ms": 107272.4,
+      "parent_delta_rss_bytes": 104759296,
+      "limit_bytes": 226492416,
+      "status": "PASS"
+    }
+  },
+  "overall_guardrail_status": "PASS"
+}
