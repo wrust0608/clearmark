@@ -123,8 +123,9 @@ Matches `error_code_to_http_status()`:
 - **XLSX Shared-String Invariants**: Shared strings are updated in place within their existing `<si>` positions without re-indexing or deduplication. Shared-string indices and referring cell indices (`<c t="s"><v>N</v></c>`) remain unchanged.
 - **Phase 4 Commit Provenance**: Canonical Phase 4 evidence/docs closure is `1fb5cba5ef243021bf53ef4f1498aedf76ccfa16` (amended from historical pre-amend commit `3370fcc7b0ef0002c30748d410293e32cd790dd0`).
 - **Phase 12 Commit Provenance**:
-  - Documentation implementation commit: `c6a4b3a4a98404a9e4070a2719a997ecab7289ee` (commit `c6a4b3afbc1d58e30d39202746449f089735bb3d`)
-  - Semantic truthfulness closure commit: `2e4e31c8a15230c41e5089cd52838c6e8d324549`
+  - Canonical documentation implementation commit: `c6a4b3afbc1d58e30d39202746449f089735bb3d`
+  - Historical/pre-amend hash: NONE
+  - Semantic truthfulness closure commit: `02cd1e75525ca0ce238e87413a96860d5dd14d10`
 
 ### 4.6 Clean Hygiene Audits
 - **CLI Command Syntax**: All CLI invocations in `README.md` use valid subcommands (`inspect`, `clean`, `batch`, `verify`, `capabilities`) and real options (`--mode`, `--json`, `--dry-run`, `--in-place`, `-o`, `-r`, `--output-dir`, `--reports-dir`).
