@@ -23,7 +23,14 @@ ClearMark v2.1.0 is the first stable production promotion of the fully validated
 | **Stable Package Filename** | `FINAL_RELEASE_PACKAGE_v2.1.0.zip` | VERIFIED |
 | **Stable Package SHA256** | `33616f74730a0e026efa751d1fb5d86d5f310e2d66f6de3d34afec3635d716d9` | VERIFIED |
 | **Independent Package Audit** | 15/15 gates PASS (`overall_status = PASS`, `stable_ready = true`) | VERIFIED |
-| **Stable Publish Status** | AUTHORIZED / NOT YET PUBLISHED | PENDING |
+| **Stable Publish Status** | PUBLISHED / VERIFIED | VERIFIED |
+| **Stable Release URL** | `https://github.com/wrust0608/clearmark/releases/tag/v2.1.0` | VERIFIED |
+| **Stable Tag** | `v2.1.0` | VERIFIED |
+| **Stable Tag Target** | `7a479f97ee0f034080e93beaf74e86d526956991` | VERIFIED |
+| **Downloaded GitHub Package SHA256** | `33616f74730a0e026efa751d1fb5d86d5f310e2d66f6de3d34afec3635d716d9` | VERIFIED |
+| **Transport Integrity** | PASS (downloaded SHA == published checksum == local stable SHA) | VERIFIED |
+| **RC1 Retained** | YES (prerelease intact on GitHub) | VERIFIED |
+| **RC1 Tag Unchanged** | YES (`9ecfea135f7b871f226313bfc7f101d07f578d3b`) | VERIFIED |
 
 ---
 
