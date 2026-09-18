@@ -15,6 +15,15 @@ from .exceptions import (
     PptxUnsupportedFeatureError,
 )
 
+try:
+    from ..zip_utils import locate_zip_eocd, ZipEocdError
+except (ImportError, ValueError):
+    try:
+        from service.scripts.zip_utils import locate_zip_eocd, ZipEocdError
+    except ImportError:
+        from zip_utils import locate_zip_eocd, ZipEocdError
+
+
 MAX_UNCOMPRESSED_BUDGET = 128 * 1024 * 1024  # 128 MiB
 MAX_COMPRESSION_RATIO = 100
 
@@ -61,6 +70,16 @@ class PptxPackage:
         if not data.startswith(b"PK\x03\x04") and not data.startswith(b"PK\x05\x06"):
             raise PptxCorruptedPackageError("File does not start with standard ZIP magic bytes.")
 
+        # 1. Locate and validate EOCD using canonical ZIP EOCD locator
+        try:
+            eocd_idx, comment_len, raw_comment = locate_zip_eocd(data)
+        except ZipEocdError as e:
+            if "missing EOCD" in str(e):
+                raise PptxCorruptedPackageError("Invalid PPTX package: missing EOCD record") from e
+            raise PptxCorruptedPackageError(
+                f"Invalid PPTX package: malformed EOCD comment length or archive boundary ({e})"
+            ) from e
+
         self.raw_data = data
         self.member_order: list[str] = []
         self._members: dict[str, bytes] = {}
@@ -74,12 +93,15 @@ class PptxPackage:
         self._raw_cd_extra: dict[str, bytes] = {}
         self._raw_cd_comment: dict[str, bytes] = {}
         self._raw_disk_number_start: dict[str, int] = {}
-        self._raw_eocd_comment: bytes = b""
+        self._raw_eocd_comment: bytes = raw_comment
+        self._eocd_idx: int = eocd_idx
+        self._comment_len: int = comment_len
         self._parse_package()
 
     def _parse_package(self) -> None:
         try:
-            with zipfile.ZipFile(io.BytesIO(self.raw_data), "r") as zf:
+            zf_stream = io.BytesIO(self.raw_data[:self._eocd_idx + 20] + b"\x00\x00") if self._comment_len > 0 else io.BytesIO(self.raw_data)
+            with zipfile.ZipFile(zf_stream, "r") as zf:
                 total_uncompressed = 0
                 seen_names: set[str] = set()
 
@@ -132,9 +154,7 @@ class PptxPackage:
     def _parse_raw_records(self) -> None:
         """Extract exact local headers, compressed streams, and central directory records using Central Directory."""
         data = self.raw_data
-        eocd_idx = data.rfind(b"PK\x05\x06")
-        if eocd_idx == -1:
-            raise PptxCorruptedPackageError("Invalid PPTX package: missing EOCD record")
+        eocd_idx = self._eocd_idx
 
         (
             disk_num,
@@ -143,14 +163,8 @@ class PptxPackage:
             total_entries,
             cd_size,
             cd_offset,
-            comment_len,
+            _c_len,
         ) = struct.unpack("<HHHHIIH", data[eocd_idx + 4 : eocd_idx + 22])
-
-        if eocd_idx + 22 + comment_len > len(data):
-            raise PptxCorruptedPackageError(
-                f"Invalid PPTX package: malformed EOCD comment length ({comment_len} exceeds package bounds)"
-            )
-        self._raw_eocd_comment = data[eocd_idx + 22 : eocd_idx + 22 + comment_len]
 
         if total_entries != len(self.member_order):
             raise PptxCorruptedPackageError("ZIP entry count mismatch between Central Directory and ZipFile")
@@ -259,7 +273,12 @@ class PptxPackage:
     def get_central_directory_record(self, name: str) -> Optional[bytes]:
         return self._central_directory_records.get(name)
 
+    def get_archive_comment(self) -> bytes:
+        """Return the raw ZIP archive-level EOCD comment bytes."""
+        return self._raw_eocd_comment
+
     def rebuild(
+
         self,
         patched_members: dict[str, bytes] | None = None,
         dropped_members: Optional[set[str]] = None,

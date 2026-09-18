@@ -15,6 +15,15 @@ try:
 except (ImportError, ValueError):
     from docx.exceptions import DocxFidelityException
 
+try:
+    from ..zip_utils import locate_zip_eocd, ZipEocdError
+except (ImportError, ValueError):
+    try:
+        from service.scripts.zip_utils import locate_zip_eocd, ZipEocdError
+    except ImportError:
+        from zip_utils import locate_zip_eocd, ZipEocdError
+
+
 MAX_DOCX_UNCOMPRESSED_BYTES = 128 * 1024 * 1024  # 128 MB max uncompressed package
 MAX_MEMBER_COUNT = 10_000
 
@@ -80,9 +89,23 @@ class DocxPackage:
         self._raw_disk_number_start: dict[str, int] = {}
         self._raw_eocd_comment: bytes = b""
 
-        # 1. Parse using zipfile for high-level ZipInfo & security checks
+        # 1. Locate and validate EOCD using canonical ZIP EOCD locator
         try:
-            zf = zipfile.ZipFile(io.BytesIO(data), "r")
+            eocd_idx, comment_len, raw_comment = locate_zip_eocd(data)
+        except ZipEocdError as e:
+            if "missing EOCD" in str(e):
+                raise DocxFidelityException("Invalid DOCX package: missing EOCD record") from e
+            raise DocxFidelityException(
+                f"Invalid DOCX package: malformed EOCD comment length or archive boundary ({e})"
+            ) from e
+
+        self._raw_eocd_comment = raw_comment
+
+        # 2. Parse using zipfile for high-level ZipInfo & security checks
+        # Use normalized stream (comment stripped) to protect against stdlib zipfile rfind comment bug
+        zf_stream = io.BytesIO(data[:eocd_idx + 20] + b"\x00\x00") if comment_len > 0 else io.BytesIO(data)
+        try:
+            zf = zipfile.ZipFile(zf_stream, "r")
         except zipfile.BadZipFile as e:
             raise DocxFidelityException(f"Invalid DOCX package: not a valid ZIP archive ({e})") from e
 
@@ -111,11 +134,7 @@ class DocxPackage:
                 self.zip_infos[name] = info
                 self.member_order.append(name)
 
-        # 2. Binary parse of Central Directory and Local Headers from raw data
-        eocd_idx = data.rfind(b"PK\x05\x06")
-        if eocd_idx == -1:
-            raise DocxFidelityException("Invalid DOCX package: missing EOCD record")
-
+        # 3. Binary parse of Central Directory and Local Headers from raw data
         (
             disk_num,
             cd_disk,
@@ -123,14 +142,8 @@ class DocxPackage:
             total_entries,
             cd_size,
             cd_offset,
-            comment_len,
+            _c_len,
         ) = struct.unpack("<HHHHIIH", data[eocd_idx + 4 : eocd_idx + 22])
-
-        if eocd_idx + 22 + comment_len > len(data):
-            raise DocxFidelityException(
-                f"Invalid DOCX package: malformed EOCD comment length ({comment_len} exceeds package bounds)"
-            )
-        self._raw_eocd_comment = data[eocd_idx + 22 : eocd_idx + 22 + comment_len]
 
         if total_entries != len(self.member_order):
             raise DocxFidelityException("ZIP entry count mismatch between Central Directory and ZipFile")
@@ -245,7 +258,12 @@ class DocxPackage:
         """Check if member exists in package."""
         return name in self.members
 
+    def get_archive_comment(self) -> bytes:
+        """Return the raw ZIP archive-level EOCD comment bytes."""
+        return self._raw_eocd_comment
+
     def rebuild(
+
         self,
         changed_parts: dict[str, bytes],
         dropped_parts: set[str] | None = None,
