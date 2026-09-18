@@ -38,8 +38,19 @@ class XlsxFidelityValidator:
         warnings: list[str] = []
         errors: list[str] = []
 
+        # Archive-level ZIP comment preservation invariant
+        if self.before_pkg.get_archive_comment() != self.after_pkg.get_archive_comment():
+            errors.append(
+                f"archive-level ZIP comment drift: original comment {self.before_pkg.get_archive_comment()!r} "
+                f"!= candidate comment {self.after_pkg.get_archive_comment()!r}"
+            )
+        else:
+            invariants.append("archive_comment_preserved: True")
+
+
         # 1. Strict Raw OPC Preservation on Non-Target Members (Section 33)
         opc_ok, opc_errors = self._validate_raw_opc_non_targets()
+
         if not opc_ok:
             errors.extend(opc_errors)
         else:

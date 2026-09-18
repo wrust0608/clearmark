@@ -28,6 +28,15 @@ try:
 except (ImportError, ValueError):
     from docx.exceptions import DocxFidelityException
 
+try:
+    from ..zip_utils import locate_zip_eocd, ZipEocdError
+except (ImportError, ValueError):
+    try:
+        from service.scripts.zip_utils import locate_zip_eocd, ZipEocdError
+    except ImportError:
+        from zip_utils import locate_zip_eocd, ZipEocdError
+
+
 
 class DocxFidelityValidator:
     """Rigorous fail-closed validator that guarantees zero collateral damage to document content and layout."""
@@ -53,6 +62,13 @@ class DocxFidelityValidator:
         self.clean_pkg = DocxPackage(self.cleaned_data)
         report["package_valid"] = True
 
+        # Archive-level ZIP comment preservation invariant
+        if self.orig_pkg.get_archive_comment() != self.clean_pkg.get_archive_comment():
+            raise DocxFidelityException(
+                f"archive-level ZIP comment drift: original comment {self.orig_pkg.get_archive_comment()!r} "
+                f"!= cleaned comment {self.clean_pkg.get_archive_comment()!r}"
+            )
+
         # 2. Non-target part hash equality
         self._validate_non_target_hashes()
         report["non_target_parts_verified"] = True
@@ -71,7 +87,17 @@ class DocxFidelityValidator:
 
     def _validate_package(self) -> None:
         try:
-            with zipfile.ZipFile(io.BytesIO(self.cleaned_data), "r") as zf:
+            try:
+                eocd_idx, comment_len, _ = locate_zip_eocd(self.cleaned_data)
+            except ZipEocdError as e:
+                raise DocxFidelityException(f"Cleaned output is not a valid ZIP package: {e}") from e
+
+            stream = (
+                io.BytesIO(self.cleaned_data[:eocd_idx + 20] + b"\x00\x00")
+                if comment_len > 0
+                else io.BytesIO(self.cleaned_data)
+            )
+            with zipfile.ZipFile(stream, "r") as zf:
                 bad_crc = zf.testzip()
                 if bad_crc:
                     raise DocxFidelityException(f"Cleaned ZIP package has corrupted CRC in: {bad_crc}")
@@ -94,6 +120,7 @@ class DocxFidelityValidator:
                             ) from e
         except zipfile.BadZipFile as e:
             raise DocxFidelityException(f"Cleaned output is not a valid ZIP package: {e}") from e
+
 
     def _validate_non_target_hashes(self) -> None:
         changed_parts = self.plan.changed_parts()
