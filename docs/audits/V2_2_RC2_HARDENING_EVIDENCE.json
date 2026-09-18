@@ -2,10 +2,21 @@
   "repository": "wrust0608/clearmark",
   "branch": "feature/v2.2.0-rc2-hardening",
   "start_sha": "d8bb90073ece32b00a0761020f21dd32c5ad54c4",
-  "code_end_sha": "621636a28cb52289e28cc19d38203c2b2d7bf2c4",
-  "report_source_sha": "621636a28cb52289e28cc19d38203c2b2d7bf2c4",
+  "code_end_sha": "f1cd43b18a7354e3f984aaff7e858e7f744dc13f",
+  "report_source_sha": "f1cd43b18a7354e3f984aaff7e858e7f744dc13f",
   "upstream_sha": "e4d2bd49c4cb84c5fddb50f5361618cfb3b75def",
-  "independent_review_round": "P0_INDEPENDENT_REVIEW_ROUND_2",
+  "independent_review_round": "P0_INDEPENDENT_REVIEW_ROUND_3",
+  "P0_GATE_CANDIDATE": "PASS",
+  "independent_review": "AWAITING",
+  "rc2_ready": false,
+  "rc2_blocked_by": [
+    "P1_STATISTICAL_WATERMARK",
+    "P2_COMPONENT_MANAGER",
+    "P3_UI_UX",
+    "P4_COMPREHENSIVE_REGRESSION",
+    "P5_UPSTREAM_DELTA",
+    "P6_CLEAN_WINDOWS"
+  ],
   "release_refs": {
     "v2.1.0-rc1": "9ecfea135f7b871f226313bfc7f101d07f578d3b",
     "v2.1.0": "7a479f97ee0f034080e93beaf74e86d526956991",
@@ -167,7 +178,15 @@
         "tests/test_p0_round2_review_corrections.py::test_a11_docx_changed_entry_preserves_compatible_extra_fields_and_comment",
         "tests/test_p0_round2_review_corrections.py::test_a11_xlsx_changed_entry_preserves_metadata_and_does_not_force_0x800",
         "tests/test_p0_round2_review_corrections.py::test_a11_pptx_changed_entry_preserves_extra_fields_and_comment",
-        "tests/test_p0_round2_review_corrections.py::test_a11_stale_zip64_extra_field_stripped_on_rebuild"
+        "tests/test_p0_round2_review_corrections.py::test_a11_stale_zip64_extra_field_stripped_on_rebuild",
+        "tests/test_p0_round3_final_corrections.py::test_docx_preserves_eocd_archive_comment",
+        "tests/test_p0_round3_final_corrections.py::test_xlsx_preserves_eocd_archive_comment",
+        "tests/test_p0_round3_final_corrections.py::test_pptx_preserves_eocd_archive_comment",
+        "tests/test_p0_round3_final_corrections.py::test_empty_eocd_comment_roundtrip",
+        "tests/test_p0_round3_final_corrections.py::test_malformed_eocd_comment_fails_closed",
+        "tests/test_p0_round3_final_corrections.py::test_unknown_compatible_extra_field_preserved",
+        "tests/test_p0_round3_final_corrections.py::test_zip64_extra_policy_remains_fail_closed",
+        "tests/test_p0_round3_final_corrections.py::test_growth_hint_rebuild_policy"
       ],
       "changed_files": [
         "service/scripts/docx/package.py",
@@ -317,11 +336,11 @@
     },
     "full_pytest": {
       "status": "PASS",
-      "passed": 2076,
+      "passed": 2088,
       "skipped": 152,
       "failed": 0,
       "errors": 0,
-      "duration_seconds": 245.7
+      "duration_seconds": 174.7
     },
     "browser": {
       "status": "PASS",
@@ -339,11 +358,27 @@
     "real_document": {
       "status": "PASS",
       "failed": 0
+    },
+    "p0_round3_final_corrections": {
+      "suite": "tests/test_p0_round3_final_corrections.py",
+      "passed": 12,
+      "failed": 0,
+      "status": "PASS"
     }
   },
   "artifacts": {
     "report": "docs/audits/V2_2_RC2_HARDENING_REPORT.md",
     "evidence": "docs/audits/V2_2_RC2_HARDENING_EVIDENCE.json"
   },
-  "rc2_gate": "PASS"
+  "P0_GATE_CANDIDATE": "PASS",
+  "independent_review": "AWAITING",
+  "rc2_ready": false,
+  "rc2_blocked_by": [
+    "P1_STATISTICAL_WATERMARK",
+    "P2_COMPONENT_MANAGER",
+    "P3_UI_UX",
+    "P4_COMPREHENSIVE_REGRESSION",
+    "P5_UPSTREAM_DELTA",
+    "P6_CLEAN_WINDOWS"
+  ]
 }
