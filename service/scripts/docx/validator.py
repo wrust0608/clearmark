@@ -2,16 +2,19 @@
 
 from __future__ import annotations
 
+from collections import Counter
 import hashlib
 import io
 import xml.etree.ElementTree as ET
 import zipfile
 
 try:
+    from .logical_stream import parse_part_text_streams
     from .mutation_plan import DocxMutationPlan
     from .package import DocxPackage
     from .visible_text import extract_canonical_visible_text, remove_planned_carriers
 except (ImportError, ValueError):
+    from docx.logical_stream import parse_part_text_streams
     from docx.mutation_plan import DocxMutationPlan
     from docx.package import DocxPackage
     from docx.visible_text import extract_canonical_visible_text, remove_planned_carriers
@@ -54,15 +57,15 @@ class DocxFidelityValidator:
         self._validate_non_target_hashes()
         report["non_target_parts_verified"] = True
 
-        # 3. Canonical visible text invariant
-        text_stats = self._validate_visible_text()
-        report["visible_text_exact_match"] = True
-        report.update(text_stats)
-
-        # 4. Structural invariants
+        # 3. Structural invariants
         struct_stats = self._validate_structure()
         report["structural_invariants_passed"] = True
         report.update(struct_stats)
+
+        # 4. Canonical visible text invariant
+        text_stats = self._validate_visible_text()
+        report["visible_text_exact_match"] = True
+        report.update(text_stats)
 
         return report
 
@@ -113,31 +116,156 @@ class DocxFidelityValidator:
         visible_before = extract_canonical_visible_text(self.orig_pkg)
         visible_after = extract_canonical_visible_text(self.clean_pkg)
 
+        # 1. Exact node-level text reconciliation in changed XML parts
+        self._reconcile_text_nodes()
+
+        # 2. Macro-level visible text diff and codepoint delta verification
         target_cps = self.plan.target_codepoints
-        expected_after = remove_planned_carriers(visible_before, target_cps)
 
-        if visible_after != expected_after:
-            # Find divergence position for actionable debugging
-            diff_idx = 0
-            while diff_idx < len(visible_after) and diff_idx < len(expected_after):
-                if visible_after[diff_idx] != expected_after[diff_idx]:
-                    break
-                diff_idx += 1
+        # If no text mutations planned, visible text must be strictly identical
+        if not self.plan.text_mutations:
+            if visible_before != visible_after:
+                diff_idx = 0
+                while diff_idx < len(visible_after) and diff_idx < len(visible_before):
+                    if visible_after[diff_idx] != visible_before[diff_idx]:
+                        break
+                    diff_idx += 1
+                raise DocxFidelityException(
+                    f"Visible text mismatch: text modified when zero mutations were planned at offset {diff_idx}!"
+                )
+            return {
+                "visible_chars_before": len(visible_before),
+                "visible_chars_after": len(visible_after),
+                "removed_carrier_chars": 0,
+            }
 
-            snippet_actual = visible_after[max(0, diff_idx - 30) : min(len(visible_after), diff_idx + 30)]
-            snippet_expected = expected_after[max(0, diff_idx - 30) : min(len(expected_after), diff_idx + 30)]
+        counts_before = Counter(visible_before)
+        counts_after = Counter(visible_after)
 
+        # Verify targeted codepoints delta strictly matches authorized plan
+        for cp in target_cps:
+            orig_cp_count = counts_before.get(chr(cp), 0)
+            clean_cp_count = counts_after.get(chr(cp), 0)
+            planned_removals = sum(1 for m in self.plan.text_mutations if m.codepoint == cp and m.replacement == "")
+            planned_replacements = sum(
+                1 for m in self.plan.text_mutations if m.codepoint == cp and m.replacement != "" and chr(cp) not in m.replacement
+            )
+            total_planned_drop = planned_removals + planned_replacements
+            actual_drop = orig_cp_count - clean_cp_count
+            if actual_drop != total_planned_drop:
+                raise DocxFidelityException(
+                    f"Visible text mismatch: Codepoint U+{cp:04X} count delta mismatch! "
+                    f"Expected {total_planned_drop} removed/replaced, but actual reduction was {actual_drop} "
+                    f"(before: {orig_cp_count}, after: {clean_cp_count})"
+                )
+
+        # Verify exact character conservation for all non-targeted characters
+        replacement_char_counts: dict[str, int] = {}
+        for m in self.plan.text_mutations:
+            for ch in m.replacement:
+                replacement_char_counts[ch] = replacement_char_counts.get(ch, 0) + 1
+
+        all_non_target_chars = set(counts_before.keys()) | set(counts_after.keys())
+        for ch in all_non_target_chars:
+            if ord(ch) in target_cps:
+                continue
+            cnt_before = counts_before.get(ch, 0)
+            cnt_after = counts_after.get(ch, 0)
+            expected_added = replacement_char_counts.get(ch, 0)
+            if cnt_after != cnt_before + expected_added:
+                raise DocxFidelityException(
+                    f"Visible text mismatch: character {repr(ch)} (U+{ord(ch):04X}) count altered! "
+                    f"Expected {cnt_before + expected_added}, got {cnt_after}"
+                )
+
+        # Net length verification
+        net_expected_delta = sum(len(m.char) - len(m.replacement) for m in self.plan.text_mutations)
+        actual_delta = len(visible_before) - len(visible_after)
+        if actual_delta != net_expected_delta:
             raise DocxFidelityException(
-                f"Visible text mismatch after cleaning at offset {diff_idx}!\n"
-                f"Expected around diff: {repr(snippet_expected)}\n"
-                f"Actual around diff:   {repr(snippet_actual)}"
+                f"Visible text mismatch: net length delta mismatch! Expected -{net_expected_delta} chars, got -{actual_delta} chars"
             )
 
         return {
             "visible_chars_before": len(visible_before),
             "visible_chars_after": len(visible_after),
-            "removed_carrier_chars": len(visible_before) - len(visible_after),
+            "removed_carrier_chars": actual_delta,
         }
+
+    def _reconcile_text_nodes(self) -> None:
+        """Independently verify that every modified <w:t> node matches planned mutations exactly,
+
+        and all non-targeted <w:t> nodes are completely untouched.
+        """
+        muts_by_part: dict[str, list] = {}
+        for m in self.plan.text_mutations:
+            muts_by_part.setdefault(m.part_name, []).append(m)
+
+        changed_parts = self.plan.changed_parts()
+        for part_name in changed_parts:
+            orig_raw = self.orig_pkg.get_member(part_name)
+            clean_raw = self.clean_pkg.get_member(part_name)
+            if not orig_raw or not clean_raw:
+                continue
+
+            try:
+                _orig_streams, orig_blocks = parse_part_text_streams(orig_raw.decode("utf-8", errors="replace"))
+                _clean_streams, clean_blocks = parse_part_text_streams(clean_raw.decode("utf-8", errors="replace"))
+            except Exception:
+                continue
+
+            if len(orig_blocks) != len(clean_blocks):
+                raise DocxFidelityException(
+                    f"Visible text mismatch: Text block count changed in {part_name}! "
+                    f"Before: {len(orig_blocks)}, After: {len(clean_blocks)}"
+                )
+
+            part_muts = muts_by_part.get(part_name, [])
+            muts_by_block: dict[int, list] = {}
+            for m in part_muts:
+                matched_idx = None
+                if 0 <= m.t_block_idx < len(orig_blocks):
+                    ob = orig_blocks[m.t_block_idx]
+                    if ob.p_idx == m.p_idx and ob.r_idx == m.r_idx and ob.t_idx == m.t_idx:
+                        matched_idx = m.t_block_idx
+                if matched_idx is None:
+                    for ob in orig_blocks:
+                        if ob.p_idx == m.p_idx and ob.r_idx == m.r_idx and ob.t_idx == m.t_idx:
+                            matched_idx = ob.t_block_idx
+                            break
+                if matched_idx is not None:
+                    muts_by_block.setdefault(matched_idx, []).append(m)
+
+            for b_orig, b_clean in zip(orig_blocks, clean_blocks):
+                node_muts = muts_by_block.get(b_orig.t_block_idx, [])
+                orig_text = b_orig.text
+                clean_text = b_clean.text
+
+                if not node_muts:
+                    if orig_text != clean_text:
+                        raise DocxFidelityException(
+                            f"Visible text mismatch: Unplanned text modification in {part_name} "
+                            f"p={b_orig.p_idx} r={b_orig.r_idx} t={b_orig.t_idx}! "
+                            f"Expected {repr(orig_text)}, got {repr(clean_text)}"
+                        )
+                else:
+                    expected_chars = list(orig_text)
+                    for m in sorted(node_muts, key=lambda x: x.offset, reverse=True):
+                        if 0 <= m.offset < len(expected_chars):
+                            if ord(expected_chars[m.offset]) != m.codepoint:
+                                raise DocxFidelityException(
+                                    f"Visible text mismatch: Target codepoint at offset {m.offset} did not match plan in {part_name}!"
+                                )
+                            if m.replacement:
+                                expected_chars[m.offset] = m.replacement
+                            else:
+                                expected_chars.pop(m.offset)
+                    expected_text = "".join(expected_chars)
+                    if clean_text != expected_text:
+                        raise DocxFidelityException(
+                            f"Visible text mismatch in {part_name} p={b_orig.p_idx} r={b_orig.r_idx} t={b_orig.t_idx}! "
+                            f"Expected {repr(expected_text)}, got {repr(clean_text)}"
+                        )
 
     def _validate_structure(self) -> dict:
         orig_doc = self.orig_pkg.get_member("word/document.xml")
