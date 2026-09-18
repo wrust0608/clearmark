@@ -1376,7 +1376,7 @@ def _clean_payload(data: bytes, name: str, options: dict[str, Any]) -> dict[str,
                 normalize_spaces=bool(options.get("normalize_spaces", True)),
             )
             # A07: Normal text clean is Layer A only by default (zero paraphrase, zero network).
-            # Layer B is an explicit opt-in only via options.strategy or options.layer_b.
+            # Layer B is an explicit opt-in only via options.strategy or options.layer_b / require_layer_b.
             strategy = options.get("strategy")
             if not strategy and (options.get("layer_b") or options.get("require_layer_b")):
                 strategy = _DEFAULT_STRATEGY
@@ -1386,12 +1386,6 @@ def _clean_payload(data: bytes, name: str, options: dict[str, Any]) -> dict[str,
                         "default strategy (config/clean_strategy.json) or pass "
                         "options.strategy"
                     )
-            elif _DEFAULT_STRATEGY is None and not options:
-                raise ValueError(
-                    "Layer B rewrite is required for text cleaning; configure a "
-                    "default strategy (config/clean_strategy.json) or pass "
-                    "options.strategy"
-                )
 
             layer_b = None
             if strategy:
@@ -1986,14 +1980,7 @@ class Handler(BaseHTTPRequestHandler):
             })
             return
 
-        # Real clean
-        legacy_res = None
-        try:
-            legacy_res = _clean_payload(data, name, opts_raw)
-        except Exception as e:
-            if not isinstance(e, ValueError):
-                pass
-
+        # Real clean via ONE canonical Pipeline (A06)
         cleaned_bytes, report = pipeline.clean(data, filename=name, mode=mode, dry_run=False, options=opts_raw)
 
         if report.status == PipelineStatus.ERROR:
@@ -2007,37 +1994,70 @@ class Handler(BaseHTTPRequestHandler):
             self._respond(HTTPStatus.UNPROCESSABLE_ENTITY, {"ok": False, "error": "Validation failed", "report": report.to_dict()})
             return
 
-        # Canonical agreement: returned bytes must strictly equal report.output.sha256 (A06)
-        if legacy_res and report.input.format != "docx":
-            cleaned_b64 = legacy_res.get("cleaned", "")
-            try:
-                cleaned_bytes = base64.b64decode(cleaned_b64)
-                report.output.sha256 = hashlib.sha256(cleaned_bytes).hexdigest()
-                report.output.size = len(cleaned_bytes)
-                report.output.changed = (cleaned_bytes != data)
-            except Exception:
-                pass
-        else:
-            cleaned_b64 = base64.b64encode(cleaned_bytes).decode("ascii")
-
+        cleaned_b64 = base64.b64encode(cleaned_bytes).decode("ascii")
         report_dict = report.to_dict()
-        if legacy_res and "report" in legacy_res:
-            for k, v in legacy_res["report"].items():
-                if k not in report_dict or k in (
-                    "stats",
-                    "actions",
-                    "format",
-                    "audio_mark_removal",
-                    "text_detectors",
-                    "synthid_before",
-                    "synthid_after",
-                ):
-                    report_dict[k] = v
-
         report_dict["changed"] = report.output.changed
         report_dict["output"]["sha256"] = report.output.sha256
         report_dict["output"]["size"] = report.output.size
         report_dict["output"]["changed"] = report.output.changed
+        report_dict["format"] = report.input.format
+        report_dict["actions"] = [m.get("desc", "") for m in report.mutation_plan.mutations]
+        report_dict["bytes_out"] = report.output.size
+
+        # Normalize format name for API compatibility
+        if report.input.format in ("jpg", "jpeg"):
+            report_dict["format"] = "jpeg"
+        elif report.input.format in ("md", "markdown"):
+            report_dict["format"] = "markdown"
+
+        # Populate legacy-compatible read-only diagnostic fields from canonical pipeline report
+        for m in report.mutation_plan.mutations:
+            if "stats" in m:
+                report_dict["stats"] = m["stats"]
+            elif m.get("action") == "audio_mark_removal":
+                report_dict["audio_mark_removal"] = m.get("data", {})
+            elif m.get("action") == "pixel_removal":
+                report_dict["pixel_removal"] = m.get("data", {})
+
+        if hasattr(report, "av_extra") and getattr(report, "av_extra"):
+            for k, v in report.av_extra.items():
+                if k == "actions":
+                    for a in v:
+                        if a not in report_dict["actions"]:
+                            report_dict["actions"].append(a)
+                else:
+                    report_dict[k] = v
+
+        if "stats" not in report_dict and report.input.format in ("txt", "text", "md"):
+            rem_cnt = sum(1 for m in report.mutation_plan.mutations if m.get("action") == "unicode_carrier_remove")
+            report_dict["stats"] = {"removed_count": rem_cnt}
+
+        if kind == "text":
+            detect_before = bool(opts_raw.get("detect_before"))
+            detect_after = bool(opts_raw.get("detect_after"))
+            if detect_before or detect_after:
+                detector_reports: dict[str, Any] = {}
+                if detect_before:
+                    text_before = data.decode("utf-8", errors="surrogateescape")
+                    detector_reports["before"] = run_text_detectors(text_before)
+                if detect_after:
+                    text_after = cleaned_bytes.decode("utf-8", errors="surrogateescape")
+                    detector_reports["after"] = run_text_detectors(text_after)
+                report_dict["text_detectors"] = detector_reports
+        elif kind == "image":
+            detect_before = bool(opts_raw.get("detect_before"))
+            detect_after = bool(opts_raw.get("detect_after"))
+            if detect_before or detect_after:
+                with tempfile.TemporaryDirectory(prefix="wm-detect-") as _dtmp:
+                    _dpath = Path(_dtmp)
+                    if detect_before:
+                        _src = _dpath / f"before.{report.input.format or 'png'}"
+                        _src.write_bytes(data)
+                        report_dict["synthid_before"] = run_synthid_score(_src)
+                    if detect_after:
+                        _dst = _dpath / f"after.{report.input.format or 'png'}"
+                        _dst.write_bytes(cleaned_bytes)
+                        report_dict["synthid_after"] = run_synthid_score(_dst)
 
         if kind == "container":
             try:
@@ -2062,29 +2082,45 @@ class Handler(BaseHTTPRequestHandler):
         """Compatibility batch clean endpoint routing through canonical Pipeline (A08)."""
         items = _batch_items(body)
         results = []
+        pipeline = Pipeline()
         for name, data, options, error in items:
             if error is not None:
                 results.append({"name": name, "ok": False, "error": error})
                 continue
             try:
-                payload = _clean_payload(data, name, options)
-                cleaned_b64 = payload.get("cleaned", "")
-                cleaned_bytes = base64.b64decode(cleaned_b64)
-                rep_dict = payload.get("report", {})
-                rep_dict["changed"] = (cleaned_bytes != data)
-                rep_dict["output"] = {
-                    "sha256": hashlib.sha256(cleaned_bytes).hexdigest(),
-                    "size": len(cleaned_bytes),
-                    "changed": (cleaned_bytes != data),
-                }
+                mode_str = options.get("mode", "safe")
+                mode = ProcessingMode(mode_str.upper()) if isinstance(mode_str, str) and mode_str.upper() in ProcessingMode.__members__ else ProcessingMode.SAFE
+                dry_run = bool(options.get("dry_run", False))
+                cleaned_bytes, report = pipeline.clean(data, filename=name, mode=mode, dry_run=dry_run, options=options)
+
+                if report.status == PipelineStatus.ERROR:
+                    results.append({"name": name, "ok": False, "error": report.error_message, "report": report.to_dict()})
+                    continue
+                if report.status == PipelineStatus.UNSUPPORTED:
+                    results.append({"name": name, "ok": False, "error": "unrecognized file format; unsupported format", "report": report.to_dict()})
+                    continue
+                if report.status == PipelineStatus.VALIDATION_FAILED:
+                    results.append({"name": name, "ok": False, "error": "Validation failed", "report": report.to_dict()})
+                    continue
+
+                cleaned_b64 = base64.b64encode(cleaned_bytes).decode("ascii") if not dry_run else ""
+                rep_dict = report.to_dict()
+                rep_dict["format"] = report.input.format
+                rep_dict["actions"] = [m.get("desc", "") for m in report.mutation_plan.mutations]
+                for m in report.mutation_plan.mutations:
+                    if "stats" in m:
+                        rep_dict["stats"] = m["stats"]
+                        break
+                if "stats" not in rep_dict and report.input.format in ("txt", "text", "md"):
+                    rem_cnt = sum(1 for m in report.mutation_plan.mutations if m.get("action") == "unicode_carrier_remove")
+                    rep_dict["stats"] = {"removed_count": rem_cnt}
+
                 results.append({
                     "name": name,
                     "ok": True,
                     "cleaned": cleaned_b64,
                     "report": rep_dict,
                 })
-            except ValueError as e:
-                results.append({"name": name, "ok": False, "error": str(e)})
             except Exception as e:
                 results.append({"name": name, "ok": False, "error": str(e)})
         self._respond(HTTPStatus.OK, {"ok": True, "results": results})

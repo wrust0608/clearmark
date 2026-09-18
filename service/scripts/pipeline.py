@@ -886,6 +886,7 @@ class Pipeline:
         validation_status = "PASS"
         invariants_checked: list[str] = []
         warnings: list[str] = []
+        av_extra: dict[str, Any] = {}
 
         if fmt == "docx":
             from docx.cleaner import clean_docx_lossless
@@ -1031,7 +1032,7 @@ class Pipeline:
                     error_message=f"Validation failed: {e}",
                 )
                 return data, report
-        elif fmt in ("txt", "text", "md", "html", "latex"):
+        elif fmt in ("txt", "text", "latex"):
             if looks_binary(data):
                 report = CleaningReport(
                     status=PipelineStatus.ERROR,
@@ -1058,7 +1059,7 @@ class Pipeline:
             cleaned_bytes = cleaned_str.encode("utf-8", errors="surrogateescape")
             rem = stats.get("removed_count", 0)
             if rem > 0:
-                mutations_applied.append({"action": "unicode_carrier_remove", "desc": f"removed {rem} carrier characters"})
+                mutations_applied.append({"action": "unicode_carrier_remove", "desc": f"removed {rem} carrier characters", "stats": stats})
         elif fmt in ("png", "jpeg", "jpg", "webp", "gif", "bmp", "tiff", "avif", "heic"):
             import tempfile
             from image_meta import clean_image
@@ -1067,13 +1068,14 @@ class Pipeline:
                 in_f = tmppath / f"in.{fmt}"
                 out_f = tmppath / f"out.{fmt}"
                 in_f.write_bytes(data)
-                res = clean_image(in_f, out_f)
+                strip_all = not bool(opts.get("keep_non_ai_metadata")) if "keep_non_ai_metadata" in opts else bool(opts.get("strip_all_metadata", True))
+                res = clean_image(in_f, out_f, strip_all_metadata=strip_all, remove_pixel=opts.get("remove_pixel"))
                 if out_f.exists():
                     cleaned_bytes = out_f.read_bytes()
                 for a in res.get("actions", []):
                     if not str(a).lower().startswith("no "):
                         mutations_applied.append({"action": "image_clean", "desc": str(a)})
-        elif fmt in ("pdf", "odt", "ods", "odp", "epub", "svg"):
+        elif fmt in ("pdf", "odt", "ods", "odp", "epub", "svg", "md", "markdown", "html"):
             import tempfile
             from container_meta import clean_container
             with tempfile.TemporaryDirectory(prefix="wm-pipe-cnt-") as tmpdir:
@@ -1082,7 +1084,20 @@ class Pipeline:
                 in_f = tmppath / f"in{ext}"
                 out_f = tmppath / f"out{ext}"
                 in_f.write_bytes(data)
-                res = clean_container(in_f, out_f, fmt=fmt if fmt == "svg" else None, also_layer_a_text=True)
+                c_fmt = fmt if fmt in ("svg", "html", "markdown", "md") else None
+                if c_fmt == "md":
+                    c_fmt = "markdown"
+                clean_att = str(opts.get("clean_attachments", "always"))
+                if clean_att not in ("always", "auto", "never"):
+                    clean_att = "always"
+                res = clean_container(
+                    in_f,
+                    out_f,
+                    fmt=c_fmt,
+                    also_layer_a_text=opts.get("also_layer_a_text", True),
+                    deep_images=str(opts.get("deep_images", "auto")),
+                    clean_attachments=clean_att,
+                )
                 if out_f.exists():
                     cleaned_bytes = out_f.read_bytes()
                 for a in res.get("actions", []):
@@ -1112,12 +1127,50 @@ class Pipeline:
                 in_f = tmppath / f"in{ext}"
                 out_f = tmppath / f"out{ext}"
                 in_f.write_bytes(data)
-                res = clean_av(in_f, out_f)
+                strip_all = not bool(opts.get("keep_non_ai_metadata")) if "keep_non_ai_metadata" in opts else bool(opts.get("strip_all_metadata", True))
+                res = clean_av(in_f, out_f, strip_all_metadata=strip_all)
+
+                import server
+                definitely_audio = server.is_audio_format(res.get("format", ""))
+                is_audio = definitely_audio or (server.is_audio_name(name) and server.media_has_video(in_f) is False)
+                if is_audio and opts.get("remove_audio_watermark"):
+                    audio_dest = tmppath / "out-audio.m4a"
+                    audio_res = server.audio_purify(out_f, audio_dest)
+                    res["audio_mark_removal"] = audio_res
+                    if audio_res.get("available"):
+                        out_f = audio_dest
+                        res["actions"].append(
+                            f"destructive audio watermark chain (tempo {audio_res.get('tempo')}x, "
+                            f"{audio_res.get('pitch_semitones'):+.1f} semitones, "
+                            f"{audio_res.get('codec')})"
+                        )
+                        after = server.inspect_av(out_f)
+                        res["format"] = getattr(after, "format", "mp4")
+                    else:
+                        res["actions"].append(
+                            f"destructive audio watermark chain skipped: {audio_res.get('error', 'unknown error')}"
+                        )
+                elif opts.get("remove_pixel"):
+                    pix = server.video_purify(out_f, out_f, remove_pixel=opts.get("remove_pixel"))
+                    res["pixel_removal"] = pix
+                    engine = "CtrlRegen" if opts.get("remove_pixel") == "ctrlregen" else "DiffusionPurification"
+                    if pix.get("available"):
+                        res["actions"].append(f"{engine} per-frame video purification")
+                    else:
+                        res["actions"].append(f"per-frame video purification skipped: {pix.get('error', 'unknown error')}")
+
                 if out_f.exists():
                     cleaned_bytes = out_f.read_bytes()
                 for a in res.get("actions", []):
                     if not str(a).lower().startswith("no "):
                         mutations_applied.append({"action": "av_clean", "desc": str(a)})
+                av_extra = {}
+                if "actions" in res:
+                    av_extra["actions"] = list(res["actions"])
+                if "audio_mark_removal" in res:
+                    av_extra["audio_mark_removal"] = res["audio_mark_removal"]
+                if "pixel_removal" in res:
+                    av_extra["pixel_removal"] = res["pixel_removal"]
 
         # 4. Invariant & Output Status Check
         out_size = len(cleaned_bytes)
@@ -1174,6 +1227,8 @@ class Pipeline:
             privacy=PrivacySummary(network_used=False),
             performance_elapsed_ms=(time.perf_counter() - t0) * 1000.0,
         )
+        if av_extra:
+            report.av_extra = av_extra
 
         return cleaned_bytes, report
 
