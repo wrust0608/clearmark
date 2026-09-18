@@ -8,10 +8,9 @@
 - **Round 2 Starting SHA**: `d8bb90073ece32b00a0761020f21dd32c5ad54c4`
 - **Round 3 Starting SHA**: `4ebfefd01af5d1879291434bd6afcfa7134d15e0`
 - **Round 4 Starting SHA**: `3bb2be4170355b80b7f6ca9ca82954e7617dcd81`
-- **Round 4 Code Ending SHA (`code_end_sha`)**: `466931f0bf082337a6a4e3230a10c9c3e2187bcf`
-- **Report Source SHA (`report_source_sha`)**: `466931f0bf082337a6a4e3230a10c9c3e2187bcf`
+- **Round 5 Starting SHA**: `ff05cb68a3df7d55bdace8e38ddca7d1d1a85ed3`
 - **Upstream Audited SHA**: `e4d2bd49c4cb84c5fddb50f5361618cfb3b75def` (`guillaumemeyer/watermarks-remover/main`)
-- **Independent Review State**: **P0_INDEPENDENT_REVIEW_ROUND_4 (AWAITING INDEPENDENT REVIEW)**
+- **Independent Review State**: **P0_INDEPENDENT_REVIEW_ROUND_5 (AWAITING INDEPENDENT REVIEW)**
 - **P0_GATE_CANDIDATE**: **PASS**
 - **RC2_READY**: **FALSE**
 - **RC2 Blocked By**:
@@ -21,14 +20,14 @@
   - `P4_COMPREHENSIVE_REGRESSION`
   - `P5_UPSTREAM_DELTA`
   - `P6_CLEAN_WINDOWS`
-- **Full Test Suite Results**: 2098 passed, 152 skipped, 0 failed, 0 errors
+- **Full Test Suite Results**: 2110 passed, 152 skipped, 0 failed, 0 errors
 - **Real Browser Gate (Chrome/153.0.8010.48)**: 25/25 scenario steps passed
 - **Issues Matrix Overview**:
-  - **Severity S1**: 6 (A01, A02, A03, A04, A05, A06) — ALL RESOLVED
-  - **Severity S2**: 12 (A07, A08, A09, A10, A11, A12, A13, A14, A15, A16, A17, A19) — ALL RESOLVED (A09/A10 classified as MITIGATED / FIDELITY-SAFE)
+  - **Severity S1**: 7 (A01, A02, A03, A04, A05, A06, A07) — ALL RESOLVED
+  - **Severity S2**: 10 (A08, A09, A10, A11, A12, A13, A14, A15, A16, A17) — ALL RESOLVED (A09/A10 classified as MITIGATED / FIDELITY-SAFE)
   - **Severity S3**: 1 (A18) — RESOLVED
 - **Closure Statistics**:
-  - **Fixed**: 17
+  - **Fixed**: 16
   - **Mitigated / Fidelity-Safe**: 2 (A09, A10)
   - **Deferred**: 0
   - **Unresolved Blockers**: 0
@@ -164,6 +163,42 @@ Remote HEAD verified at `3bb2be4170355b80b7f6ca9ca82954e7617dcd81`. Independent 
 6. **Round 4 Test Suite**:
    - Created `tests/test_p0_round4_eocd_final.py` (10 tests) covering single and multiple fake signatures, binary comments (`\xff\x00\xfe` and zero bytes), exact boundary enforcement, validator drift rejection, and security/native parser agreement.
 
+### Round 5 — Independent Review Findings
+Remote HEAD verified at `ff05cb68a3df7d55bdace8e38ddca7d1d1a85ed3`. Independent Review Round 5 identified two final corrective requirements:
+1. **Self-Consistent Fake EOCD Embedded in Archive Comment**:
+   - Round 4's boundary-only invariant (`candidate_offset + 22 + comment_length == len(data)`) prevented naive truncation, but because `locate_zip_eocd` scanned backwards, a legal archive comment containing a full 22-byte fake EOCD record with synthetic comment length matching EOF would be selected before the real EOCD.
+   - Genuine candidate resolution requires validating the structural coherence of the Central Directory declared by each candidate before acceptance.
+2. **Issue Register Repair — A19-A25 Reserved for P1**:
+   - Round 4 mistakenly introduced `A19` in the issue register for the EOCD subfinding. Under the ClearMark Master Plan, `A19` through `A25` are strictly reserved for Phase 1 (Statistical Watermark subsystem).
+   - Furthermore, a severity discrepancy existed between Markdown (S2) and Evidence JSON (S1) for the reused identifier.
+
+### Round 5 — Corrective Implementation
+1. **Pre-Fix Reproduction Witness**:
+   - Constructed a valid classic ZIP containing a real Central Directory, real EOCD, and real comment containing a complete fake EOCD record whose comment length matched the archive boundary.
+   - Confirmed failure before fix: `locate_zip_eocd` selected the fake candidate offset (148) instead of the real EOCD offset (103).
+2. **Central Directory Structural Candidate Validation (`service/scripts/zip_utils.py`)**:
+   - Enhanced `_validate_eocd_candidate(data, candidate_offset, comment_len)`:
+     - Record fits completely within buffer.
+     - Single-disk invariants: `disk_num == 0`, `cd_disk == 0`, `disk_entries == total_entries`.
+     - Reject ZIP64 sentinels (0xFFFF, 0xFFFFFFFF) according to ClearMark's fail-closed policy.
+     - Enforce `cd_offset + cd_size == candidate_offset` (`central_directory_end == candidate_offset`).
+     - Parse exactly `total_entries` Central Directory File Header records:
+       - Every record starts with `0x02014B50` (`b"PK\x01\x02"`).
+       - Every variable-length block (filename, extra, comment) remains within CD bounds.
+       - Verify local header offsets and single-disk attributes.
+     - Verify cumulative parsed Central Directory byte length equals declared `cd_size`.
+3. **Non-Fatal Candidate Progression**:
+   - If a candidate matches the EOF boundary but fails structural validation, `locate_zip_eocd` does not immediately fail; it continues scanning backwards for earlier candidates, failing closed only if no structurally valid candidate remains.
+4. **Backward-Compatible Immutable `ZipEocdInfo` Data Model**:
+   - `locate_zip_eocd` returns `ZipEocdInfo` containing `offset`, `comment_length`, `comment`, `disk_num`, `cd_disk`, `disk_entries`, `total_entries`, `cd_size`, and `cd_offset`, while unpacking as a 3-tuple `(offset, comment_length, comment)` for 100% backward compatibility with all callers.
+5. **Issue Register Repaired & Folded into A11**:
+   - Removed standalone `A19` issue identifier, keeping `A19-A25` strictly reserved for P1.
+   - Folded all EOCD findings, candidate structural validation, and validator invariants into canonical issue `A11 — OOXML ZIP Fidelity` (Severity: S2, Status: FIXED).
+   - Reconciled severity consistency across Markdown report and evidence JSON.
+   - Added automated semantic consistency test `test_evidence_issue_register_semantic_consistency` in `tests/test_p0_round5_eocd_candidate_validation.py`.
+6. **Round 5 Test Suite**:
+   - Created `tests/test_p0_round5_eocd_candidate_validation.py` (12 tests) verifying self-consistent fake EOCD rejection, DOCX/XLSX/PPTX package and validator integrity, multiple fake candidates, CD size/entry count/overflow rejections, binary comment roundtrips, trailing data rejection, and evidence issue register consistency.
+
 ---
 
 ## 3. Assertion Audit & Performance Measurements
@@ -218,7 +253,7 @@ No tags were moved, deleted, re-created, or force-pushed.
 | **A08** | S2 | **FIXED** | R1: bypassed Pipeline; R2: ignored mode, dry_run, options, and limits | Unified `/clean/batch` and `/batch` via canonical `BatchProcessor`; enforced 50-file cap, 32 MiB per-file cap, 200 MiB aggregate cap, options and mode parity | `tests/test_rc2_hardening.py::test_a08_clean_batch_canonical_pipeline`, `tests/test_p0_review_corrections.py::test_a08_batch_parity_with_canonical_pipeline`, `tests/test_p0_round2_review_corrections.py::test_a08_batch_mode_propagation_safe_balanced_aggressive`, `tests/test_p0_round2_review_corrections.py::test_a08_batch_invalid_mode_rejected_with_400`, `tests/test_p0_round2_review_corrections.py::test_a08_batch_dry_run_propagation`, `tests/test_p0_round2_review_corrections.py::test_a08_batch_top_level_options_propagation`, `tests/test_p0_round2_review_corrections.py::test_a08_batch_limits_file_count_per_file_and_aggregate`, `tests/test_p0_round2_review_corrections.py::test_a08_semantic_parity_single_clean_clean_batch_and_batch` |
 | **A09** | S2 | **MITIGATED / FIDELITY-SAFE** | Blanket `customXml/*` deletion dropped bound data | Checked `<w:dataBinding>`. Classified honestly as Mitigated / Fidelity-Safe | `tests/test_rc2_hardening.py::test_a09_customxml_databinding_preserved` |
 | **A10** | S2 | **MITIGATED / FIDELITY-SAFE** | Blanket `docProps/custom.xml` deletion broke fields | Checked `DOCPROPERTY`. Classified honestly as Mitigated / Fidelity-Safe | `tests/test_rc2_hardening.py::test_a10_docprops_custom_docproperty_preserved` |
-| **A11** | S2 | **FIXED** | R1: bit-3; R2: stripped extra fields/comments, forced 0x800; R3: EOCD archive comment lost, extra field terminology overstated | Preserved archive-level and per-entry comments; preserved compatible extra fields; stripped rebuild-incompatible fields (`0x0001`, `0xA220`); fail closed on malformed comments | `tests/test_rc2_hardening.py::test_a11_ooxml_zip_bit_3_cleared_on_modified_entries`, `tests/test_p0_review_corrections.py::test_a11_real_bit3_data_descriptor_docx`, `tests/test_p0_review_corrections.py::test_a11_real_bit3_data_descriptor_xlsx`, `tests/test_p0_review_corrections.py::test_a11_real_bit3_data_descriptor_pptx`, `tests/test_p0_round2_review_corrections.py::test_a11_docx_changed_entry_preserves_compatible_extra_fields_and_comment`, `tests/test_p0_round2_review_corrections.py::test_a11_xlsx_changed_entry_preserves_metadata_and_does_not_force_0x800`, `tests/test_p0_round2_review_corrections.py::test_a11_pptx_changed_entry_preserves_extra_fields_and_comment`, `tests/test_p0_round2_review_corrections.py::test_a11_stale_zip64_extra_field_stripped_on_rebuild`, `tests/test_p0_round3_final_corrections.py::test_docx_preserves_eocd_archive_comment`, `tests/test_p0_round3_final_corrections.py::test_xlsx_preserves_eocd_archive_comment`, `tests/test_p0_round3_final_corrections.py::test_pptx_preserves_eocd_archive_comment`, `tests/test_p0_round3_final_corrections.py::test_empty_eocd_comment_roundtrip`, `tests/test_p0_round3_final_corrections.py::test_malformed_eocd_comment_fails_closed`, `tests/test_p0_round3_final_corrections.py::test_unknown_compatible_extra_field_preserved`, `tests/test_p0_round3_final_corrections.py::test_zip64_extra_policy_remains_fail_closed`, `tests/test_p0_round3_final_corrections.py::test_growth_hint_rebuild_policy` |
+| **A11** | S2 | **FIXED** | R1: bit-3; R2: stripped extra fields/comments, forced 0x800; R3: EOCD archive comment lost; R4: EOCD comment magic ambiguity; R5: fake EOCD candidate ambiguity | Preserved archive/entry comments and compatible extra fields; canonical `locate_zip_eocd()` with full Central Directory candidate structural validation; exact boundary invariant in DOCX/XLSX/PPTX validators | `tests/test_rc2_hardening.py::test_a11_ooxml_zip_bit_3_cleared_on_modified_entries`, `tests/test_p0_review_corrections.py::test_a11_real_bit3_data_descriptor_docx`, `tests/test_p0_review_corrections.py::test_a11_real_bit3_data_descriptor_xlsx`, `tests/test_p0_review_corrections.py::test_a11_real_bit3_data_descriptor_pptx`, `tests/test_p0_round2_review_corrections.py::test_a11_docx_changed_entry_preserves_compatible_extra_fields_and_comment`, `tests/test_p0_round2_review_corrections.py::test_a11_xlsx_changed_entry_preserves_metadata_and_does_not_force_0x800`, `tests/test_p0_round2_review_corrections.py::test_a11_pptx_changed_entry_preserves_extra_fields_and_comment`, `tests/test_p0_round2_review_corrections.py::test_a11_stale_zip64_extra_field_stripped_on_rebuild`, `tests/test_p0_round3_final_corrections.py::test_docx_preserves_eocd_archive_comment`, `tests/test_p0_round3_final_corrections.py::test_xlsx_preserves_eocd_archive_comment`, `tests/test_p0_round3_final_corrections.py::test_pptx_preserves_eocd_archive_comment`, `tests/test_p0_round3_final_corrections.py::test_empty_eocd_comment_roundtrip`, `tests/test_p0_round3_final_corrections.py::test_malformed_eocd_comment_fails_closed`, `tests/test_p0_round3_final_corrections.py::test_unknown_compatible_extra_field_preserved`, `tests/test_p0_round3_final_corrections.py::test_zip64_extra_policy_remains_fail_closed`, `tests/test_p0_round3_final_corrections.py::test_growth_hint_rebuild_policy`, `tests/test_p0_round4_eocd_final.py`, `tests/test_p0_round5_eocd_candidate_validation.py` |
 | **A12** | S2 | **FIXED** | Image cleaner stripped color ICC profiles | Preserved JPEG APP2 ICC and WebP ICCP chunks | `tests/test_rc2_hardening.py::test_a12_media_preserves_icc_profiles` |
 | **A13** | S2 | **FIXED** | Untruthful surface reporting claims | Explicitly reported `visible_field_results: CHECKED`, `field_instructions_instrText: NOT_CHECKED`, `tracked_deletions_delText: NOT_CHECKED` | `tests/test_rc2_hardening.py::test_a13_surface_tracking_representation`, `tests/test_p0_review_corrections.py::test_a13_surface_coverage_truthfulness` |
 | **A14** | S2 | **FIXED** | AI product names in generator metadata skipped | Ported upstream `8f58b8a` to `container_meta.py` | `tests/test_rc2_hardening.py::test_a14_ai_generator_product_names`, `tests/test_prose_values_not_provenance.py` |
@@ -226,38 +261,40 @@ No tags were moved, deleted, re-created, or force-pushed.
 | **A16** | S2 | **FIXED** | Fixture MANIFEST.json and README drifted | Deterministically regenerated MANIFEST.json with SHA256 hashes | `tests/test_docx_body_carriers.py::test_manifest_integrity_and_cryptographic_provenance` |
 | **A17** | S2 | **FIXED** | XLSX had `text_muts_by_orig` fallback; PPTX lacked exact identity | Removed XLSX text fallback; enforced exact identity by cell_ref / si_idx; patchers fail closed on unresolvable mutations; added duplicate text witnesses | `tests/test_rc2_hardening.py::test_a17_xlsx_pptx_plan_execution`, `tests/test_p0_review_corrections.py::test_a17_xlsx_duplicate_text_witness`, `tests/test_p0_review_corrections.py::test_a17_pptx_duplicate_text_witness` |
 | **A18** | S3 | **FIXED** | R1: hardcoded v2.1; R2: layer_a_only bug on non-DOCX, pre-validation Lossless claims | Removed `layer_a_only: true`; neutral fidelity lede; removed `(Lossless)` format suffix; dynamic version display; badge strictly requires actual validator PASS | `tests/test_dry_run.py`, `tests/test_capabilities_endpoint.py`, `tests/test_p0_review_corrections.py::test_a18_ui_branding_and_dry_run_semantics`, `tests/test_p0_round2_review_corrections.py::test_a18_ui_pre_validation_truthfulness_no_lossless_overclaims`, `tests/test_p0_round2_review_corrections.py::test_ui_clean_non_docx_formats_reach_canonical_clean_successfully`, `tests/smoke_browser.mjs` |
-| **A19** | S2 | **FIXED** | Valid ZIP comment containing `b"PK\x05\x06"` caused naive `rfind` ambiguity; package-level archive comment lacked independent validator invariant | Canonical `locate_zip_eocd()`, protected `zipfile` stream, `get_archive_comment()`, exact boundary invariant in DOCX/XLSX/PPTX fidelity validators | `tests/test_p0_round4_eocd_final.py::test_docx_eocd_locator_ignores_magic_inside_comment`, `tests/test_p0_round4_eocd_final.py::test_xlsx_eocd_locator_ignores_magic_inside_comment`, `tests/test_p0_round4_eocd_final.py::test_pptx_eocd_locator_ignores_magic_inside_comment`, `tests/test_p0_round4_eocd_final.py::test_eocd_multiple_fake_signatures_in_comment`, `tests/test_p0_round4_eocd_final.py::test_eocd_binary_comment_roundtrip`, `tests/test_p0_round4_eocd_final.py::test_eocd_requires_exact_archive_boundary`, `tests/test_p0_round4_eocd_final.py::test_docx_validator_rejects_archive_comment_drift`, `tests/test_p0_round4_eocd_final.py::test_xlsx_validator_rejects_archive_comment_drift`, `tests/test_p0_round4_eocd_final.py::test_pptx_validator_rejects_archive_comment_drift`, `tests/test_p0_round4_eocd_final.py::test_security_preflight_and_native_parser_agree_on_eocd` |
 
 ---
 
 ## 6. Test Suite Execution & Verification
 
-### Focused Round 4 Review Suite (`pytest tests/test_p0_round4_eocd_final.py`)
+### Focused Round 5 Review Suite (`pytest tests/test_p0_round5_eocd_candidate_validation.py`)
 ```
 ============================= test session starts =============================
-collected 10 items
-tests/test_p0_round4_eocd_final.py ..........                            [100%]
-============================== 10 passed in 0.12s ==============================
+collected 12 items
+tests/test_p0_round5_eocd_candidate_validation.py ............           [100%]
+============================== 12 passed in 0.15s ==============================
 ```
 
 ### Combined P0 Review & RC2 Hardening Suites
+- `tests/test_p0_round5_eocd_candidate_validation.py`: 12 passed
 - `tests/test_p0_round4_eocd_final.py`: 10 passed
 - `tests/test_p0_round3_final_corrections.py`: 12 passed
 - `tests/test_p0_round2_review_corrections.py`: 16 passed
 - `tests/test_p0_review_corrections.py`: 11 passed
 - `tests/test_rc2_hardening.py`: 14 passed (actual collected count: 14 tests)
-- **Total P0 Review & Hardening Tests**: 63 passed (10 + 12 + 16 + 11 + 14 = 63)
+- **Total P0 Review & Hardening Tests**: 75 passed (12 + 10 + 12 + 16 + 11 + 14 = 75)
 
 ### Evidence Integrity Verification
 All test node IDs referenced in `docs/audits/V2_2_RC2_HARDENING_EVIDENCE.json` resolve to genuine, collected pytest nodes verified by:
 `tests/test_p0_round2_review_corrections.py::test_evidence_test_ids_match_pytest_collection` -> **PASS**.
+Semantic issue register consistency verified by:
+`tests/test_p0_round5_eocd_candidate_validation.py::test_evidence_issue_register_semantic_consistency` -> **PASS**.
 
 ### Real Browser Smoke Suite (`node tests/smoke_browser.mjs`)
 - Browser: **Google Chrome 153.0.8010.48**
 - Total Steps: **25/25 PASSED**
 
 ### Full Pytest Regression Suite (`pytest tests/ -ra`)
-- **2098 passed**, **152 skipped**, **0 failed**, **0 errors** (100% test pass rate across all formats, security limits, CLI, HTTP, and desktop lifecycles).
+- **2110 passed**, **152 skipped**, **0 failed**, **0 errors** (100% test pass rate across all formats, security limits, CLI, HTTP, and desktop lifecycles).
 
 ---
 
@@ -279,4 +316,4 @@ RC2_READY: FALSE
 5. `P5_UPSTREAM_DELTA`
 6. `P6_CLEAN_WINDOWS`
 
-**Next Action**: Commit changes normally, push branch `feature/v2.2.0-rc2-hardening` to GitHub, and await Independent Review Round 4 verification. DO NOT build RC2 packages, tag, or release.
+**Next Action**: Commit changes normally, push branch `feature/v2.2.0-rc2-hardening` to GitHub, and await Independent Review Round 5 verification. DO NOT build RC2 packages, tag, or release.

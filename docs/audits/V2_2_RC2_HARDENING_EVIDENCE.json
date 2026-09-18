@@ -5,7 +5,7 @@
   "code_end_sha": "466931f0bf082337a6a4e3230a10c9c3e2187bcf",
   "report_source_sha": "466931f0bf082337a6a4e3230a10c9c3e2187bcf",
   "upstream_sha": "e4d2bd49c4cb84c5fddb50f5361618cfb3b75def",
-  "independent_review_round": "P0_INDEPENDENT_REVIEW_ROUND_4",
+  "independent_review_round": "P0_INDEPENDENT_REVIEW_ROUND_5",
   "P0_GATE_CANDIDATE": "PASS",
 
   "independent_review": "AWAITING",
@@ -170,7 +170,7 @@
       "severity": "S2",
       "status": "FIXED",
       "reproduced": true,
-      "title": "OOXML ZIP changed-entry handling and data-descriptor bit 3",
+      "title": "OOXML ZIP container fidelity, bit-3 data descriptors, EOCD candidate validation, and archive comment preservation",
       "tests": [
         "tests/test_rc2_hardening.py::test_a11_ooxml_zip_bit_3_cleared_on_modified_entries",
         "tests/test_p0_review_corrections.py::test_a11_real_bit3_data_descriptor_docx",
@@ -187,12 +187,19 @@
         "tests/test_p0_round3_final_corrections.py::test_malformed_eocd_comment_fails_closed",
         "tests/test_p0_round3_final_corrections.py::test_unknown_compatible_extra_field_preserved",
         "tests/test_p0_round3_final_corrections.py::test_zip64_extra_policy_remains_fail_closed",
-        "tests/test_p0_round3_final_corrections.py::test_growth_hint_rebuild_policy"
+        "tests/test_p0_round3_final_corrections.py::test_growth_hint_rebuild_policy",
+        "tests/test_p0_round4_eocd_final.py",
+        "tests/test_p0_round5_eocd_candidate_validation.py"
       ],
       "changed_files": [
+        "service/scripts/zip_utils.py",
+        "service/scripts/security.py",
         "service/scripts/docx/package.py",
+        "service/scripts/docx/validator.py",
         "service/scripts/xlsx/package.py",
-        "service/scripts/pptx/package.py"
+        "service/scripts/xlsx/validator.py",
+        "service/scripts/pptx/package.py",
+        "service/scripts/pptx/validator.py"
       ]
     },
     "A12": {
@@ -296,25 +303,6 @@
         "service/web/app.js",
         "tools/build_release_evidence.py"
       ]
-    },
-    "A19": {
-      "severity": "S1",
-      "status": "FIXED",
-      "reproduced": true,
-      "title": "Naive rfind EOCD locator fails on ZIP comments containing PK0506; format validators lack package-level archive comment invariant",
-      "tests": [
-        "tests/test_p0_round4_eocd_final.py"
-      ],
-      "changed_files": [
-        "service/scripts/zip_utils.py",
-        "service/scripts/security.py",
-        "service/scripts/docx/package.py",
-        "service/scripts/docx/validator.py",
-        "service/scripts/xlsx/package.py",
-        "service/scripts/xlsx/validator.py",
-        "service/scripts/pptx/package.py",
-        "service/scripts/pptx/validator.py"
-      ]
     }
   },
   "tests": {
@@ -389,6 +377,12 @@
     "p0_round4_eocd_final": {
       "suite": "tests/test_p0_round4_eocd_final.py",
       "passed": 10,
+      "failed": 0,
+      "status": "PASS"
+    },
+    "p0_round5_eocd_candidate_validation": {
+      "suite": "tests/test_p0_round5_eocd_candidate_validation.py",
+      "passed": 12,
       "failed": 0,
       "status": "PASS"
     }
