@@ -601,7 +601,8 @@ def test_negative_witness_slide_master_drift():
     orig_bytes = (FIXTURES_DIR / "carrier_slide_text.pptx").read_bytes()
     pkg = PptxPackage(orig_bytes)
     master_xml = pkg.get_member("ppt/slideMasters/slideMaster1.xml").decode("utf-8")
-    corrupted_xml = master_xml.replace("Office Theme", "Corrupted Master Theme").encode("utf-8")
+    assert 'bg1="lt1"' in master_xml
+    corrupted_xml = master_xml.replace('bg1="lt1"', 'bg1="corrupted"').encode("utf-8")
 
     cand_bytes = pkg.build_patched_package({"ppt/slideMasters/slideMaster1.xml": corrupted_xml})
     validator = PptxFidelityValidator(orig_bytes, cand_bytes)

@@ -467,17 +467,17 @@ def test_a14_ai_generator_product_names():
 
 def test_a17_xlsx_pptx_plan_execution():
     """Verify XLSX and PPTX patchers execute only planned mutations without re-cleaning."""
-    # Clean XLSX round trip
-    xlsx_path = Path("tests/fixtures/synthetic_baseline.xlsx")
-    if xlsx_path.exists():
-        raw = xlsx_path.read_bytes()
-        _cleaned, rep = clean_xlsx_lossless(raw, {"mode": "SAFE"})
-        assert rep["changed"] is False
+    # Clean XLSX round trip on verified fixture
+    xlsx_path = Path("tests/fixtures/xlsx_lossless/synthetic_baseline.xlsx")
+    assert xlsx_path.exists(), f"Missing required XLSX fixture: {xlsx_path}"
+    raw_xlsx = xlsx_path.read_bytes()
+    _cleaned_xlsx, rep_xlsx = clean_xlsx_lossless(raw_xlsx, {"mode": "SAFE"})
+    assert rep_xlsx["changed"] is False
 
-    # Clean PPTX round trip
-    pptx_path = Path("tests/fixtures/carrier_slide_text.pptx")
-    if pptx_path.exists():
-        raw = pptx_path.read_bytes()
-        _cleaned, rep = clean_pptx_lossless(raw, {"mode": "SAFE"})
-        assert rep["changed"] is True
-        assert rep["mutations_count"] > 0
+    # Clean PPTX round trip on verified fixture
+    pptx_path = Path("tests/fixtures/pptx_lossless/carrier_slide_text.pptx")
+    assert pptx_path.exists(), f"Missing required PPTX fixture: {pptx_path}"
+    raw_pptx = pptx_path.read_bytes()
+    _cleaned_pptx, rep_pptx = clean_pptx_lossless(raw_pptx, {"mode": "SAFE"})
+    assert rep_pptx["changed"] is True
+    assert rep_pptx["plan"].total_mutations() > 0

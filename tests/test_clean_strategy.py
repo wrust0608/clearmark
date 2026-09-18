@@ -146,13 +146,19 @@ def test_load_default_strategy_bad_strategy(tmp_path):
         _load_default_strategy(p)
 
 
-# --- server: Layer B is a required step for text ---------------------------
+# --- server: Layer B is opt-in only (A07) -----------------------------------
 
 
-def test_clean_text_requires_layer_b(monkeypatch):
+def test_clean_text_normal_does_not_require_layer_b(monkeypatch):
+    monkeypatch.setattr(server, "_DEFAULT_STRATEGY", None)
+    res = server._clean_payload(b"hello world", "a.txt", {})
+    assert res["ok"] is True
+
+
+def test_clean_text_explicit_layer_b_requires_strategy_or_default(monkeypatch):
     monkeypatch.setattr(server, "_DEFAULT_STRATEGY", None)
     with pytest.raises(ValueError, match="Layer B rewrite is required"):
-        server._clean_payload(b"hello world", "a.txt", {})
+        server._clean_payload(b"hello world", "a.txt", {"layer_b": True})
 
 
 # --- server: reject when backend/model unavailable --------------------------
