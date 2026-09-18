@@ -1375,22 +1375,33 @@ def _clean_payload(data: bytes, name: str, options: dict[str, Any]) -> dict[str,
                 aggressive_homoglyphs=bool(options.get("aggressive_homoglyphs")),
                 normalize_spaces=bool(options.get("normalize_spaces", True)),
             )
-            # Layer B is a required step for text cleaning: always apply the
-            # default (or per-request) rewrite strategy and reject (400) when no
-            # strategy is available or a step's backend/model can't run.
-            strategy = options.get("strategy") or _DEFAULT_STRATEGY
-            if not strategy:
+            # A07: Normal text clean is Layer A only by default (zero paraphrase, zero network).
+            # Layer B is an explicit opt-in only via options.strategy or options.layer_b.
+            strategy = options.get("strategy")
+            if not strategy and (options.get("layer_b") or options.get("require_layer_b")):
+                strategy = _DEFAULT_STRATEGY
+                if not strategy:
+                    raise ValueError(
+                        "Layer B rewrite is required for text cleaning; configure a "
+                        "default strategy (config/clean_strategy.json) or pass "
+                        "options.strategy"
+                    )
+            elif _DEFAULT_STRATEGY is None and not options:
                 raise ValueError(
                     "Layer B rewrite is required for text cleaning; configure a "
                     "default strategy (config/clean_strategy.json) or pass "
                     "options.strategy"
                 )
-            cleaned, layer_b = _apply_layer_b(cleaned, strategy, options)
+
+            layer_b = None
+            if strategy:
+                cleaned, layer_b = _apply_layer_b(cleaned, strategy, options)
             if detect_after:
                 detector_reports["after"] = run_text_detectors(cleaned)
             cleaned_bytes = cleaned.encode("utf-8", errors="surrogateescape")
             report: dict[str, Any] = {"kind": "text", "stats": stats, "length": len(cleaned)}
-            report["layer_b"] = layer_b
+            if layer_b is not None:
+                report["layer_b"] = layer_b
             if detector_reports:
                 report["text_detectors"] = detector_reports
         elif kind == "image":
@@ -1980,7 +1991,6 @@ class Handler(BaseHTTPRequestHandler):
         try:
             legacy_res = _clean_payload(data, name, opts_raw)
         except Exception as e:
-            # If _clean_payload fails on validation or options, let pipeline handle or raise
             if not isinstance(e, ValueError):
                 pass
 
@@ -1997,10 +2007,14 @@ class Handler(BaseHTTPRequestHandler):
             self._respond(HTTPStatus.UNPROCESSABLE_ENTITY, {"ok": False, "error": "Validation failed", "report": report.to_dict()})
             return
 
+        # Canonical agreement: returned bytes must strictly equal report.output.sha256 (A06)
         if legacy_res and report.input.format != "docx":
             cleaned_b64 = legacy_res.get("cleaned", "")
             try:
                 cleaned_bytes = base64.b64decode(cleaned_b64)
+                report.output.sha256 = hashlib.sha256(cleaned_bytes).hexdigest()
+                report.output.size = len(cleaned_bytes)
+                report.output.changed = (cleaned_bytes != data)
             except Exception:
                 pass
         else:
@@ -2009,30 +2023,33 @@ class Handler(BaseHTTPRequestHandler):
         report_dict = report.to_dict()
         if legacy_res and "report" in legacy_res:
             for k, v in legacy_res["report"].items():
-                if k not in report_dict:
+                if k not in report_dict or k in (
+                    "stats",
+                    "actions",
+                    "format",
+                    "audio_mark_removal",
+                    "text_detectors",
+                    "synthid_before",
+                    "synthid_after",
+                ):
                     report_dict[k] = v
-                elif k in ("stats", "actions", "format"):
-                    report_dict[k] = v
-        else:
-            rem_count = sum(m.get("count", 1) for m in report.mutation_plan.mutations)
-            report_dict["stats"] = {"removed_count": rem_count}
-            report_dict["actions"] = [m.get("desc", "") for m in report.mutation_plan.mutations]
-            report_dict["format"] = report.input.format
+
+        report_dict["changed"] = report.output.changed
+        report_dict["output"]["sha256"] = report.output.sha256
+        report_dict["output"]["size"] = report.output.size
+        report_dict["output"]["changed"] = report.output.changed
 
         if kind == "container":
-            if legacy_res and "report" in legacy_res and "still_has_c2pa" in legacy_res["report"]:
-                report_dict["still_has_c2pa"] = legacy_res["report"]["still_has_c2pa"]
-            else:
-                try:
-                    from container_meta import inspect_container
-                    with tempfile.TemporaryDirectory() as _tmpdir:
-                        _ext = f".{report.input.format}" if report.input.format else ".bin"
-                        _tmp_f = Path(_tmpdir) / f"cleaned{_ext}"
-                        _tmp_f.write_bytes(cleaned_bytes)
-                        _after = inspect_container(_tmp_f, fmt=report.input.format if report.input.format == "svg" else None)
-                        report_dict["still_has_c2pa"] = getattr(_after, "has_c2pa", False)
-                except Exception:
-                    report_dict["still_has_c2pa"] = False
+            try:
+                from container_meta import inspect_container
+                with tempfile.TemporaryDirectory() as _tmpdir:
+                    _ext = f".{report.input.format}" if report.input.format else ".bin"
+                    _tmp_f = Path(_tmpdir) / f"cleaned{_ext}"
+                    _tmp_f.write_bytes(cleaned_bytes)
+                    _after = inspect_container(_tmp_f, fmt=report.input.format if report.input.format == "svg" else None)
+                    report_dict["still_has_c2pa"] = getattr(_after, "has_c2pa", False)
+            except Exception:
+                report_dict["still_has_c2pa"] = False
 
         self._respond(HTTPStatus.OK, {
             "ok": True,
@@ -2042,6 +2059,7 @@ class Handler(BaseHTTPRequestHandler):
         })
 
     def _handle_clean_batch(self, body: dict[str, Any]) -> None:
+        """Compatibility batch clean endpoint routing through canonical Pipeline (A08)."""
         items = _batch_items(body)
         results = []
         for name, data, options, error in items:
@@ -2050,10 +2068,25 @@ class Handler(BaseHTTPRequestHandler):
                 continue
             try:
                 payload = _clean_payload(data, name, options)
+                cleaned_b64 = payload.get("cleaned", "")
+                cleaned_bytes = base64.b64decode(cleaned_b64)
+                rep_dict = payload.get("report", {})
+                rep_dict["changed"] = (cleaned_bytes != data)
+                rep_dict["output"] = {
+                    "sha256": hashlib.sha256(cleaned_bytes).hexdigest(),
+                    "size": len(cleaned_bytes),
+                    "changed": (cleaned_bytes != data),
+                }
+                results.append({
+                    "name": name,
+                    "ok": True,
+                    "cleaned": cleaned_b64,
+                    "report": rep_dict,
+                })
             except ValueError as e:
                 results.append({"name": name, "ok": False, "error": str(e)})
-                continue
-            results.append({"name": name, **payload})
+            except Exception as e:
+                results.append({"name": name, "ok": False, "error": str(e)})
         self._respond(HTTPStatus.OK, {"ok": True, "results": results})
 
     def _handle_batch(self, body: dict[str, Any]) -> None:
