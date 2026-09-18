@@ -117,14 +117,21 @@ class PptxPackage:
                     fn_str = fn_bytes.decode("utf-8", errors="replace")
 
                     local_header_bytes = data[pos : pos + header_len]
+                    # A11: Data descriptor handling if bit 3 is set
+                    desc_len = 0
+                    if flags & 0x08:
+                        cand = data[pos + header_len + comp_size : pos + header_len + comp_size + 16]
+                        desc_len = 16 if cand.startswith(b"PK\x07\x08") else 12
+
                     payload = data[pos + header_len : pos + header_len + comp_size]
+                    full_payload_with_desc = data[pos + header_len : pos + header_len + comp_size + desc_len]
 
                     self._raw_local_records[fn_str] = local_header_bytes
-                    self._compressed_payloads[fn_str] = payload
+                    self._compressed_payloads[fn_str] = full_payload_with_desc
                     self.raw_compressed_hashes[fn_str] = hashlib.sha256(payload).hexdigest()
                     local_offsets[fn_str] = pos
 
-                    pos += header_len + comp_size
+                    pos += header_len + comp_size + desc_len
                 except Exception:
                     break
             elif sig == b"PK\x01\x02":  # Central directory header

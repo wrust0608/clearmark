@@ -93,7 +93,7 @@ class PptxPatcher:
                 continue
 
             xml_text = raw.decode("utf-8", errors="replace")
-            patched_xml, changed = self._patch_slide_text(xml_text)
+            patched_xml, changed = self._patch_slide_text(part_name, xml_text)
             if changed:
                 changed_parts[part_name] = patched_xml.encode("utf-8")
 
@@ -138,11 +138,16 @@ class PptxPatcher:
         # 4. Rebuild package with strict raw non-target pass-through
         return self.package.rebuild(changed_parts, dropped_parts)
 
-    def _patch_slide_text(self, xml_text: str) -> tuple[str, bool]:
-        """Surgically patch targeted <a:t> elements inside existing XML markup."""
+    def _patch_slide_text(self, part_name: str, xml_text: str) -> tuple[str, bool]:
+        """Surgically patch targeted <a:t> elements inside existing XML markup executing exact plan."""
         out: list[str] = []
         last = 0
         changed = False
+
+        muts_by_loc: dict[tuple[str, int, int, int], PptxTextMutation] = {}
+        for tm in self.plan.text_mutations:
+            if tm.part_name == part_name:
+                muts_by_loc[(tm.shape_id, tm.p_idx, tm.r_idx, tm.t_idx)] = tm
 
         for (
             tag_start,
@@ -156,20 +161,26 @@ class PptxPatcher:
             r_idx,
             t_idx,
         ) in iter_slide_text_runs(xml_text):
+            loc_key = (shape_id, p_idx, r_idx, t_idx)
+            if loc_key not in muts_by_loc:
+                continue
+
+            tm = muts_by_loc[loc_key]
+            decoded = _decode_xml_entities(inner)
+            if decoded != tm.original_text:
+                continue
+
             open_tag = xml_text[tag_start:tag_end]
             close_tag = xml_text[cs_:ce_]
+            cleaned = tm.replacement_text
 
-            decoded = _decode_xml_entities(inner)
-            cleaned, stats = clean_text(decoded, normalize_spaces=self.normalize_spaces)
-
-            if stats.get("removed_count", 0) > 0 or stats.get("replaced_count", 0) > 0:
-                changed = True
-                # Preserve whitespace semantics (Rule 44)
-                if (cleaned[:1].isspace() or cleaned[-1:].isspace()) and "xml:space" not in open_tag:
-                    open_tag = open_tag[:-1] + ' xml:space="preserve">'
-                out.append(xml_text[last:tag_start])
-                out.append(open_tag + _reencode_xml_text(cleaned) + close_tag)
-                last = ce_
+            changed = True
+            # Preserve whitespace semantics (Rule 44)
+            if (cleaned[:1].isspace() or cleaned[-1:].isspace()) and "xml:space" not in open_tag:
+                open_tag = open_tag[:-1] + ' xml:space="preserve">'
+            out.append(xml_text[last:tag_start])
+            out.append(open_tag + _reencode_xml_text(cleaned) + close_tag)
+            last = ce_
 
         if changed:
             out.append(xml_text[last:])

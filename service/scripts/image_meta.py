@@ -2006,7 +2006,12 @@ def strip_png(data: bytes, *, strip_all_text: bool = True) -> tuple[bytes, list[
     return bytes(out), actions
 
 
-def strip_jpeg(data: bytes, *, strip_all_app: bool = True) -> tuple[bytes, list[str]]:
+def strip_jpeg(
+    data: bytes,
+    *,
+    strip_all_app: bool = True,
+    preserve_icc: bool = True,
+) -> tuple[bytes, list[str]]:
     if not data.startswith(JPEG_SOI):
         raise ValueError("not JPEG")
     actions: list[str] = []
@@ -2064,6 +2069,13 @@ def strip_jpeg(data: bytes, *, strip_all_app: bool = True) -> tuple[bytes, list[
             if marker == 0xEB:  # APP11 JUMBF/C2PA
                 drop = True
                 actions.append("drop APP11 (C2PA/JUMBF)")
+            elif marker == 0xE2 and preserve_icc and payload.startswith(b"ICC_PROFILE\x00"):
+                # APP2 ICC color profile is render-critical; preserve unless corrupted with C2PA/AI
+                if _contains_any(payload, AI_META_HINTS + C2PA_MARKERS):
+                    drop = True
+                    actions.append("drop APP2 (AI/C2PA markers in ICC_PROFILE)")
+                else:
+                    keep = True
             elif strip_all_app and marker != 0xE0:
                 # keep APP0 (JFIF) by default
                 drop = True
@@ -2093,7 +2105,12 @@ def strip_jpeg(data: bytes, *, strip_all_app: bool = True) -> tuple[bytes, list[
     return bytes(out), actions
 
 
-def strip_webp(data: bytes, *, strip_all_metadata: bool = True) -> tuple[bytes, list[str]]:
+def strip_webp(
+    data: bytes,
+    *,
+    strip_all_metadata: bool = True,
+    preserve_icc: bool = True,
+) -> tuple[bytes, list[str]]:
     chunks, notes = _webp_chunks(data)
     if not chunks and notes == ["not a WebP"]:
         raise ValueError("not WebP")
@@ -2108,7 +2125,10 @@ def strip_webp(data: bytes, *, strip_all_metadata: bool = True) -> tuple[bytes, 
     for fourcc, payload, padding in chunks:
         drop = fourcc.upper() == b"C2PA"
         if fourcc in metadata_flags:
-            drop = strip_all_metadata or bool(_contains_any(payload, AI_META_HINTS + C2PA_MARKERS))
+            if fourcc == b"ICCP" and preserve_icc and not _contains_any(payload, AI_META_HINTS + C2PA_MARKERS):
+                drop = False
+            else:
+                drop = strip_all_metadata or bool(_contains_any(payload, AI_META_HINTS + C2PA_MARKERS))
         if drop:
             name = fourcc.decode("latin-1", errors="replace")
             actions.append(f"drop WebP chunk {name}")

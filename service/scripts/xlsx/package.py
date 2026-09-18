@@ -279,12 +279,16 @@ class XlsxPackage:
                 mtime = self._raw_mtime.get(name, 0)
                 mdate = self._raw_mdate.get(name, 0x21)
 
+                # A11: Clear bit 3 (data descriptor) because exact CRC and sizes are written
+                # directly into the local header without trailing descriptor. Ensure UTF-8 (0x800).
+                new_flag_bits = (orig_info.flag_bits & ~0x08) | 0x800
+
                 # Local File Header
                 loc_hdr = struct.pack(
                     "<IHHHHHIIIHH",
                     0x04034B50,
                     orig_info.extract_version,
-                    orig_info.flag_bits,
+                    new_flag_bits,
                     comp_type,
                     mtime,
                     mdate,
@@ -304,7 +308,7 @@ class XlsxPackage:
                     0x02014B50,
                     orig_info.create_version,
                     orig_info.extract_version,
-                    orig_info.flag_bits,
+                    new_flag_bits,
                     comp_type,
                     mtime,
                     mdate,
