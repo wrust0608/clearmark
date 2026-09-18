@@ -19,6 +19,33 @@ MAX_UNCOMPRESSED_BUDGET = 128 * 1024 * 1024  # 128 MiB
 MAX_COMPRESSION_RATIO = 100
 
 
+def _filter_safe_extra_fields(extra: bytes, exc_cls: type[Exception]) -> bytes:
+    """Preserve safe compatible extra fields while filtering out stale Zip64 (0x0001).
+
+    Fails closed on truncated or malformed extra fields.
+    """
+    if not extra:
+        return b""
+    safe_chunks: list[bytes] = []
+    idx = 0
+    total = len(extra)
+    while idx + 4 <= total:
+        header_id, data_size = struct.unpack_from("<HH", extra, idx)
+        block_len = 4 + data_size
+        if idx + block_len > total:
+            raise exc_cls(f"Malformed ZIP extra field: block truncated at offset {idx}")
+        # 0x0001 is Zip64 extended information which encodes stale uncompressed/compressed sizes and offsets.
+        # It must be stripped when re-compressing 32-bit content to prevent size mismatch.
+        # 0xa220 is Microsoft Open Packaging Growth Hint padding, which encodes obsolete pre-allocation
+        # padding for the original uncompressed stream and must be dropped on rewritten parts.
+        if header_id not in (0x0001, 0xA220):
+            safe_chunks.append(extra[idx : idx + block_len])
+        idx += block_len
+    if idx != total:
+        raise exc_cls(f"Trailing bytes in ZIP extra field: {total - idx} bytes")
+    return b"".join(safe_chunks)
+
+
 class PptxPackage:
     """Read and manipulate Open Packaging Conventions (OPC) PPTX archives."""
 
@@ -35,6 +62,10 @@ class PptxPackage:
         self._compressed_payloads: dict[str, bytes] = {}
         self.raw_compressed_hashes: dict[str, str] = {}
         self._central_directory_records: dict[str, bytes] = {}
+        self._raw_local_extra: dict[str, bytes] = {}
+        self._raw_cd_extra: dict[str, bytes] = {}
+        self._raw_cd_comment: dict[str, bytes] = {}
+        self._raw_disk_number_start: dict[str, int] = {}
         self._parse_package()
 
     def _parse_package(self) -> None:
@@ -142,6 +173,9 @@ class PptxPackage:
             self._central_directory_records[name] = data[cd_pos : cd_pos + rec_len]
             self._raw_mtime[name] = mtime
             self._raw_mdate[name] = mdate
+            self._raw_cd_extra[name] = data[cd_pos + 46 + nlen : cd_pos + 46 + nlen + elen]
+            self._raw_cd_comment[name] = data[cd_pos + 46 + nlen + elen : cd_pos + 46 + nlen + elen + clen]
+            self._raw_disk_number_start[name] = dnum
             cd_pos += rec_len
 
             # Read Local File Header from lhoff
@@ -161,6 +195,8 @@ class PptxPackage:
 
             if lsig != 0x04034B50:
                 raise PptxCorruptedPackageError(f"Invalid Local File Header signature for '{name}' at offset {lhoff}")
+
+            self._raw_local_extra[name] = data[lhoff + 30 + lnlen : lhoff + 30 + lnlen + lelen]
 
             loc_hdr_len = 30 + lnlen + lelen
             # csize from Central Directory is authoritative even if lcsize == 0 due to bit 3
@@ -260,11 +296,21 @@ class PptxPackage:
 
                 orig_flags = orig_info.flag_bits if orig_info else 0
                 # A11: Clear bit 3 (data descriptor) on modified entry as exact CRC/sizes are in header
-                new_flag_bits = (orig_flags & ~0x08) | (orig_flags & 0x800)
+                new_flag_bits = orig_flags & ~0x08
                 extract_ver = orig_info.extract_version if orig_info else 20
                 create_ver = orig_info.create_version if orig_info else 20
                 int_attr = orig_info.internal_attr if orig_info else 0
                 ext_attr = orig_info.external_attr if orig_info else 0
+
+                # Safe extra fields and comment preservation (A11)
+                safe_local_extra = _filter_safe_extra_fields(
+                    self._raw_local_extra.get(name, b""), PptxCorruptedPackageError
+                )
+                safe_cd_extra = _filter_safe_extra_fields(
+                    self._raw_cd_extra.get(name, b""), PptxCorruptedPackageError
+                )
+                orig_comment = self._raw_cd_comment.get(name, b"")
+                dnum = self._raw_disk_number_start.get(name, 0)
 
                 local_header = struct.pack(
                     "<IHHHHHIIIHH",
@@ -278,8 +324,8 @@ class PptxPackage:
                     comp_size,
                     uncomp_size,
                     fn_len,
-                    0,      # Extra field length
-                ) + fn_bytes
+                    len(safe_local_extra),
+                ) + fn_bytes + safe_local_extra
 
                 out.write(local_header)
                 out.write(comp_payload)
@@ -298,13 +344,13 @@ class PptxPackage:
                     comp_size,
                     uncomp_size,
                     fn_len,
-                    0,      # Extra field length
-                    0,      # Comment length
-                    0,      # Disk number start
+                    len(safe_cd_extra),
+                    len(orig_comment),
+                    dnum,
                     int_attr,
                     ext_attr,
                     current_offset,
-                ) + fn_bytes
+                ) + fn_bytes + safe_cd_extra + orig_comment
                 new_cd_records.append(cd_record)
             else:
                 # Non-target part: STRICT RAW OPC PASSTHROUGH

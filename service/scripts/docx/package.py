@@ -19,6 +19,33 @@ MAX_DOCX_UNCOMPRESSED_BYTES = 128 * 1024 * 1024  # 128 MB max uncompressed packa
 MAX_MEMBER_COUNT = 10_000
 
 
+def _filter_safe_extra_fields(extra: bytes, exc_cls: type[Exception]) -> bytes:
+    """Preserve safe compatible extra fields while filtering out stale Zip64 (0x0001).
+
+    Fails closed on truncated or malformed extra fields.
+    """
+    if not extra:
+        return b""
+    safe_chunks: list[bytes] = []
+    idx = 0
+    total = len(extra)
+    while idx + 4 <= total:
+        header_id, data_size = struct.unpack_from("<HH", extra, idx)
+        block_len = 4 + data_size
+        if idx + block_len > total:
+            raise exc_cls(f"Malformed ZIP extra field: block truncated at offset {idx}")
+        # 0x0001 is Zip64 extended information which encodes stale uncompressed/compressed sizes and offsets.
+        # It must be stripped when re-compressing 32-bit content to prevent size mismatch.
+        # 0xa220 is Microsoft Open Packaging Growth Hint padding, which encodes obsolete pre-allocation
+        # padding for the original uncompressed stream and must be dropped on rewritten parts.
+        if header_id not in (0x0001, 0xA220):
+            safe_chunks.append(extra[idx : idx + block_len])
+        idx += block_len
+    if idx != total:
+        raise exc_cls(f"Trailing bytes in ZIP extra field: {total - idx} bytes")
+    return b"".join(safe_chunks)
+
+
 class DocxPackage:
     """Manages reading, hash auditing, and lossless rebuilding of a DOCX OPC package.
     
@@ -39,6 +66,10 @@ class DocxPackage:
         self._raw_cd_entries: dict[str, bytes] = {}
         self._raw_mtime: dict[str, int] = {}
         self._raw_mdate: dict[str, int] = {}
+        self._raw_local_extra: dict[str, bytes] = {}
+        self._raw_cd_extra: dict[str, bytes] = {}
+        self._raw_cd_comment: dict[str, bytes] = {}
+        self._raw_disk_number_start: dict[str, int] = {}
 
         # 1. Parse using zipfile for high-level ZipInfo & security checks
         try:
@@ -119,6 +150,9 @@ class DocxPackage:
             self._raw_cd_entries[name] = data[cd_pos : cd_pos + rec_len]
             self._raw_mtime[name] = mtime
             self._raw_mdate[name] = mdate
+            self._raw_cd_extra[name] = data[cd_pos + 46 + nlen : cd_pos + 46 + nlen + elen]
+            self._raw_cd_comment[name] = data[cd_pos + 46 + nlen + elen : cd_pos + 46 + nlen + elen + clen]
+            self._raw_disk_number_start[name] = dnum
             cd_pos += rec_len
 
             # Read Local File Header from lhoff
@@ -138,6 +172,8 @@ class DocxPackage:
 
             if lsig != 0x04034B50:
                 raise DocxFidelityException(f"Invalid Local File Header signature for '{name}' at offset {lhoff}")
+
+            self._raw_local_extra[name] = data[lhoff + 30 + lnlen : lhoff + 30 + lnlen + lelen]
 
             loc_hdr_len = 30 + lnlen + lelen
             raw_comp_payload = data[lhoff + loc_hdr_len : lhoff + loc_hdr_len + csize]
@@ -253,6 +289,16 @@ class DocxPackage:
                 # directly into the local header without trailing descriptor.
                 new_flag_bits = orig_info.flag_bits & ~0x08
 
+                # Safe extra fields and comment preservation (A11)
+                safe_local_extra = _filter_safe_extra_fields(
+                    self._raw_local_extra.get(name, b""), DocxFidelityException
+                )
+                safe_cd_extra = _filter_safe_extra_fields(
+                    self._raw_cd_extra.get(name, b""), DocxFidelityException
+                )
+                orig_comment = self._raw_cd_comment.get(name, b"")
+                dnum = self._raw_disk_number_start.get(name, 0)
+
                 # Local File Header
                 loc_hdr = struct.pack(
                     "<IHHHHHIIIHH",
@@ -266,8 +312,8 @@ class DocxPackage:
                     csize,
                     usize,
                     len(name_bytes),
-                    0,  # extra field length
-                ) + name_bytes
+                    len(safe_local_extra),
+                ) + name_bytes + safe_local_extra
                 out_buf.write(loc_hdr)
                 out_buf.write(comp_data)
                 current_offset += len(loc_hdr) + csize
@@ -286,13 +332,13 @@ class DocxPackage:
                     csize,
                     usize,
                     len(name_bytes),
-                    0,  # extra length
-                    0,  # comment length
-                    0,  # disk number start
+                    len(safe_cd_extra),
+                    len(orig_comment),
+                    dnum,
                     orig_info.internal_attr,
                     orig_info.external_attr,
                     new_local_offset,
-                ) + name_bytes
+                ) + name_bytes + safe_cd_extra + orig_comment
                 new_cd_entries.append(cd_hdr)
 
         # Write Central Directory
