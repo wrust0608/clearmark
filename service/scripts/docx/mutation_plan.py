@@ -14,6 +14,14 @@ class TextCodepointMutation:
     codepoint: int
     char_name: str
     offset: int
+    replacement: str = ""
+    logical_offset: int = 0
+    context_witness: str = ""
+    t_block_idx: int = 0
+
+    @property
+    def char(self) -> str:
+        return chr(self.codepoint)
 
 
 @dataclass(frozen=True)
@@ -42,6 +50,13 @@ class DocxMutationPlan:
     metadata_mutations: list[MetadataFieldScrubMutation] = field(default_factory=list)
     part_drops: list[PartDropMutation] = field(default_factory=list)
     media_mutations: list[MediaScrubMutation] = field(default_factory=list)
+    surface_coverage: dict[str, str] = field(default_factory=dict)
+    _is_frozen: bool = False
+
+    def freeze(self) -> DocxMutationPlan:
+        """Freeze the mutation plan to make it immutable after detection."""
+        self._is_frozen = True
+        return self
 
     def is_empty(self) -> bool:
         return not (
@@ -80,4 +95,6 @@ class DocxMutationPlan:
             "removed_codepoints": codepoint_counts,
             "metadata_fields_scrubbed": [m.label for m in self.metadata_mutations],
             "parts_dropped": [m.part_name for m in self.part_drops],
+            "surfaces": dict(self.surface_coverage),
+            "frozen": self._is_frozen,
         }
