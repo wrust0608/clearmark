@@ -153,18 +153,14 @@ async function loadCapabilities() {
       const formatEntries = Array.isArray(data.formats)
         ? data.formats
         : Object.entries(data.formats).map(([k, v]) => ({ name: k, ...v }));
-      const formatNames = formatEntries.map(f => {
-        const name = (f.name || f.format || '').toUpperCase();
-        const isLossless = f.lossless || (typeof f.fidelity_levels === 'string' && f.fidelity_levels.includes('LEVEL_A'));
-        return isLossless ? `${name} (Lossless)` : name;
-      });
+      const formatNames = formatEntries.map(f => (f.name || f.format || '').toUpperCase());
       els.formatsDisplay.textContent = `Định dạng hỗ trợ: ${formatNames.join(' · ')}`;
     }
     updateModeSelector();
   } catch (err) {
     els.server.className = 'server-state offline';
     els.serverStatusText.textContent = 'Chế độ giới hạn (mất kết nối)';
-    els.formatsDisplay.textContent = 'Định dạng phổ biến: DOCX (Lossless) · PDF · PNG · JPG · TXT';
+    els.formatsDisplay.textContent = 'Định dạng phổ biến: DOCX · PDF · PNG · JPG · TXT';
   }
 }
 
@@ -407,7 +403,7 @@ async function cleanItem(item, quiet = false) {
     const isDocx = item.file.name.toLowerCase().endsWith('.docx');
     const options = isDocx
       ? { also_layer_a_text: true, normalize_spaces: false }
-      : { layer_a_only: true };
+      : {};
 
     const supported = getSupportedModesForFile(item);
     const effectiveMode = supported.includes(state.mode) ? state.mode : 'safe';
