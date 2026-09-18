@@ -2,10 +2,11 @@
   "repository": "wrust0608/clearmark",
   "branch": "feature/v2.2.0-rc2-hardening",
   "start_sha": "d8bb90073ece32b00a0761020f21dd32c5ad54c4",
-  "code_end_sha": "466931f0bf082337a6a4e3230a10c9c3e2187bcf",
-  "report_source_sha": "466931f0bf082337a6a4e3230a10c9c3e2187bcf",
+  "round6_start_sha": "7191a75ac4b96d69e1228c93b46debb3b209c653",
+  "code_end_sha": "78c195fe9e686a917388ac1bcb10b83aec1ea61b",
+  "report_source_sha": "78c195fe9e686a917388ac1bcb10b83aec1ea61b",
   "upstream_sha": "e4d2bd49c4cb84c5fddb50f5361618cfb3b75def",
-  "independent_review_round": "P0_INDEPENDENT_REVIEW_ROUND_5",
+  "independent_review_round": "P0_INDEPENDENT_REVIEW_ROUND_6",
   "P0_GATE_CANDIDATE": "PASS",
 
   "independent_review": "AWAITING",
@@ -189,7 +190,8 @@
         "tests/test_p0_round3_final_corrections.py::test_zip64_extra_policy_remains_fail_closed",
         "tests/test_p0_round3_final_corrections.py::test_growth_hint_rebuild_policy",
         "tests/test_p0_round4_eocd_final.py",
-        "tests/test_p0_round5_eocd_candidate_validation.py"
+        "tests/test_p0_round5_eocd_candidate_validation.py",
+        "tests/test_p0_round6_zip_disambiguation.py"
       ],
       "changed_files": [
         "service/scripts/zip_utils.py",
@@ -345,11 +347,11 @@
     },
     "full_pytest": {
       "status": "PASS",
-      "passed": 2098,
+      "passed": 2124,
       "skipped": 152,
       "failed": 0,
       "errors": 0,
-      "duration_seconds": 185.9
+      "duration_seconds": 150.5
     },
     "browser": {
       "status": "PASS",
@@ -383,6 +385,12 @@
     "p0_round5_eocd_candidate_validation": {
       "suite": "tests/test_p0_round5_eocd_candidate_validation.py",
       "passed": 12,
+      "failed": 0,
+      "status": "PASS"
+    },
+    "p0_round6_zip_disambiguation": {
+      "suite": "tests/test_p0_round6_zip_disambiguation.py",
+      "passed": 14,
       "failed": 0,
       "status": "PASS"
     }
