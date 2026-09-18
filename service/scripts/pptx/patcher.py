@@ -8,6 +8,7 @@ from typing import Optional
 
 from text_unicode import clean_text
 from .detector import _decode_xml_entities, iter_slide_text_runs
+from .exceptions import PptxPatchError
 from .mutation_plan import PptxMutationPlan
 from .package import PptxPackage
 
@@ -149,6 +150,8 @@ class PptxPatcher:
             if tm.part_name == part_name:
                 muts_by_loc[(tm.shape_id, tm.p_idx, tm.r_idx, tm.t_idx)] = tm
 
+        resolved_mut_ids: set[int] = set()
+
         for (
             tag_start,
             tag_end,
@@ -170,6 +173,7 @@ class PptxPatcher:
             if decoded != tm.original_text:
                 continue
 
+            resolved_mut_ids.add(id(tm))
             open_tag = xml_text[tag_start:tag_end]
             close_tag = xml_text[cs_:ce_]
             cleaned = tm.replacement_text
@@ -181,6 +185,12 @@ class PptxPatcher:
             out.append(xml_text[last:tag_start])
             out.append(open_tag + _reencode_xml_text(cleaned) + close_tag)
             last = ce_
+
+        if len(resolved_mut_ids) != len(muts_by_loc):
+            unresolved = len(muts_by_loc) - len(resolved_mut_ids)
+            raise PptxPatchError(
+                f"Fail-closed: Could not resolve exact planned identity for {unresolved} mutation(s) in {part_name}"
+            )
 
         if changed:
             out.append(xml_text[last:])

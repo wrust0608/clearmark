@@ -7,6 +7,7 @@ import re
 from typing import Optional
 
 from text_unicode import clean_text
+from .exceptions import XlsxPatchError
 from .mutation_plan import XlsxMutationPlan
 from .package import XlsxPackage
 
@@ -181,13 +182,13 @@ class XlsxPatcher:
         # Pre-index mutations
         si_muts: dict[int, XlsxTextMutation] = {}
         cell_muts: dict[str, XlsxTextMutation] = {}
-        text_muts_by_orig: dict[str, str] = {}
         for tm in muts:
             if tm.si_idx is not None:
                 si_muts[tm.si_idx] = tm
             if tm.cell_ref:
                 cell_muts[tm.cell_ref] = tm
-            text_muts_by_orig[tm.original_text] = tm.replacement_text
+
+        resolved_mut_ids: set[int] = set()
 
         is_sst = part_name == "xl/sharedStrings.xml"
         is_sheet = "worksheets/" in part_name
@@ -218,12 +219,11 @@ class XlsxPatcher:
                     if cell_ref in cell_muts and cell_muts[cell_ref].original_text == decoded:
                         target_tm = cell_muts[cell_ref]
 
-            if not target_tm and decoded in text_muts_by_orig:
-                cleaned = text_muts_by_orig[decoded]
-            elif target_tm:
-                cleaned = target_tm.replacement_text
-            else:
+            if not target_tm:
                 continue
+
+            resolved_mut_ids.add(id(target_tm))
+            cleaned = target_tm.replacement_text
 
             changed = True
             # Preserve whitespace semantics (Section 24)
@@ -232,6 +232,12 @@ class XlsxPatcher:
             out.append(xml_text[last:os_])
             out.append(open_tag + _reencode_xml_text(cleaned) + close_tag)
             last = ce
+
+        if len(resolved_mut_ids) != len(muts):
+            unresolved = len(muts) - len(resolved_mut_ids)
+            raise XlsxPatchError(
+                f"Fail-closed: Could not resolve exact planned identity for {unresolved} mutation(s) in {part_name}"
+            )
 
         if changed:
             out.append(xml_text[last:])

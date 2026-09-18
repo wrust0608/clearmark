@@ -191,7 +191,9 @@ class DocxDetector:
             "endnotes": "CHECKED" if self.package.has_member("word/endnotes.xml") else "NOT_CHECKED",
             "comments": "CHECKED" if self.package.has_member("word/comments.xml") else "NOT_CHECKED",
             "textboxes": "CHECKED",
-            "fields": "CHECKED",
+            "visible_field_results": "CHECKED",
+            "field_instructions_instrText": "NOT_CHECKED",
+            "tracked_deletions_delText": "NOT_CHECKED",
             "tracked_deletions": "NOT_CHECKED",
             "glossary": "NOT_CHECKED",
         }

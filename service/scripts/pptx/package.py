@@ -90,80 +90,92 @@ class PptxPackage:
             raise PptxCorruptedPackageError(f"Malformed or corrupt ZIP archive: {e}") from e
 
     def _parse_raw_records(self) -> None:
-        """Extract exact local headers, compressed streams, and central directory records."""
+        """Extract exact local headers, compressed streams, and central directory records using Central Directory."""
         data = self.raw_data
-        pos = 0
-        total_len = len(data)
-        local_offsets: dict[str, int] = {}
+        eocd_idx = data.rfind(b"PK\x05\x06")
+        if eocd_idx == -1:
+            raise PptxCorruptedPackageError("Invalid PPTX package: missing EOCD record")
 
-        while pos < total_len - 4:
-            sig = data[pos : pos + 4]
-            if sig == b"PK\x03\x04":  # Local file header
-                try:
-                    (
-                        version_needed,
-                        flags,
-                        compression,
-                        mod_time,
-                        mod_date,
-                        crc,
-                        comp_size,
-                        uncomp_size,
-                        fn_len,
-                        extra_len,
-                    ) = struct.unpack("<HHHHHIIIHH", data[pos + 4 : pos + 30])
-                    header_len = 30 + fn_len + extra_len
-                    fn_bytes = data[pos + 30 : pos + 30 + fn_len]
-                    fn_str = fn_bytes.decode("utf-8", errors="replace")
+        (
+            disk_num,
+            cd_disk,
+            disk_entries,
+            total_entries,
+            cd_size,
+            cd_offset,
+            comment_len,
+        ) = struct.unpack("<HHHHIIH", data[eocd_idx + 4 : eocd_idx + 22])
 
-                    local_header_bytes = data[pos : pos + header_len]
-                    # A11: Data descriptor handling if bit 3 is set
-                    desc_len = 0
-                    if flags & 0x08:
-                        cand = data[pos + header_len + comp_size : pos + header_len + comp_size + 16]
-                        desc_len = 16 if cand.startswith(b"PK\x07\x08") else 12
+        if total_entries != len(self.member_order):
+            raise PptxCorruptedPackageError("ZIP entry count mismatch between Central Directory and ZipFile")
 
-                    payload = data[pos + header_len : pos + header_len + comp_size]
-                    full_payload_with_desc = data[pos + header_len : pos + header_len + comp_size + desc_len]
+        cd_pos = cd_offset
+        self._raw_mtime: dict[str, int] = {}
+        self._raw_mdate: dict[str, int] = {}
 
-                    self._raw_local_records[fn_str] = local_header_bytes
-                    self._compressed_payloads[fn_str] = full_payload_with_desc
-                    self.raw_compressed_hashes[fn_str] = hashlib.sha256(payload).hexdigest()
-                    local_offsets[fn_str] = pos
+        for _ in range(total_entries):
+            (
+                sig,
+                made_by,
+                ver,
+                flags,
+                comp,
+                mtime,
+                mdate,
+                crc,
+                csize,
+                usize,
+                nlen,
+                elen,
+                clen,
+                dnum,
+                iattr,
+                eattr,
+                lhoff,
+            ) = struct.unpack("<IHHHHHHIIIHHHHHII", data[cd_pos : cd_pos + 46])
 
-                    pos += header_len + comp_size + desc_len
-                except Exception:
-                    break
-            elif sig == b"PK\x01\x02":  # Central directory header
-                try:
-                    (
-                        ver_made,
-                        ver_need,
-                        flags,
-                        comp,
-                        mod_time,
-                        mod_date,
-                        crc,
-                        comp_size,
-                        uncomp_size,
-                        fn_len,
-                        extra_len,
-                        comment_len,
-                        disk_num,
-                        int_attr,
-                        ext_attr,
-                        rel_offset,
-                    ) = struct.unpack("<HHHHHHIIIHHHHHII", data[pos + 4 : pos + 46])
-                    total_cd_len = 46 + fn_len + extra_len + comment_len
-                    fn_bytes = data[pos + 46 : pos + 46 + fn_len]
-                    fn_str = fn_bytes.decode("utf-8", errors="replace")
+            if sig != 0x02014B50:
+                raise PptxCorruptedPackageError(f"Invalid Central Directory record signature at offset {cd_pos}")
 
-                    self._central_directory_records[fn_str] = data[pos : pos + total_cd_len]
-                    pos += total_cd_len
-                except Exception:
-                    break
-            else:
-                pos += 1
+            name = data[cd_pos + 46 : cd_pos + 46 + nlen].decode("utf-8", errors="replace")
+            rec_len = 46 + nlen + elen + clen
+            self._central_directory_records[name] = data[cd_pos : cd_pos + rec_len]
+            self._raw_mtime[name] = mtime
+            self._raw_mdate[name] = mdate
+            cd_pos += rec_len
+
+            # Read Local File Header from lhoff
+            (
+                lsig,
+                lver,
+                lflags,
+                lcomp,
+                lmtime,
+                lmdate,
+                lcrc,
+                lcsize,
+                lusize,
+                lnlen,
+                lelen,
+            ) = struct.unpack("<IHHHHHIIIHH", data[lhoff : lhoff + 30])
+
+            if lsig != 0x04034B50:
+                raise PptxCorruptedPackageError(f"Invalid Local File Header signature for '{name}' at offset {lhoff}")
+
+            loc_hdr_len = 30 + lnlen + lelen
+            # csize from Central Directory is authoritative even if lcsize == 0 due to bit 3
+            raw_comp_payload = data[lhoff + loc_hdr_len : lhoff + loc_hdr_len + csize]
+            self.raw_compressed_hashes[name] = hashlib.sha256(raw_comp_payload).hexdigest()
+
+            # Data descriptor handling if lflags & 0x08
+            desc_len = 0
+            if lflags & 0x08:
+                cand = data[lhoff + loc_hdr_len + csize : lhoff + loc_hdr_len + csize + 16]
+                desc_len = 16 if cand.startswith(b"PK\x07\x08") else 12
+
+            total_local_len = loc_hdr_len + csize + desc_len
+            self._raw_local_records[name] = data[lhoff : lhoff + total_local_len]
+            self._compressed_payloads[name] = raw_comp_payload
 
     @property
     def zip_infos(self) -> dict[str, zipfile.ZipInfo]:
@@ -223,26 +235,45 @@ class PptxPackage:
             new_local_offsets[name] = current_offset
 
             if name in patched_members:
-                # Target modified part: compress and emit
+                # Target modified part: compress and emit with compatible source metadata
                 new_payload = patched_members[name]
-                crc = zipfile.crc32(new_payload)
-                uncomp_size = len(new_payload)
+                orig_info = self._zip_infos.get(name)
 
                 import zlib
-                comp_obj = zlib.compressobj(level=9, method=zlib.DEFLATED, wbits=-15)
-                comp_payload = comp_obj.compress(new_payload) + comp_obj.flush()
+                if orig_info and orig_info.compress_type == zipfile.ZIP_STORED:
+                    comp_payload = new_payload
+                    comp_type = zipfile.ZIP_STORED
+                else:
+                    comp_obj = zlib.compressobj(level=9, method=zlib.DEFLATED, wbits=-15)
+                    comp_payload = comp_obj.compress(new_payload) + comp_obj.flush()
+                    comp_type = zipfile.ZIP_DEFLATED
+
+                crc = zlib.crc32(new_payload) & 0xFFFFFFFF
+                uncomp_size = len(new_payload)
                 comp_size = len(comp_payload)
 
                 fn_bytes = name.encode("utf-8")
                 fn_len = len(fn_bytes)
 
+                mtime = self._raw_mtime.get(name, 0)
+                mdate = self._raw_mdate.get(name, 0x21)
+
+                orig_flags = orig_info.flag_bits if orig_info else 0
+                # A11: Clear bit 3 (data descriptor) on modified entry as exact CRC/sizes are in header
+                new_flag_bits = (orig_flags & ~0x08) | (orig_flags & 0x800)
+                extract_ver = orig_info.extract_version if orig_info else 20
+                create_ver = orig_info.create_version if orig_info else 20
+                int_attr = orig_info.internal_attr if orig_info else 0
+                ext_attr = orig_info.external_attr if orig_info else 0
+
                 local_header = struct.pack(
-                    "<4sHHHHHIIIHH",
-                    b"PK\x03\x04",
-                    20,     # Version needed
-                    2048,   # General purpose bit flag (UTF-8)
-                    8,      # Compression method (DEFLATED)
-                    0, 0,   # Timestamp
+                    "<IHHHHHIIIHH",
+                    0x04034B50,
+                    extract_ver,
+                    new_flag_bits,
+                    comp_type,
+                    mtime,
+                    mdate,
                     crc,
                     comp_size,
                     uncomp_size,
@@ -253,34 +284,36 @@ class PptxPackage:
                 out.write(local_header)
                 out.write(comp_payload)
 
-                # Construct updated central directory record
+                # Construct updated central directory record preserving source metadata
                 cd_record = struct.pack(
-                    "<4sHHHHHHIIIHHHHHII",
-                    b"PK\x01\x02",
-                    63,     # Version made by
-                    20,     # Version needed
-                    2048,   # Flags (UTF-8)
-                    8,      # Compression
-                    0, 0,   # Timestamp
+                    "<IHHHHHHIIIHHHHHII",
+                    0x02014B50,
+                    create_ver,
+                    extract_ver,
+                    new_flag_bits,
+                    comp_type,
+                    mtime,
+                    mdate,
                     crc,
                     comp_size,
                     uncomp_size,
                     fn_len,
                     0,      # Extra field length
                     0,      # Comment length
-                    0, 0, 0,
+                    0,      # Disk number start
+                    int_attr,
+                    ext_attr,
                     current_offset,
                 ) + fn_bytes
                 new_cd_records.append(cd_record)
             else:
                 # Non-target part: STRICT RAW OPC PASSTHROUGH
                 orig_local = self._raw_local_records.get(name)
-                orig_comp = self._compressed_payloads.get(name)
                 orig_cd = self._central_directory_records.get(name)
 
-                if orig_local is not None and orig_comp is not None and orig_cd is not None:
+                if orig_local is not None and orig_cd is not None:
+                    # orig_local contains full entry: local header + compressed payload + descriptor
                     out.write(orig_local)
-                    out.write(orig_comp)
 
                     # Update only relative local header offset (bytes 42..46) in central directory
                     updated_cd = orig_cd[:42] + struct.pack("<I", current_offset) + orig_cd[46:]
