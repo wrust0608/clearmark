@@ -273,6 +273,8 @@ def _is_private_use(cp: int) -> bool:
 
 
 def _is_strip_cp(cp: int) -> bool:
+    if cp < 0x00AD:
+        return False
     if cp in STRIP_CODEPOINTS:
         return True
     if cp in _VS_SUPPLEMENT:
@@ -452,6 +454,8 @@ def _is_hangul_jamo(cp: int) -> bool:
 def _is_glue(cp: int) -> bool:
     """Load-bearing invisible char: emoji glue, script joiner, flag tag char,
     or same-script filler/selector (Mongolian FVS, Khmer vowel, Hangul filler)."""
+    if cp < 0x115F:
+        return False
     return (
         _is_emoji_glue(cp)
         or _is_variation_selector(cp)
@@ -481,6 +485,8 @@ def _decide(
     kind is the inspect classification (None when not suspicious).
     """
     cp = ord(ch)
+    if cp < 160:
+        return ("keep", ch, None)
     if valid_bidi_embedding and not strip_bidi:
         return ("keep", ch, None)
     if cp in _PRESERVABLE_BIDI_CPS and not strip_bidi:
@@ -676,6 +682,21 @@ def classify_stream(
     classifications: list[StreamCharClassification] = []
 
     for i, ch in enumerate(text):
+        cp = ord(ch)
+        if cp < 160:
+            classifications.append(
+                StreamCharClassification(
+                    offset=i,
+                    char=ch,
+                    codepoint=cp,
+                    action="keep",
+                    out_char=ch,
+                    kind=None,
+                )
+            )
+            prev_kept = ch
+            continue
+
         action, out_char, kind = _decide(
             ch,
             prev_kept,
@@ -692,14 +713,14 @@ def classify_stream(
             StreamCharClassification(
                 offset=i,
                 char=ch,
-                codepoint=ord(ch),
+                codepoint=cp,
                 action=action,
                 out_char=out_char,
                 kind=kind,
             )
         )
         if action == "keep":
-            if not _is_glue(ord(ch)):
+            if not _is_glue(cp):
                 prev_kept = out_char
         elif action == "replace":
             prev_kept = out_char
@@ -726,6 +747,12 @@ def clean_text(
     valid_bidi_embeddings = _valid_bidi_embedding_indices(text)
 
     for i, ch in enumerate(text):
+        cp = ord(ch)
+        if cp < 160:
+            out_chars.append(ch)
+            prev_kept = ch
+            continue
+
         action, out_char, _kind = _decide(
             ch,
             prev_kept,

@@ -19,14 +19,25 @@ MAX_DOCX_UNCOMPRESSED_BYTES = 128 * 1024 * 1024  # 128 MB max uncompressed packa
 MAX_MEMBER_COUNT = 10_000
 
 
-def _filter_safe_extra_fields(extra: bytes, exc_cls: type[Exception]) -> bytes:
-    """Preserve safe compatible extra fields while filtering out stale Zip64 (0x0001).
+def _filter_rebuild_incompatible_extra_fields(extra: bytes, exc_cls: type[Exception]) -> bytes:
+    """Preserve original extra fields except entries proven incompatible with rewriting the member.
+
+    Container fidelity policy:
+    Retains unknown, non-prohibited extra fields (e.g. 0x5455 extended timestamp, 0x7875 unix UID/GID,
+    or proprietary vendor blocks) byte-for-byte on rewritten members to preserve container metadata.
+    Strips entries that are proven incompatible with member rewriting:
+    - 0x0001 (Zip64): contains stale uncompressed/compressed sizes and offsets for the pre-rewrite stream.
+      Must be stripped when re-encoding 32-bit content to avoid size/offset corruption.
+    - 0xA220 (MS Open Packaging Growth Hint): pre-allocation padding tailored to original stream length,
+      obsolete upon rewriting.
+    Does not claim preserved unknown fields are independently proven safe; container security preflight
+    remains responsible for rejecting unsupported or dangerous container structures.
 
     Fails closed on truncated or malformed extra fields.
     """
     if not extra:
         return b""
-    safe_chunks: list[bytes] = []
+    retained_chunks: list[bytes] = []
     idx = 0
     total = len(extra)
     while idx + 4 <= total:
@@ -34,16 +45,13 @@ def _filter_safe_extra_fields(extra: bytes, exc_cls: type[Exception]) -> bytes:
         block_len = 4 + data_size
         if idx + block_len > total:
             raise exc_cls(f"Malformed ZIP extra field: block truncated at offset {idx}")
-        # 0x0001 is Zip64 extended information which encodes stale uncompressed/compressed sizes and offsets.
-        # It must be stripped when re-compressing 32-bit content to prevent size mismatch.
-        # 0xa220 is Microsoft Open Packaging Growth Hint padding, which encodes obsolete pre-allocation
-        # padding for the original uncompressed stream and must be dropped on rewritten parts.
+        # Strip entries incompatible with rewriting the member
         if header_id not in (0x0001, 0xA220):
-            safe_chunks.append(extra[idx : idx + block_len])
+            retained_chunks.append(extra[idx : idx + block_len])
         idx += block_len
     if idx != total:
         raise exc_cls(f"Trailing bytes in ZIP extra field: {total - idx} bytes")
-    return b"".join(safe_chunks)
+    return b"".join(retained_chunks)
 
 
 class DocxPackage:
@@ -70,6 +78,7 @@ class DocxPackage:
         self._raw_cd_extra: dict[str, bytes] = {}
         self._raw_cd_comment: dict[str, bytes] = {}
         self._raw_disk_number_start: dict[str, int] = {}
+        self._raw_eocd_comment: bytes = b""
 
         # 1. Parse using zipfile for high-level ZipInfo & security checks
         try:
@@ -116,6 +125,12 @@ class DocxPackage:
             cd_offset,
             comment_len,
         ) = struct.unpack("<HHHHIIH", data[eocd_idx + 4 : eocd_idx + 22])
+
+        if eocd_idx + 22 + comment_len > len(data):
+            raise DocxFidelityException(
+                f"Invalid DOCX package: malformed EOCD comment length ({comment_len} exceeds package bounds)"
+            )
+        self._raw_eocd_comment = data[eocd_idx + 22 : eocd_idx + 22 + comment_len]
 
         if total_entries != len(self.member_order):
             raise DocxFidelityException("ZIP entry count mismatch between Central Directory and ZipFile")
@@ -289,11 +304,11 @@ class DocxPackage:
                 # directly into the local header without trailing descriptor.
                 new_flag_bits = orig_info.flag_bits & ~0x08
 
-                # Safe extra fields and comment preservation (A11)
-                safe_local_extra = _filter_safe_extra_fields(
+                # Extra fields and comment preservation (A11)
+                safe_local_extra = _filter_rebuild_incompatible_extra_fields(
                     self._raw_local_extra.get(name, b""), DocxFidelityException
                 )
-                safe_cd_extra = _filter_safe_extra_fields(
+                safe_cd_extra = _filter_rebuild_incompatible_extra_fields(
                     self._raw_cd_extra.get(name, b""), DocxFidelityException
                 )
                 orig_comment = self._raw_cd_comment.get(name, b"")
@@ -348,7 +363,8 @@ class DocxPackage:
         cd_size = out_buf.tell() - cd_start_offset
         total_records = len(new_cd_entries)
 
-        # Write End of Central Directory (EOCD)
+        # Write End of Central Directory (EOCD) with preserved archive-level comment (A11)
+        eocd_comment = self._raw_eocd_comment
         eocd = struct.pack(
             "<IHHHHIIH",
             0x06054B50,
@@ -358,8 +374,10 @@ class DocxPackage:
             total_records,  # total records
             cd_size,        # CD size in bytes
             cd_start_offset,# CD offset
-            0,              # comment length
+            len(eocd_comment), # comment length
         )
         out_buf.write(eocd)
+        if eocd_comment:
+            out_buf.write(eocd_comment)
 
         return out_buf.getvalue()

@@ -19,14 +19,25 @@ MAX_UNCOMPRESSED_BUDGET = 128 * 1024 * 1024  # 128 MiB
 MAX_COMPRESSION_RATIO = 100
 
 
-def _filter_safe_extra_fields(extra: bytes, exc_cls: type[Exception]) -> bytes:
-    """Preserve safe compatible extra fields while filtering out stale Zip64 (0x0001).
+def _filter_rebuild_incompatible_extra_fields(extra: bytes, exc_cls: type[Exception]) -> bytes:
+    """Preserve original extra fields except entries proven incompatible with rewriting the member.
+
+    Container fidelity policy:
+    Retains unknown, non-prohibited extra fields (e.g. 0x5455 extended timestamp, 0x7875 unix UID/GID,
+    or proprietary vendor blocks) byte-for-byte on rewritten members to preserve container metadata.
+    Strips entries that are proven incompatible with member rewriting:
+    - 0x0001 (Zip64): contains stale uncompressed/compressed sizes and offsets for the pre-rewrite stream.
+      Must be stripped when re-encoding 32-bit content to avoid size/offset corruption.
+    - 0xA220 (MS Open Packaging Growth Hint): pre-allocation padding tailored to original stream length,
+      obsolete upon rewriting.
+    Does not claim preserved unknown fields are independently proven safe; container security preflight
+    remains responsible for rejecting unsupported or dangerous container structures.
 
     Fails closed on truncated or malformed extra fields.
     """
     if not extra:
         return b""
-    safe_chunks: list[bytes] = []
+    retained_chunks: list[bytes] = []
     idx = 0
     total = len(extra)
     while idx + 4 <= total:
@@ -34,16 +45,13 @@ def _filter_safe_extra_fields(extra: bytes, exc_cls: type[Exception]) -> bytes:
         block_len = 4 + data_size
         if idx + block_len > total:
             raise exc_cls(f"Malformed ZIP extra field: block truncated at offset {idx}")
-        # 0x0001 is Zip64 extended information which encodes stale uncompressed/compressed sizes and offsets.
-        # It must be stripped when re-compressing 32-bit content to prevent size mismatch.
-        # 0xa220 is Microsoft Open Packaging Growth Hint padding, which encodes obsolete pre-allocation
-        # padding for the original uncompressed stream and must be dropped on rewritten parts.
+        # Strip entries incompatible with rewriting the member
         if header_id not in (0x0001, 0xA220):
-            safe_chunks.append(extra[idx : idx + block_len])
+            retained_chunks.append(extra[idx : idx + block_len])
         idx += block_len
     if idx != total:
         raise exc_cls(f"Trailing bytes in ZIP extra field: {total - idx} bytes")
-    return b"".join(safe_chunks)
+    return b"".join(retained_chunks)
 
 
 class PptxPackage:
@@ -66,6 +74,7 @@ class PptxPackage:
         self._raw_cd_extra: dict[str, bytes] = {}
         self._raw_cd_comment: dict[str, bytes] = {}
         self._raw_disk_number_start: dict[str, int] = {}
+        self._raw_eocd_comment: bytes = b""
         self._parse_package()
 
     def _parse_package(self) -> None:
@@ -136,6 +145,12 @@ class PptxPackage:
             cd_offset,
             comment_len,
         ) = struct.unpack("<HHHHIIH", data[eocd_idx + 4 : eocd_idx + 22])
+
+        if eocd_idx + 22 + comment_len > len(data):
+            raise PptxCorruptedPackageError(
+                f"Invalid PPTX package: malformed EOCD comment length ({comment_len} exceeds package bounds)"
+            )
+        self._raw_eocd_comment = data[eocd_idx + 22 : eocd_idx + 22 + comment_len]
 
         if total_entries != len(self.member_order):
             raise PptxCorruptedPackageError("ZIP entry count mismatch between Central Directory and ZipFile")
@@ -246,11 +261,16 @@ class PptxPackage:
 
     def rebuild(
         self,
-        patched_members: dict[str, bytes],
+        patched_members: dict[str, bytes] | None = None,
         dropped_members: Optional[set[str]] = None,
+        *,
+        changed_parts: dict[str, bytes] | None = None,
+        dropped_parts: Optional[set[str]] = None,
     ) -> bytes:
         """Rebuild the ZIP package with strict raw non-target entry pass-through."""
-        return self.build_patched_package(patched_members, dropped_members)
+        changes = patched_members if patched_members is not None else (changed_parts or {})
+        drops = dropped_members if dropped_members is not None else dropped_parts
+        return self.build_patched_package(changes, drops)
 
     def build_patched_package(
         self,
@@ -302,11 +322,11 @@ class PptxPackage:
                 int_attr = orig_info.internal_attr if orig_info else 0
                 ext_attr = orig_info.external_attr if orig_info else 0
 
-                # Safe extra fields and comment preservation (A11)
-                safe_local_extra = _filter_safe_extra_fields(
+                # Extra fields and comment preservation (A11)
+                safe_local_extra = _filter_rebuild_incompatible_extra_fields(
                     self._raw_local_extra.get(name, b""), PptxCorruptedPackageError
                 )
-                safe_cd_extra = _filter_safe_extra_fields(
+                safe_cd_extra = _filter_rebuild_incompatible_extra_fields(
                     self._raw_cd_extra.get(name, b""), PptxCorruptedPackageError
                 )
                 orig_comment = self._raw_cd_comment.get(name, b"")
@@ -381,7 +401,8 @@ class PptxPackage:
         cd_size = out.tell() - cd_start_offset
         total_entries = len(new_cd_records)
 
-        # Write End of Central Directory Record (EOCD)
+        # Write End of Central Directory Record (EOCD) with preserved archive-level comment (A11)
+        eocd_comment = self._raw_eocd_comment
         eocd = struct.pack(
             "<4sHHHHIIH",
             b"PK\x05\x06",
@@ -391,8 +412,10 @@ class PptxPackage:
             total_entries,
             cd_size,
             cd_start_offset,
-            0,      # Comment length
+            len(eocd_comment), # Comment length
         )
         out.write(eocd)
+        if eocd_comment:
+            out.write(eocd_comment)
 
         return out.getvalue()
