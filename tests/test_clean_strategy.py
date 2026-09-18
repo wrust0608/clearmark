@@ -105,8 +105,9 @@ def test_apply_strategy_mlm_only(monkeypatch):
 
 
 def test_clean_options_strategy_valid():
-    opts = _parse_clean_options({"strategy": "paraphrase@0.8,mlm@0.2", "nfkc": True})
-    assert opts["strategy"] == "paraphrase@0.8,mlm@0.2"
+    # Under P0 A07, strategy is rejected until P1
+    with pytest.raises(ValueError, match="Advanced Statistical Layer B rewriting is not available in P0 canonical clean"):
+        _parse_clean_options({"strategy": "paraphrase@0.8,mlm@0.2", "nfkc": True})
 
 
 def test_clean_options_strategy_invalid():

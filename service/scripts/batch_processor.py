@@ -578,6 +578,7 @@ class BatchProcessor:
         mode: ProcessingMode = ProcessingMode.SAFE,
         dry_run: bool = False,
         operation: str = "clean",
+        top_level_options: Optional[dict[str, Any]] = None,
     ) -> BatchReport:
         """Process in-memory items (for HTTP API /batch)."""
         t_batch_start = time.perf_counter()
@@ -598,6 +599,26 @@ class BatchProcessor:
             name = entry.get("name", f"item_{idx + 1}")
 
             try:
+                if "_option_error" in entry:
+                    raise ValueError(entry["_option_error"])
+
+                # Merge top_level_options with item-specific options (A08)
+                item_opts = dict(top_level_options or {})
+                if "options" in entry and isinstance(entry["options"], dict):
+                    item_opts.update(entry["options"])
+
+                # Determine effective mode for this item
+                item_mode = mode
+                if "mode" in item_opts and isinstance(item_opts["mode"], str):
+                    m_str = item_opts["mode"].upper()
+                    if m_str in ProcessingMode.__members__:
+                        item_mode = ProcessingMode(m_str)
+                    else:
+                        raise ValueError(f"Invalid mode: {item_opts['mode']}")
+
+                # Determine effective dry_run for this item
+                item_dry_run = bool(item_opts.get("dry_run", dry_run))
+
                 # Extract data bytes
                 if "data" in entry:
                     data = entry["data"]
@@ -637,10 +658,16 @@ class BatchProcessor:
                 pipe = Pipeline()
 
                 if operation == "inspect":
-                    report = pipe.inspect(data, filename=name, mode=mode)
+                    report = pipe.inspect(data, filename=name, mode=item_mode)
                     cleaned_bytes = None
                 else:
-                    cleaned_bytes, report = pipe.clean(data, filename=name, mode=mode, dry_run=dry_run)
+                    cleaned_bytes, report = pipe.clean(
+                        data,
+                        filename=name,
+                        mode=item_mode,
+                        dry_run=item_dry_run,
+                        options=item_opts,
+                    )
 
                 status_str = report.status.value
                 if report.status == PipelineStatus.CLEANED:
@@ -659,6 +686,9 @@ class BatchProcessor:
                     summary.skipped += 1
 
                 elapsed = (time.perf_counter() - t0) * 1000
+                rep_dict = report.to_dict()
+                rep_dict["mode"] = item_mode.value
+                rep_dict["dry_run"] = bool(item_dry_run)
                 items.append(
                     BatchItemResult(
                         index=idx,
@@ -668,13 +698,15 @@ class BatchProcessor:
                         status=status_str,
                         output_path=None,
                         cleaned_bytes=cleaned_bytes,
-                        report=report.to_dict(),
+                        report=rep_dict,
                         error_code=report.error_code.value if report.error_code else None,
                         error_message_safe=report.error_message,
                         elapsed_ms=elapsed,
                     )
                 )
 
+            except BatchLimitExceededError:
+                raise
             except Exception as e:
                 summary.errors += 1
                 items.append(

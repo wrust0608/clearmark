@@ -1052,12 +1052,11 @@ def _parse_clean_options(options: Any) -> dict[str, Any]:
         raise ValueError(
             f"option 'clean_attachments' must be one of {sorted(CLEAN_ATTACHMENT_MODES)}"
         )
-    # A per-request strategy overrides the default; validate it up front so a bad
-    # tactic/intensity is a 400 rather than a mid-clean failure.
+    # A07: Reject strategy / Layer B requests explicitly in P0 canonical clean
     if "strategy" in options:
-        from rewrite_text import parse_strategy
-
-        parse_strategy(options["strategy"])
+        raise ValueError(
+            "Advanced Statistical Layer B rewriting is not available in P0 canonical clean; Layer B is disabled until P1."
+        )
     return options
 
 
@@ -1149,6 +1148,80 @@ def _apply_layer_b(text: str, strategy: str, options: dict[str, Any]) -> tuple[s
     except (RuntimeError, TimeoutError, urllib.error.URLError) as e:
         raise ValueError(f"Layer B rewrite failed: {e}") from e
     return out, stats
+
+
+def _get_max_batch_files() -> int:
+    import batch_processor
+    env_val = os.environ.get("WATERMARKS_MAX_BATCH_FILES")
+    if env_val is not None:
+        try:
+            return int(env_val)
+        except ValueError:
+            pass
+    bp_val = getattr(batch_processor, "MAX_BATCH_FILES", 100)
+    srv_val = globals().get("MAX_BATCH_FILES", 50)
+    if bp_val != 100:
+        return bp_val
+    return srv_val
+
+
+def _normalize_batch_request(
+    body: dict[str, Any], default_operation: str = "clean"
+) -> tuple[list[dict[str, Any]], ProcessingMode, bool, dict[str, Any], str]:
+    """Canonical batch request normalizer (A08).
+
+    Validates and unifies request semantics across /clean/batch and /batch:
+    - Verifies body structure and non-empty 'files' array.
+    - Enforces batch count cap (MAX_BATCH_FILES = 50).
+    - Validates top-level mode (strictly rejects invalid mode; no silent fallback).
+    - Validates top-level dry_run.
+    - Validates top-level options via _parse_clean_options (rejects strategy).
+    - Resolves operation ('clean' or 'inspect').
+    """
+    if not isinstance(body, dict):
+        raise ValueError("request body must be a JSON object")
+
+    files = body.get("files")
+    if not isinstance(files, list):
+        raise ValueError("missing array field 'files'")
+    if not files:
+        raise ValueError("'files' must not be empty")
+
+    from batch_processor import BatchLimitExceededError
+
+    max_files = _get_max_batch_files()
+    if len(files) > max_files:
+        raise BatchLimitExceededError(
+            f"Batch file count ({len(files)}) exceeds maximum allowed ({max_files})"
+        )
+
+    for entry in files:
+        if isinstance(entry, dict) and "options" in entry:
+            try:
+                _parse_clean_options(entry["options"])
+            except ValueError as e:
+                entry["_option_error"] = str(e)
+
+    # Top-level mode validation
+    mode_val = body.get("mode", "safe")
+    if not isinstance(mode_val, str) or mode_val.lower() not in ("safe", "balanced", "aggressive"):
+        raise ValueError(f"Invalid mode: {mode_val}")
+    mode = ProcessingMode(mode_val.upper())
+
+    # Top-level dry_run validation
+    dry_run_val = body.get("dry_run", False)
+    if not isinstance(dry_run_val, bool):
+        raise ValueError("'dry_run' must be a boolean")
+    dry_run = dry_run_val
+
+    # Top-level options validation (validates options and rejects strategy)
+    top_options = _parse_clean_options(body.get("options"))
+
+    operation = body.get("operation", default_operation)
+    if operation not in ("clean", "inspect"):
+        raise ValueError(f"Invalid operation: {operation}")
+
+    return files, mode, dry_run, top_options, operation
 
 
 def _batch_items(
@@ -1996,6 +2069,8 @@ class Handler(BaseHTTPRequestHandler):
 
         cleaned_b64 = base64.b64encode(cleaned_bytes).decode("ascii")
         report_dict = report.to_dict()
+        report_dict["mode"] = report_dict.get("policy", {}).get("mode", mode.value)
+        report_dict["dry_run"] = bool(dry_run)
         report_dict["changed"] = report.output.changed
         report_dict["output"]["sha256"] = report.output.sha256
         report_dict["output"]["size"] = report.output.size
@@ -2079,88 +2154,106 @@ class Handler(BaseHTTPRequestHandler):
         })
 
     def _handle_clean_batch(self, body: dict[str, Any]) -> None:
-        """Compatibility batch clean endpoint routing through canonical Pipeline (A08)."""
-        items = _batch_items(body)
+        """Compatibility batch clean endpoint routing through canonical BatchProcessor (A08)."""
+        from batch_processor import BatchLimitExceededError, BatchProcessor
+
+        try:
+            files, mode, dry_run, top_options, operation = _normalize_batch_request(
+                body, default_operation="clean"
+            )
+        except BatchLimitExceededError as e:
+            self._respond(HTTPStatus.REQUEST_ENTITY_TOO_LARGE, {"ok": False, "error": str(e)})
+            return
+        except ValueError as e:
+            self._respond(HTTPStatus.BAD_REQUEST, {"ok": False, "error": str(e)})
+            return
+
+        processor = BatchProcessor(max_batch_files=_get_max_batch_files())
+        try:
+            batch_report = processor.process_items(
+                files,
+                mode=mode,
+                dry_run=dry_run,
+                operation="clean",
+                top_level_options=top_options,
+            )
+        except BatchLimitExceededError as e:
+            self._respond(HTTPStatus.REQUEST_ENTITY_TOO_LARGE, {"ok": False, "error": str(e)})
+            return
+        except Exception as e:
+            self._respond(HTTPStatus.INTERNAL_SERVER_ERROR, {"ok": False, "error": f"Batch processing failed: {e}"})
+            return
+
         results = []
-        pipeline = Pipeline()
-        for name, data, options, error in items:
-            if error is not None:
-                results.append({"name": name, "ok": False, "error": error})
-                continue
-            try:
-                mode_str = options.get("mode", "safe")
-                mode = ProcessingMode(mode_str.upper()) if isinstance(mode_str, str) and mode_str.upper() in ProcessingMode.__members__ else ProcessingMode.SAFE
-                dry_run = bool(options.get("dry_run", False))
-                cleaned_bytes, report = pipeline.clean(data, filename=name, mode=mode, dry_run=dry_run, options=options)
-
-                if report.status == PipelineStatus.ERROR:
-                    results.append({"name": name, "ok": False, "error": report.error_message, "report": report.to_dict()})
-                    continue
-                if report.status == PipelineStatus.UNSUPPORTED:
-                    results.append({"name": name, "ok": False, "error": "unrecognized file format; unsupported format", "report": report.to_dict()})
-                    continue
-                if report.status == PipelineStatus.VALIDATION_FAILED:
-                    results.append({"name": name, "ok": False, "error": "Validation failed", "report": report.to_dict()})
-                    continue
-
-                cleaned_b64 = base64.b64encode(cleaned_bytes).decode("ascii") if not dry_run else ""
-                rep_dict = report.to_dict()
-                rep_dict["format"] = report.input.format
-                rep_dict["actions"] = [m.get("desc", "") for m in report.mutation_plan.mutations]
-                for m in report.mutation_plan.mutations:
+        for item in batch_report.items:
+            if item.status in ("CLEANED", "NO_CHANGE_REQUIRED") or (dry_run and item.status == "INSPECTED"):
+                rep_dict = dict(item.report or {})
+                rep_dict["mode"] = rep_dict.get("policy", {}).get("mode", mode.value)
+                rep_dict["dry_run"] = bool(dry_run)
+                rep_dict["format"] = item.format
+                mutations = (rep_dict.get("mutation_plan") or {}).get("mutations", [])
+                rep_dict["actions"] = [m.get("desc", "") for m in mutations]
+                for m in mutations:
                     if "stats" in m:
                         rep_dict["stats"] = m["stats"]
                         break
-                if "stats" not in rep_dict and report.input.format in ("txt", "text", "md"):
-                    rem_cnt = sum(1 for m in report.mutation_plan.mutations if m.get("action") == "unicode_carrier_remove")
+                if "stats" not in rep_dict and item.format in ("txt", "text", "md"):
+                    rem_cnt = sum(1 for m in mutations if m.get("action") == "unicode_carrier_remove")
                     rep_dict["stats"] = {"removed_count": rem_cnt}
 
+                cleaned_b64 = (
+                    base64.b64encode(item.cleaned_bytes).decode("ascii")
+                    if (not dry_run and item.cleaned_bytes is not None)
+                    else ""
+                )
                 results.append({
-                    "name": name,
+                    "name": item.input_path,
                     "ok": True,
                     "cleaned": cleaned_b64,
                     "report": rep_dict,
                 })
-            except Exception as e:
-                results.append({"name": name, "ok": False, "error": str(e)})
+            else:
+                err_msg = item.error_message_safe or "Processing error"
+                if item.status == "UNSUPPORTED":
+                    ext = Path(item.input_path).suffix.lstrip(".") or "unknown"
+                    err_msg = f"unrecognized file format: {ext}"
+                results.append({
+                    "name": item.input_path,
+                    "ok": False,
+                    "error": err_msg,
+                    "error_code": item.error_code,
+                    "report": item.report or {},
+                })
+
         self._respond(HTTPStatus.OK, {"ok": True, "results": results})
 
     def _handle_batch(self, body: dict[str, Any]) -> None:
-        if not isinstance(body, dict):
-            self._respond(HTTPStatus.BAD_REQUEST, {"ok": False, "error": "request body must be a JSON object"})
-            return
-        files = body.get("files")
-        if not isinstance(files, list) or len(files) == 0:
-            self._respond(HTTPStatus.BAD_REQUEST, {"ok": False, "error": "'files' array is required and must not be empty"})
-            return
-
         from batch_processor import (
-            MAX_BATCH_FILES,
             MAX_BATCH_INLINE_OUTPUT_BYTES,
-            MAX_BATCH_TOTAL_BYTES,
             BatchLimitExceededError,
             BatchProcessor,
         )
 
-        if len(files) > MAX_BATCH_FILES:
-            self._respond(HTTPStatus.REQUEST_ENTITY_TOO_LARGE, {"ok": False, "error": f"Batch file count ({len(files)}) exceeds maximum allowed ({MAX_BATCH_FILES})"})
-            return
-
-        mode_str = body.get("mode", "safe")
-        if not isinstance(mode_str, str) or mode_str.lower() not in ("safe", "balanced", "aggressive"):
-            self._respond(HTTPStatus.BAD_REQUEST, {"ok": False, "error": f"Invalid mode: {mode_str}"})
-            return
-
-        mode = ProcessingMode(mode_str.upper())
-        dry_run = bool(body.get("dry_run", False))
-        operation = body.get("operation", "clean")
-        if operation not in ("clean", "inspect"):
-            self._respond(HTTPStatus.BAD_REQUEST, {"ok": False, "error": f"Invalid operation: {operation}"})
-            return
-
-        processor = BatchProcessor()
         try:
-            batch_report = processor.process_items(files, mode=mode, dry_run=dry_run, operation=operation)
+            files, mode, dry_run, top_options, operation = _normalize_batch_request(
+                body, default_operation="clean"
+            )
+        except BatchLimitExceededError as e:
+            self._respond(HTTPStatus.REQUEST_ENTITY_TOO_LARGE, {"ok": False, "error": str(e)})
+            return
+        except ValueError as e:
+            self._respond(HTTPStatus.BAD_REQUEST, {"ok": False, "error": str(e)})
+            return
+
+        processor = BatchProcessor(max_batch_files=_get_max_batch_files())
+        try:
+            batch_report = processor.process_items(
+                files,
+                mode=mode,
+                dry_run=dry_run,
+                operation=operation,
+                top_level_options=top_options,
+            )
         except BatchLimitExceededError as e:
             self._respond(HTTPStatus.REQUEST_ENTITY_TOO_LARGE, {"ok": False, "error": str(e)})
             return
