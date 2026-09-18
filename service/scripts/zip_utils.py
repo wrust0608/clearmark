@@ -57,30 +57,6 @@ class ZipEocdInfo:
         return False
 
 
-def _has_active_zip64_extra(extra_bytes: bytes, csize: int, usize: int, offset: int) -> bool:
-    """Check if extra field bytes contain an active ZIP64 extra field (0x0001).
-
-    A ZIP64 extra field is active (requiring 64-bit support) if:
-    - Central Directory size or offset sentinels are set (0xFFFFFFFF), or
-    - Any declared 64-bit size/offset field within the 0x0001 extra block exceeds 32-bit capacity (>= 0xFFFFFFFF).
-    Stale 32-bit ZIP64 extra fields (where all values fit in 32 bits and sentinels are not set)
-    are tolerated on input and stripped upon entry rebuild (per A11 stale extra field policy).
-    """
-    if csize == 0xFFFFFFFF or usize == 0xFFFFFFFF or offset == 0xFFFFFFFF:
-        return True
-    pos = 0
-    extra_len = len(extra_bytes)
-    while pos + 4 <= extra_len:
-        header_id, data_size = struct.unpack("<HH", extra_bytes[pos : pos + 4])
-        if header_id == 0x0001:
-            field_data = extra_bytes[pos + 4 : pos + 4 + data_size]
-            for q_off in range(0, len(field_data) - 7, 8):
-                val = struct.unpack("<Q", field_data[q_off : q_off + 8])[0]
-                if val >= 0xFFFFFFFF:
-                    return True
-        pos += 4 + data_size
-    return False
-
 
 def _validate_eocd_candidate(
     data: bytes, candidate_offset: int, comment_len: int
@@ -225,10 +201,6 @@ def _validate_eocd_candidate(
         if curr + rec_len > cd_end:
             return None, f"Truncated Central Directory record at offset {curr}", "SEC_TRUNCATED_CD_RECORD"
 
-        cd_extra_bytes = data[curr + 46 + cd_fn_len : curr + 46 + cd_fn_len + cd_extra_len]
-        if _has_active_zip64_extra(cd_extra_bytes, cd_csize, cd_usize, local_hdr_offset):
-            return None, "ZIP64 extra field (0x0001) in Central Directory fail-closed", "SEC_ZIP64_UNSUPPORTED"
-
         cd_name = data[curr + 46 : curr + 46 + cd_fn_len]
 
         # ----------------------------------------------------------------------
@@ -276,10 +248,6 @@ def _validate_eocd_candidate(
                 f"Local header at {local_hdr_offset} extends beyond archive bounds ({data_len} B)",
                 "SEC_BAD_LOCAL_HEADER_BOUNDS",
             )
-
-        loc_extra_bytes = data[local_hdr_offset + 30 + loc_fn_len : local_hdr_offset + loc_hdr_len]
-        if _has_active_zip64_extra(loc_extra_bytes, loc_csize, loc_usize, 0):
-            return None, "ZIP64 extra field (0x0001) in Local Header fail-closed", "SEC_ZIP64_UNSUPPORTED"
 
         loc_name = data[local_hdr_offset + 30 : local_hdr_offset + 30 + loc_fn_len]
         if loc_name != cd_name:
