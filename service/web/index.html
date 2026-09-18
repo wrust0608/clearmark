@@ -3,16 +3,16 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="ClearMark v2.1 — Công cụ làm sạch metadata, dấu vết C2PA và ký tự ẩn với bảo toàn cấu trúc văn bản.">
-  <title>ClearMark v2.1 · Làm sạch tệp nội bộ</title>
+  <meta name="description" content="ClearMark — Công cụ làm sạch metadata, dấu vết C2PA và ký tự ẩn với kiểm chứng fidelity cấu trúc.">
+  <title>ClearMark · Làm sạch tệp nội bộ</title>
   <link rel="stylesheet" href="/app.css">
 </head>
 <body>
   <div class="shell">
     <header class="topbar">
-      <a class="brand" href="/" aria-label="ClearMark v2.1 — trang chủ">
+      <a class="brand" href="/" aria-label="ClearMark — trang chủ">
         <span class="brand-mark" aria-hidden="true"><i></i><i></i></span>
-        <span class="brand-text">ClearMark <small class="version-tag">v2.1</small></span>
+        <span class="brand-text">ClearMark <small class="version-tag" id="versionTag">v2.2</small></span>
       </a>
       <div class="topbar-right">
         <div class="privacy-badge" id="privacyBadge" title="Xử lý hoàn toàn nội bộ, không gửi dữ liệu ra bên ngoài">
@@ -106,8 +106,8 @@
         </article>
         <article>
           <span>002</span>
-          <h3>Bảo toàn Lossless</h3>
-          <p>Tài liệu DOCX được bảo toàn tuyệt đối từng đoạn văn bản, ngắt trang và bảng biểu; xác minh trung thực tự động.</p>
+          <h3>Kiểm chứng Fidelity</h3>
+          <p>Tài liệu được kiểm chứng fidelity tự động; không phát hiện thay đổi ngoài phạm vi cho phép.</p>
         </article>
         <article>
           <span>003</span>
@@ -151,7 +151,7 @@
         <div class="file-title-row">
           <h3 class="file-name"></h3>
           <span class="status-badge status-queued">QUEUED</span>
-          <span class="badge badge-lossless" hidden>LOSSLESS VALIDATION PASSED</span>
+          <span class="badge badge-lossless" hidden>KIỂM CHỨNG FIDELITY: PASS</span>
           <button class="remove-file" type="button" aria-label="Xóa tệp khỏi danh sách">×</button>
         </div>
         <div class="file-meta">

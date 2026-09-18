@@ -1,8 +1,8 @@
 /**
- * ClearMark v2.1 — Web Application Controller
+ * ClearMark v2.2 — Web Application Controller
  *
  * Implements capabilities-driven, inspection-first, failure-isolated
- * multi-file and batch cleaning interface over the canonical ClearMark v2.1 API.
+ * multi-file and batch cleaning interface over the canonical ClearMark v2.2 API.
  *
  * Invariants:
  * 1. Truthful capabilities: drives UI from GET /capabilities.
@@ -138,8 +138,15 @@ async function loadCapabilities() {
     const data = await resp.json();
     state.capabilities = data;
 
+    const versionStr = data.version ? `v${data.version}` : 'v2.2';
     els.server.className = 'server-state online';
-    els.serverStatusText.textContent = `Sẵn sàng · v${data.version || '2.1'}`;
+    els.serverStatusText.textContent = `Sẵn sàng · ${versionStr}`;
+
+    const versionTag = $('#versionTag');
+    if (versionTag) versionTag.textContent = versionStr;
+    document.title = `ClearMark ${versionStr} · Làm sạch tệp nội bộ`;
+    const brand = $('.brand');
+    if (brand) brand.setAttribute('aria-label', `ClearMark ${versionStr} — trang chủ`);
 
     // Render supported formats dynamically
     if (data.formats) {
@@ -443,8 +450,8 @@ async function cleanItem(item, quiet = false) {
       item.status = 'preview_ready';
       const wouldChange = item.report.output?.would_change ?? false;
       item.detail = wouldChange
-        ? 'Xem trước: Sẽ làm sạch các dấu vết phát hiện (Dry Run: Tệp không bị sửa).'
-        : 'Xem trước: Không cần thay đổi (Dry Run: Không tìm thấy dấu vết).';
+        ? 'Xem trước: Sẽ làm sạch các dấu vết phát hiện (Dry Run: không có tệp kết quả nào được tạo).'
+        : 'Xem trước: Không cần thay đổi (Dry Run: Không tìm thấy dấu vết, không có tệp kết quả nào được tạo).';
       if (!quiet) showToast(`Xem trước ${item.file.name}: ${wouldChange ? 'Có thay đổi' : 'Không đổi'}`);
       return true;
     }
@@ -460,9 +467,8 @@ async function cleanItem(item, quiet = false) {
       item.status = 'cleaned';
 
       const validationPassed = item.report.validation?.status === 'PASS';
-      const isDocx = item.file.name.toLowerCase().endsWith('.docx');
-      if (isDocx && validationPassed) {
-        item.detail = 'Đã làm sạch và vượt qua kiểm chứng Lossless 100% trung thực.';
+      if (validationPassed) {
+        item.detail = 'Kiểm chứng fidelity: PASS. Không phát hiện thay đổi ngoài phạm vi cho phép.';
       } else {
         item.detail = 'Đã làm sạch các dấu vết phát hiện thành công.';
       }
@@ -556,8 +562,8 @@ async function cleanAll() {
         card.status = 'preview_ready';
         const wouldChange = card.report.output?.would_change ?? false;
         card.detail = wouldChange
-          ? 'Xem trước: Sẽ làm sạch các dấu vết phát hiện (Dry Run).'
-          : 'Xem trước: Không cần thay đổi (Dry Run).';
+          ? 'Xem trước: Sẽ làm sạch các dấu vết phát hiện (Dry Run: không có tệp kết quả nào được tạo).'
+          : 'Xem trước: Không cần thay đổi (Dry Run: Không tìm thấy dấu vết, không có tệp kết quả nào được tạo).';
         successCount += 1;
         return;
       }
@@ -749,6 +755,9 @@ function createCardElement(item) {
   const downloadBtn = $('.download-file', node);
   const removeBtn = $('.remove-file', node);
 
+  cleanBtn.textContent = state.dryRun ? 'Xem trước' : 'Làm sạch';
+  cleanBtn.title = state.dryRun ? 'Xem trước tệp' : 'Làm sạch tệp';
+
   inspectBtn.disabled = isBusy || state.isProcessing;
   cleanBtn.disabled = isBusy || state.isProcessing;
   downloadBtn.hidden = !item.result?.url;
@@ -807,7 +816,8 @@ function onModeChange() {
 
 function onDryRunChange() {
   state.dryRun = els.dryRunToggle.checked;
-  els.cleanAllText.textContent = state.dryRun ? 'Xem trước tất cả (Dry Run)' : 'Làm sạch tất cả';
+  els.cleanAllText.textContent = state.dryRun ? 'Xem trước tất cả' : 'Làm sạch tất cả';
+  render();
 }
 
 // -----------------------------------------------------------------------------
