@@ -628,9 +628,9 @@ def test_evidence_test_ids_match_pytest_collection():
     assert evidence_path.exists()
     data = json.loads(evidence_path.read_text(encoding="utf-8"))
 
-    # Collect all real pytest nodes in repository
-    pytest_bin = sys.executable.replace("python.exe", "pytest.exe")
-    res = subprocess.run([pytest_bin, "--collect-only"], capture_output=True, text=True, cwd=str(REPO_ROOT))
+    # Collect all real pytest nodes in repository portably across platforms
+    cmd = [sys.executable, "-m", "pytest", "--collect-only"]
+    res = subprocess.run(cmd, capture_output=True, text=True, cwd=str(REPO_ROOT))
     assert res.returncode == 0, f"pytest collection failed:\n{res.stderr}"
 
     collected_nodes = set()

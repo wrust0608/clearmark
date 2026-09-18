@@ -78,8 +78,8 @@ def test_scaling_latency_and_memory():
         timings[size] = elapsed_ms
 
         assert report["fidelity_guaranteed"] is True
-        # For 200 paragraphs, execution should easily be under 1000ms (with tracemalloc tracing)
-        assert elapsed_ms < 1000, f"Processing {size} paragraphs took {elapsed_ms:.1f} ms (> 1000ms)"
+        # For 200 paragraphs, execution should easily be under 500ms
+        assert elapsed_ms < 500, f"Processing {size} paragraphs took {elapsed_ms:.1f} ms (> 500ms)"
         # Peak memory should be well under 50MB
         assert peak_mem < 50 * 1024 * 1024, f"Peak memory {peak_mem / 1024:.1f} KB exceeded 50MB"
 
