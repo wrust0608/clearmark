@@ -173,46 +173,23 @@ class DocxPatcher:
         return self.package.rebuild(changed_parts, dropped_parts)
 
     def _patch_text_part(
-        self, xml_text: str, mutations: list[TextCodepointMutation] | set[int]
+        self, xml_text: str, mutations: list[TextCodepointMutation]
     ) -> str:
         if not mutations:
             return xml_text
 
-        # Backward compatibility for direct calls with set of codepoints
+        # A02: Strictly reject legacy set/frozenset codepoint fallback
         if isinstance(mutations, (set, frozenset)):
-            target_cps = set(mutations)
-            out: list[str] = []
-            last = 0
-            for os_, oe, cs_, ce in _iter_tag_blocks(xml_text, _TEXT_OPEN_RE, _TEXT_CLOSE_RE):
-                open_tag = xml_text[os_:oe]
-                inner = xml_text[oe:cs_]
-                close_tag = xml_text[cs_:ce]
-                decoded = _decode_xml_entities(inner)
-                out_chars = []
-                for ch in decoded:
-                    cp = ord(ch)
-                    if cp in target_cps:
-                        if cp in (
-                            0x00A0, 0x1680, 0x2000, 0x2001, 0x2002, 0x2003, 0x2004,
-                            0x2005, 0x2006, 0x2007, 0x2008, 0x2009, 0x200A, 0x202F,
-                            0x205F, 0x3000,
-                        ):
-                            out_chars.append(" ")
-                        continue
-                    out_chars.append(ch)
-                cleaned = "".join(out_chars)
-                if cleaned == decoded:
-                    continue
-                has_edge_space = cleaned.startswith((" ", "\t", "\n", "\r")) or cleaned.endswith(
-                    (" ", "\t", "\n", "\r")
+            raise TypeError(
+                "DocxPatcher requires Sequence[TextCodepointMutation]; "
+                "legacy set[int] codepoint fallback has been completely removed (A02)."
+            )
+
+        for m in mutations:
+            if not isinstance(m, TextCodepointMutation):
+                raise TypeError(
+                    f"DocxPatcher requires TextCodepointMutation instances, got {type(m).__name__}"
                 )
-                if has_edge_space and 'xml:space="preserve"' not in open_tag:
-                    open_tag = open_tag[:-1] + ' xml:space="preserve">'
-                out.append(xml_text[last:os_])
-                out.append(open_tag + _reencode_xml_text(cleaned) + close_tag)
-                last = ce
-            out.append(xml_text[last:])
-            return "".join(out)
 
         # Exact mutation plan execution (A02)
         _, all_blocks = parse_part_text_streams(xml_text)
