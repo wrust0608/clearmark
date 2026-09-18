@@ -62,14 +62,27 @@ def _env_float(key: str, default: float, min_val: float = 0.0) -> float:
         return default
 
 
-def _has_zip64_extra(extra_bytes: bytes) -> bool:
-    """Detect ZIP64 extended information extra field (header ID 0x0001) in an extra field block."""
+def _has_active_zip64_extra(extra_bytes: bytes, csize: int, usize: int, offset: int = 0) -> bool:
+    """Detect active ZIP64 extended information extra field (0x0001) in an extra field block.
+
+    A ZIP64 extra field is active (requiring 64-bit support) if:
+    - Central Directory size or offset sentinels are set (0xFFFFFFFF), or
+    - Any declared 64-bit size/offset field within the 0x0001 extra block exceeds 32-bit capacity (>= 0xFFFFFFFF).
+    Stale 32-bit ZIP64 extra fields (where all values fit in 32 bits and sentinels are not set)
+    are tolerated on input and stripped upon entry rebuild (per A11 stale extra field policy).
+    """
+    if csize == 0xFFFFFFFF or usize == 0xFFFFFFFF or offset == 0xFFFFFFFF:
+        return True
     pos = 0
     extra_len = len(extra_bytes)
     while pos + 4 <= extra_len:
         header_id, data_size = struct.unpack("<HH", extra_bytes[pos : pos + 4])
         if header_id == 0x0001:
-            return True
+            field_data = extra_bytes[pos + 4 : pos + 4 + data_size]
+            for q_off in range(0, len(field_data) - 7, 8):
+                val = struct.unpack("<Q", field_data[q_off : q_off + 8])[0]
+                if val >= 0xFFFFFFFF:
+                    return True
         pos += 4 + data_size
     return False
 
@@ -542,7 +555,7 @@ def preflight_zip_container(
             raise SecurityViolation(finding, is_limit=False)
 
         cd_extra_bytes = data[cd_pos + 46 + nlen : cd_pos + 46 + nlen + elen]
-        if _has_zip64_extra(cd_extra_bytes):
+        if _has_active_zip64_extra(cd_extra_bytes, csize, usize, lhoff):
             finding = SecurityFinding(
                 rule_id="SEC_ZIP64_UNSUPPORTED",
                 reason="ZIP64 extra field (0x0001) in Central Directory fail-closed",
@@ -767,7 +780,7 @@ def preflight_zip_container(
             raise SecurityViolation(finding, is_limit=False)
 
         loc_extra_bytes = data[lhoff + 30 + lnlen : lhoff + 30 + lnlen + lelen]
-        if _has_zip64_extra(loc_extra_bytes):
+        if _has_active_zip64_extra(loc_extra_bytes, lcsize, lusize, lhoff):
             finding = SecurityFinding(
                 rule_id="SEC_ZIP64_UNSUPPORTED",
                 member_name=clean_name,

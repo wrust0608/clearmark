@@ -300,6 +300,26 @@ def test_real_zip64_still_fails_closed():
     assert exc_info.value.finding.rule_id == "SEC_ZIP64_UNSUPPORTED"
 
 
+def test_classic_zip_stale_32bit_zip64_extra_field_tolerated():
+    """Verify that classic 32-bit archive with stale non-active 0x0001 extra field is tolerated."""
+    zip64_extra = struct.pack("<HHQQ", 0x0001, 16, 5000, 5000)
+    ts_extra = struct.pack("<HHBI", 0x5455, 5, 0x01, 1600000000)
+    combined_extra = zip64_extra + ts_extra
+
+    out = io.BytesIO()
+    with zipfile.ZipFile(out, "w") as zf:
+        info = zipfile.ZipInfo("test.txt")
+        info.extra = combined_extra
+        zf.writestr(info, b"hello")
+
+    data = out.getvalue()
+    info_res = locate_zip_eocd(data)
+    assert info_res.total_entries == 1
+
+    preflight = preflight_zip_container(data)
+    assert preflight.is_safe
+
+
 # ==============================================================================
 # 3. ZIP EOCD INFO IMMUTABILITY
 # ==============================================================================
