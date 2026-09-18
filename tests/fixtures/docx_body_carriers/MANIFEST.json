@@ -1,5 +1,5 @@
 {
-  "version": "2.1.0",
+  "version": "2.2.0",
   "provenance": "Generated deterministically by tests/fixtures/docx_body_carriers/build_fixtures.py",
   "baseline_document": "synthetic_baseline.docx",
   "baseline_sha256": "fad4c7d909ccb7a49f1d0a397a652a3c976e53b1685cb19651ca4d8eb55d987d",
@@ -307,14 +307,16 @@
     {
       "fixture_id": "counterexample_emoji_zwj",
       "filename": "counterexample_emoji_zwj.docx",
-      "sha256": "f4c7e10e507c74904f34e8f4e5a3fffcceada903ebc5f6cc0c42eed654132c75",
+      "sha256": "a0ff02aaf0c26891452ba17d2c87fe46533671b9d21618f994ec739b2f1ba968",
       "source_baseline_sha256": "fad4c7d909ccb7a49f1d0a397a652a3c976e53b1685cb19651ca4d8eb55d987d",
-      "purpose": "Counterexample test: legitimate emoji sequences with ZWJ U+200D (family, profession, gendered) must be preserved exactly.",
+      "purpose": "Counterexample test: legitimate emoji sequences with ZWJ U+200D (family, profession, gendered, rainbow flag, heart on fire) must be preserved exactly.",
       "inserted_codepoints": [],
       "preserved_sequences": [
         "👨‍👩‍👧",
         "👩‍💻",
-        "👨‍🚀"
+        "👨‍🚀",
+        "🏳️‍🌈",
+        "❤️‍🔥"
       ],
       "expected_changed_parts": [],
       "expected_structure": {
@@ -462,6 +464,39 @@
         "می‌روم",
         "क्‍ष",
         "100 km"
+      ],
+      "expected_changed_parts": [
+        "word/document.xml"
+      ],
+      "expected_structure": {
+        "paragraph_count": 8,
+        "run_count": 13,
+        "table_count": 1,
+        "table_row_count": 2,
+        "table_cell_count": 4,
+        "manual_page_break_count": 1,
+        "bookmark_count": 1,
+        "hyperlink_count": 1
+      }
+    },
+    {
+      "fixture_id": "counterexample_same_codepoint_witness",
+      "filename": "counterexample_same_codepoint_witness.docx",
+      "sha256": "150d35dda414cecbd09263d6c1bba848b420597c09edfc1c93c440d2ca7a4fad",
+      "source_baseline_sha256": "fad4c7d909ccb7a49f1d0a397a652a3c976e53b1685cb19651ca4d8eb55d987d",
+      "purpose": "Same-codepoint witness: contains legitimate ZWJ (rainbow flag 🏳️‍🌈, heart on fire ❤️‍🔥) AND an isolated suspicious carrier ZWJ (U+200D). Cleaner must remove ONLY the carrier ZWJ and preserve legitimate ZWJs.",
+      "inserted_codepoints": [
+        {
+          "codepoint": "U+200D",
+          "name": "ZERO WIDTH JOINER",
+          "part": "word/document.xml",
+          "location": "body paragraph",
+          "expected": "REMOVE"
+        }
+      ],
+      "preserved_sequences": [
+        "🏳️‍🌈",
+        "❤️‍🔥"
       ],
       "expected_changed_parts": [
         "word/document.xml"

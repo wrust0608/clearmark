@@ -393,18 +393,18 @@ def build_all_fixtures() -> dict:
     )
 
     # 7. counterexample_emoji_zwj.docx
-    # Legitimate emoji ZWJ sequences: Family 👨‍👩‍👧, Technologist 👩‍💻, Astronaut 👨‍🚀
+    # Legitimate emoji ZWJ sequences: Family 👨‍👩‍👧, Technologist 👩‍💻, Astronaut 👨‍🚀, Rainbow Flag 🏳️‍🌈, Heart on Fire ❤️‍🔥
     doc_emoji = BASELINE_DOCUMENT_XML.replace(
         "<w:t>Secondary run in paragraph.</w:t>",
-        "<w:t>Emoji sequence: 👨‍👩‍👧 and 👩‍💻 and 👨‍🚀 intact.</w:t>"
+        "<w:t>Emoji sequence: 👨‍👩‍👧 and 👩‍💻 and 👨‍🚀 and 🏳️‍🌈 and ❤️‍🔥 intact.</w:t>"
     )
     add_fixture(
         fid="counterexample_emoji_zwj",
         filename="counterexample_emoji_zwj.docx",
-        purpose="Counterexample test: legitimate emoji sequences with ZWJ U+200D (family, profession, gendered) must be preserved exactly.",
+        purpose="Counterexample test: legitimate emoji sequences with ZWJ U+200D (family, profession, gendered, rainbow flag, heart on fire) must be preserved exactly.",
         mod_dict={"word/document.xml": doc_emoji},
         inserted_cps=[],
-        preserved_sequences=["👨‍👩‍👧", "👩‍💻", "👨‍🚀"],
+        preserved_sequences=["👨‍👩‍👧", "👩‍💻", "👨‍🚀", "🏳️‍🌈", "❤️‍🔥"],
         expected_parts=[]
     )
 
@@ -495,8 +495,25 @@ def build_all_fixtures() -> dict:
         expected_parts=["word/document.xml"]
     )
 
+    # 13. counterexample_same_codepoint_witness.docx (Same-codepoint negative witness)
+    doc_same_cp = BASELINE_DOCUMENT_XML.replace(
+        "<w:t>Secondary run in paragraph.</w:t>",
+        "<w:t>Legitimate 🏳️‍🌈 and ❤️‍🔥 with Carrier\u200Dtest sample.</w:t>"
+    )
+    add_fixture(
+        fid="counterexample_same_codepoint_witness",
+        filename="counterexample_same_codepoint_witness.docx",
+        purpose="Same-codepoint witness: contains legitimate ZWJ (rainbow flag 🏳️‍🌈, heart on fire ❤️‍🔥) AND an isolated suspicious carrier ZWJ (U+200D). Cleaner must remove ONLY the carrier ZWJ and preserve legitimate ZWJs.",
+        mod_dict={"word/document.xml": doc_same_cp},
+        inserted_cps=[
+            {"codepoint": "U+200D", "name": "ZERO WIDTH JOINER", "part": "word/document.xml", "location": "body paragraph", "expected": "REMOVE"}
+        ],
+        preserved_sequences=["🏳️‍🌈", "❤️‍🔥"],
+        expected_parts=["word/document.xml"]
+    )
+
     manifest_data = {
-        "version": "2.1.0",
+        "version": "2.2.0",
         "provenance": "Generated deterministically by tests/fixtures/docx_body_carriers/build_fixtures.py",
         "baseline_document": "synthetic_baseline.docx",
         "baseline_sha256": base_sha256,
@@ -506,9 +523,9 @@ def build_all_fixtures() -> dict:
     manifest_json_path = FIXTURES_DIR / "MANIFEST.json"
     manifest_json_path.write_text(json.dumps(manifest_data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
-    readme_content = f"""# ClearMark v2.1 — DOCX Body-Carrier & Counterexample Fixture Corpus
+    readme_content = f"""# ClearMark v2.2 — DOCX Body-Carrier & Counterexample Fixture Corpus
 
-**Corpus Version**: 2.1.0  
+**Corpus Version**: 2.2.0  
 **Baseline Document**: `synthetic_baseline.docx` (SHA256: `{base_sha256}`)  
 **Provenance**: Generated deterministically by `build_fixtures.py` with zero external dependencies.
 
@@ -522,12 +539,13 @@ def build_all_fixtures() -> dict:
 | `carrier_unicode_tags` | `carrier_unicode_tags.docx` | Positive: Unicode Tag characters (U+E0001, U+E0020, U+E0041, U+E007F) | Positive Carrier |
 | `carrier_with_non_text_children` | `carrier_with_non_text_children.docx` | Positive: Carriers near w:br, w:tab, w:br page break | Non-Text Run Invariance |
 | `carrier_mixed` | `carrier_mixed.docx` | Positive: Multi-part carriers (body, table, header, footer) | Multi-Part Carrier |
-| `counterexample_emoji_zwj` | `counterexample_emoji_zwj.docx` | Counterexample: Legitimate emoji ZWJ sequences (👨‍👩‍👧, 👩‍⚕️, ❤️‍🔥) | Contextual Preservation |
+| `counterexample_emoji_zwj` | `counterexample_emoji_zwj.docx` | Counterexample: Legitimate emoji ZWJ sequences (👨‍👩‍👧, 👩‍💻, 👨‍🚀, 🏳️‍🌈, ❤️‍🔥) | Contextual Preservation |
 | `counterexample_arabic_joiner` | `counterexample_arabic_joiner.docx` | Counterexample: Legitimate Persian/Arabic ZWNJ and ZWJ (می‌روم, بـه) | Contextual Preservation |
 | `counterexample_devanagari` | `counterexample_devanagari.docx` | Counterexample: Legitimate Devanagari shaping conjuncts (क्‍ष, क्‌ष) | Contextual Preservation |
 | `counterexample_nbsp` | `counterexample_nbsp.docx` | Counterexample: Protected typographic spaces (100 km, 50 kg) | Typographic Preservation |
 | `counterexample_nfc_nfd` | `counterexample_nfc_nfd.docx` | Counterexample: NFC vs NFD Vietnamese text preservation | Normalization Invariance |
 | `carrier_and_legitimate_unicode` | `carrier_and_legitimate_unicode.docx` | Combined: Positive carriers AND legitimate Unicode counterexamples | Combined Grand Test |
+| `counterexample_same_codepoint_witness` | `counterexample_same_codepoint_witness.docx` | Witness: Legitimate ZWJ (🏳️‍🌈, ❤️‍🔥) and suspicious carrier ZWJ in same part | Negative Witness |
 
 See `MANIFEST.json` for exact codepoint mappings and expected results.
 """
