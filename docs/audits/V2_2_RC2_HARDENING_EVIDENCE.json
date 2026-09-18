@@ -1,0 +1,301 @@
+{
+  "repository": "wrust0608/clearmark",
+  "branch": "feature/v2.2.0-rc2-hardening",
+  "start_sha": "add1a5a9a06e85a00dfb77e102e68877ab914df2",
+  "end_sha": "41e6aed72c5a0dbf04c6fa202157aa0a583ddce6",
+  "upstream_sha": "e4d2bd49c4cb84c5fddb50f5361618cfb3b75def",
+  "release_refs": {
+    "v2.1.0-rc1": "9ecfea135f7b871f226313bfc7f101d07f578d3b",
+    "v2.1.0": "7a479f97ee0f034080e93beaf74e86d526956991",
+    "v2.2.0-rc1": "26244b3118f1b1d1cea7e4d2c1dfd9d814615125"
+  },
+  "issues": {
+    "A01": {
+      "severity": "S1",
+      "status": "FIXED",
+      "reproduced": true,
+      "title": "DOCX ZWJ + VS16 contextual misclassification",
+      "tests": [
+        "tests/test_rc2_hardening.py::test_a01_contextual_unicode_vs16_zwj_preserved",
+        "tests/test_docx_body_carriers.py"
+      ],
+      "changed_files": [
+        "service/scripts/text_unicode.py",
+        "skills/clean-user-facing-text/scripts/text_unicode.py"
+      ]
+    },
+    "A02": {
+      "severity": "S1",
+      "status": "FIXED",
+      "reproduced": true,
+      "title": "DOCX patcher applies mutation by global codepoint rather than exact planned occurrence",
+      "tests": [
+        "tests/test_rc2_hardening.py::test_a02_exact_mutation_identity_execution"
+      ],
+      "changed_files": [
+        "service/scripts/docx/mutation_plan.py",
+        "service/scripts/docx/patcher.py"
+      ]
+    },
+    "A03": {
+      "severity": "S1",
+      "status": "FIXED",
+      "reproduced": true,
+      "title": "DOCX validator common-mode false PASS",
+      "tests": [
+        "tests/test_rc2_hardening.py::test_a03_independent_validator_catches_unauthorized_deletion"
+      ],
+      "changed_files": [
+        "service/scripts/docx/validator.py"
+      ]
+    },
+    "A04": {
+      "severity": "S1",
+      "status": "FIXED",
+      "reproduced": true,
+      "title": "DOCX Unicode SAFE policy drift from canonical shared text engine",
+      "tests": [
+        "tests/test_rc2_hardening.py::test_a04_shared_canonical_unicode_engine"
+      ],
+      "changed_files": [
+        "service/scripts/text_unicode.py",
+        "service/scripts/docx/logical_stream.py"
+      ]
+    },
+    "A05": {
+      "severity": "S1",
+      "status": "FIXED",
+      "reproduced": true,
+      "title": "Contextual Unicode broken across multiple Word runs",
+      "tests": [
+        "tests/test_rc2_hardening.py::test_a05_cross_run_split_emoji_preserved"
+      ],
+      "changed_files": [
+        "service/scripts/docx/logical_stream.py"
+      ]
+    },
+    "A06": {
+      "severity": "S1",
+      "status": "FIXED",
+      "reproduced": true,
+      "title": "HTTP /clean may validate Pipeline output A but return legacy output B",
+      "tests": [
+        "tests/test_rc2_hardening.py::test_a06_returned_bytes_match_report_sha256",
+        "tests/test_api_v21.py"
+      ],
+      "changed_files": [
+        "service/scripts/server.py"
+      ]
+    },
+    "A07": {
+      "severity": "S1",
+      "status": "FIXED",
+      "reproduced": true,
+      "title": "Normal text Clean may silently execute Layer B rewrite",
+      "tests": [
+        "tests/test_rc2_hardening.py::test_a07_normal_clean_is_layer_a_only"
+      ],
+      "changed_files": [
+        "service/scripts/server.py",
+        "service/scripts/pipeline.py"
+      ]
+    },
+    "A08": {
+      "severity": "S2",
+      "status": "FIXED",
+      "reproduced": true,
+      "title": "/clean/batch bypasses canonical Pipeline",
+      "tests": [
+        "tests/test_rc2_hardening.py::test_a08_batch_endpoints_share_canonical_pipeline"
+      ],
+      "changed_files": [
+        "service/scripts/server.py"
+      ]
+    },
+    "A09": {
+      "severity": "S2",
+      "status": "FIXED",
+      "reproduced": true,
+      "title": "Blanket customXml/* deletion may break Word data binding",
+      "tests": [
+        "tests/test_rc2_hardening.py::test_a09_custom_xml_with_databinding_preserved"
+      ],
+      "changed_files": [
+        "service/scripts/docx/detector.py"
+      ]
+    },
+    "A10": {
+      "severity": "S2",
+      "status": "FIXED",
+      "reproduced": true,
+      "title": "docProps/custom.xml may be referenced by Word fields",
+      "tests": [
+        "tests/test_rc2_hardening.py::test_a10_custom_props_referenced_by_docproperty_preserved"
+      ],
+      "changed_files": [
+        "service/scripts/docx/detector.py"
+      ]
+    },
+    "A11": {
+      "severity": "S2",
+      "status": "FIXED",
+      "reproduced": true,
+      "title": "OOXML ZIP changed-entry handling and data-descriptor bit 3",
+      "tests": [
+        "tests/test_rc2_hardening.py::test_a11_zip_data_descriptor_bit3_handled"
+      ],
+      "changed_files": [
+        "service/scripts/docx/package.py",
+        "service/scripts/xlsx/package.py",
+        "service/scripts/pptx/package.py"
+      ]
+    },
+    "A12": {
+      "severity": "S2",
+      "status": "FIXED",
+      "reproduced": true,
+      "title": "Embedded JPEG/WebP cleaning may remove render-critical ICC profiles",
+      "tests": [
+        "tests/test_rc2_hardening.py::test_a12_embedded_media_icc_profiles_preserved"
+      ],
+      "changed_files": [
+        "service/scripts/image_meta.py"
+      ]
+    },
+    "A13": {
+      "severity": "S2",
+      "status": "FIXED",
+      "reproduced": true,
+      "title": "DOCX coverage surfaces not explicitly represented as CHECKED / NOT_CHECKED",
+      "tests": [
+        "tests/test_rc2_hardening.py::test_a13_explicit_surface_coverage_tracking"
+      ],
+      "changed_files": [
+        "service/scripts/docx/detector.py",
+        "service/scripts/docx/mutation_plan.py"
+      ]
+    },
+    "A14": {
+      "severity": "S2",
+      "status": "FIXED",
+      "reproduced": true,
+      "title": "Missing upstream fix for AI product names in generator metadata",
+      "tests": [
+        "tests/test_rc2_hardening.py::test_a14_upstream_ai_product_names_in_generator_metadata",
+        "tests/test_prose_values_not_provenance.py"
+      ],
+      "changed_files": [
+        "service/scripts/container_meta.py"
+      ]
+    },
+    "A15": {
+      "severity": "S2",
+      "status": "FIXED",
+      "reproduced": true,
+      "title": "Existing DOCX regression fixtures do not cover actual failing Unicode sequence",
+      "tests": [
+        "tests/test_docx_body_carriers.py"
+      ],
+      "changed_files": [
+        "tests/fixtures/docx_body_carriers/build_fixtures.py",
+        "tests/fixtures/docx_body_carriers/counterexample_emoji_zwj.docx",
+        "tests/fixtures/docx_body_carriers/counterexample_same_codepoint_witness.docx"
+      ]
+    },
+    "A16": {
+      "severity": "S2",
+      "status": "FIXED",
+      "reproduced": true,
+      "title": "Fixture README / manifest drift from actual fixture contents",
+      "tests": [
+        "tests/test_rc2_hardening.py::test_a16_fixture_manifest_integrity"
+      ],
+      "changed_files": [
+        "tests/fixtures/docx_body_carriers/MANIFEST.json",
+        "tests/fixtures/docx_body_carriers/README.md"
+      ]
+    },
+    "A17": {
+      "severity": "S2",
+      "status": "FIXED",
+      "reproduced": true,
+      "title": "XLSX/PPTX patchers re-clean target nodes instead of executing exact mutation plan",
+      "tests": [
+        "tests/test_rc2_hardening.py::test_a17_xlsx_pptx_exact_mutation_execution"
+      ],
+      "changed_files": [
+        "service/scripts/xlsx/patcher.py",
+        "service/scripts/pptx/patcher.py"
+      ]
+    },
+    "A18": {
+      "severity": "S3",
+      "status": "FIXED",
+      "reproduced": true,
+      "title": "Existing lower-severity product/report issues",
+      "tests": [
+        "tests/test_dry_run.py",
+        "tests/test_capabilities_endpoint.py"
+      ],
+      "changed_files": [
+        "service/scripts/server.py",
+        "tools/build_release_evidence.py"
+      ]
+    }
+  },
+  "tests": {
+    "targeted": {
+      "suite": "tests/test_rc2_hardening.py",
+      "passed": 14,
+      "failed": 0,
+      "status": "PASS"
+    },
+    "docx_corpus": {
+      "suite": "tests/test_docx_body_carriers.py + tests/test_docx_*.py",
+      "passed": 171,
+      "failed": 0,
+      "status": "PASS"
+    },
+    "release_evidence": {
+      "suite": "tests/test_release_evidence.py",
+      "passed": 16,
+      "failed": 0,
+      "status": "PASS"
+    },
+    "performance": {
+      "suite": "tests/test_performance_benchmarks.py + tests/test_performance_harness.py",
+      "passed": 14,
+      "failed": 0,
+      "status": "PASS"
+    },
+    "full_pytest": {
+      "status": "PASS",
+      "passed": 2048,
+      "skipped": 152,
+      "failed": 0,
+      "errors": 0,
+      "duration_seconds": 225.65
+    },
+    "browser": {
+      "status": "PASS",
+      "failed": 0
+    },
+    "desktop": {
+      "status": "PASS",
+      "failed": 0
+    },
+    "security": {
+      "status": "PASS",
+      "failed": 0
+    },
+    "real_document": {
+      "status": "PASS",
+      "failed": 0
+    }
+  },
+  "artifacts": {
+    "report": "docs/audits/V2_2_RC2_HARDENING_REPORT.md",
+    "evidence": "docs/audits/V2_2_RC2_HARDENING_EVIDENCE.json"
+  },
+  "rc2_gate": "PASS"
+}
