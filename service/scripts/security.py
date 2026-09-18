@@ -400,7 +400,13 @@ def preflight_zip_container(
     try:
         eocd_pos, comment_len, _ = locate_zip_eocd(data)
     except ZipEocdError as e:
-        if "too small" in str(e):
+        rule_id = getattr(e, "rule_id", None)
+        if rule_id:
+            finding = SecurityFinding(
+                rule_id=rule_id,
+                reason=str(e),
+            )
+        elif "too small" in str(e):
             finding = SecurityFinding(
                 rule_id="SEC_TRUNCATED_ARCHIVE",
                 reason=f"Archive too small to contain valid EOCD ({data_len} B < 22 B)",

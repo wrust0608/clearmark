@@ -22,11 +22,15 @@ class XlsxFidelityValidator:
 
     def __init__(
         self,
-        before_pkg: XlsxPackage,
-        after_pkg: XlsxPackage,
+        before_pkg: XlsxPackage | bytes,
+        after_pkg: XlsxPackage | bytes,
         planned_changed_parts: set[str],
         dropped_parts: set[str] | None = None,
     ):
+        if isinstance(before_pkg, (bytes, bytearray)):
+            before_pkg = XlsxPackage(before_pkg)
+        if isinstance(after_pkg, (bytes, bytearray)):
+            after_pkg = XlsxPackage(after_pkg)
         self.before_pkg = before_pkg
         self.after_pkg = after_pkg
         self.planned_changed = planned_changed_parts
