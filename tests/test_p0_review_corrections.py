@@ -567,6 +567,8 @@ def test_a18_ui_branding_and_dry_run_semantics():
     # No absolute lossless claims
     assert "Bảo toàn Lossless" not in html_content
     assert "bảo toàn tuyệt đối" not in html_content
+    assert "kiểm chứng trung thực Lossless" not in html_content
+    assert "DOCX (Lossless)" not in js_content
     assert "Lossless 100% trung thực" not in js_content
 
     # Grounded fidelity wording
