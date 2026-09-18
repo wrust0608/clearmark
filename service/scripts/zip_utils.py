@@ -131,8 +131,6 @@ def _validate_eocd_candidate(
         or total_entries == 0xFFFF
         or cd_size == 0xFFFFFFFF
         or cd_offset == 0xFFFFFFFF
-        or b"PK\x06\x07" in data
-        or b"PK\x06\x06" in data
     ):
         return None, "ZIP64 container structures are unsupported fail-closed", "SEC_ZIP64_UNSUPPORTED"
 

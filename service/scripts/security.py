@@ -442,13 +442,15 @@ def preflight_zip_container(
         )
         raise SecurityViolation(finding, is_limit=False)
 
-    # 3. ZIP64 fail-closed policy (Option B)
+    # 3. ZIP64 fail-closed policy (structural detection only - no global substring search)
     if (
         total_entries == 0xFFFF
+        or disk_entries == 0xFFFF
+        or disk_num == 0xFFFF
+        or cd_disk == 0xFFFF
         or cd_size == 0xFFFFFFFF
         or cd_offset == 0xFFFFFFFF
-        or b"PK\x06\x07" in data
-        or b"PK\x06\x06" in data
+        or (eocd_pos >= 20 and data[eocd_pos - 20 : eocd_pos - 16] == b"PK\x06\x07")
     ):
         finding = SecurityFinding(
             rule_id="SEC_ZIP64_UNSUPPORTED",
