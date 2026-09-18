@@ -2,8 +2,10 @@
   "repository": "wrust0608/clearmark",
   "branch": "feature/v2.2.0-rc2-hardening",
   "start_sha": "add1a5a9a06e85a00dfb77e102e68877ab914df2",
-  "end_sha": "41e6aed72c5a0dbf04c6fa202157aa0a583ddce6",
+  "code_end_sha": "b66babf2f29282d03422a2039b4f2c75203bcdce",
+  "report_source_sha": "b66babf2f29282d03422a2039b4f2c75203bcdce",
   "upstream_sha": "e4d2bd49c4cb84c5fddb50f5361618cfb3b75def",
+  "independent_review_round": "P0_CORRECTIVE_ROUND",
   "release_refs": {
     "v2.1.0-rc1": "9ecfea135f7b871f226313bfc7f101d07f578d3b",
     "v2.1.0": "7a479f97ee0f034080e93beaf74e86d526956991",
@@ -30,7 +32,8 @@
       "reproduced": true,
       "title": "DOCX patcher applies mutation by global codepoint rather than exact planned occurrence",
       "tests": [
-        "tests/test_rc2_hardening.py::test_a02_exact_mutation_identity_execution"
+        "tests/test_rc2_hardening.py::test_a02_exact_mutation_identity_execution",
+        "tests/test_p0_review_corrections.py::test_docx_mutation_plan_immutability"
       ],
       "changed_files": [
         "service/scripts/docx/mutation_plan.py",
@@ -81,10 +84,12 @@
       "title": "HTTP /clean may validate Pipeline output A but return legacy output B",
       "tests": [
         "tests/test_rc2_hardening.py::test_a06_returned_bytes_match_report_sha256",
+        "tests/test_p0_review_corrections.py::test_clean_endpoint_uses_canonical_pipeline_exclusively",
         "tests/test_api_v21.py"
       ],
       "changed_files": [
-        "service/scripts/server.py"
+        "service/scripts/server.py",
+        "service/scripts/pipeline.py"
       ]
     },
     "A07": {
@@ -93,7 +98,9 @@
       "reproduced": true,
       "title": "Normal text Clean may silently execute Layer B rewrite",
       "tests": [
-        "tests/test_rc2_hardening.py::test_a07_normal_clean_is_layer_a_only"
+        "tests/test_rc2_hardening.py::test_a07_normal_clean_is_layer_a_only",
+        "tests/test_p0_review_corrections.py::test_normal_clean_never_requires_layer_b",
+        "tests/test_clean_strategy.py::test_clean_text_normal_does_not_require_layer_b"
       ],
       "changed_files": [
         "service/scripts/server.py",
@@ -106,7 +113,8 @@
       "reproduced": true,
       "title": "/clean/batch bypasses canonical Pipeline",
       "tests": [
-        "tests/test_rc2_hardening.py::test_a08_batch_endpoints_share_canonical_pipeline"
+        "tests/test_rc2_hardening.py::test_a08_batch_endpoints_share_canonical_pipeline",
+        "tests/test_p0_review_corrections.py::test_clean_batch_routes_canonical_pipeline"
       ],
       "changed_files": [
         "service/scripts/server.py"
@@ -114,7 +122,7 @@
     },
     "A09": {
       "severity": "S2",
-      "status": "FIXED",
+      "status": "MITIGATED / FIDELITY-SAFE",
       "reproduced": true,
       "title": "Blanket customXml/* deletion may break Word data binding",
       "tests": [
@@ -126,7 +134,7 @@
     },
     "A10": {
       "severity": "S2",
-      "status": "FIXED",
+      "status": "MITIGATED / FIDELITY-SAFE",
       "reproduced": true,
       "title": "docProps/custom.xml may be referenced by Word fields",
       "tests": [
@@ -142,7 +150,8 @@
       "reproduced": true,
       "title": "OOXML ZIP changed-entry handling and data-descriptor bit 3",
       "tests": [
-        "tests/test_rc2_hardening.py::test_a11_zip_data_descriptor_bit3_handled"
+        "tests/test_rc2_hardening.py::test_a11_zip_data_descriptor_bit3_handled",
+        "tests/test_p0_review_corrections.py::test_real_bit3_data_descriptor_docx_xlsx_pptx"
       ],
       "changed_files": [
         "service/scripts/docx/package.py",
@@ -168,7 +177,8 @@
       "reproduced": true,
       "title": "DOCX coverage surfaces not explicitly represented as CHECKED / NOT_CHECKED",
       "tests": [
-        "tests/test_rc2_hardening.py::test_a13_explicit_surface_coverage_tracking"
+        "tests/test_rc2_hardening.py::test_a13_explicit_surface_coverage_tracking",
+        "tests/test_p0_review_corrections.py::test_truthful_surface_coverage_explicit_states"
       ],
       "changed_files": [
         "service/scripts/docx/detector.py",
@@ -221,29 +231,45 @@
       "reproduced": true,
       "title": "XLSX/PPTX patchers re-clean target nodes instead of executing exact mutation plan",
       "tests": [
-        "tests/test_rc2_hardening.py::test_a17_xlsx_pptx_exact_mutation_execution"
+        "tests/test_rc2_hardening.py::test_a17_xlsx_pptx_plan_execution",
+        "tests/test_p0_review_corrections.py::test_xlsx_duplicate_shared_string_exact_mutation_without_fallback",
+        "tests/test_p0_review_corrections.py::test_pptx_duplicate_text_exact_mutation_without_fallback",
+        "tests/test_p0_review_corrections.py::test_xlsx_patcher_fails_closed_on_unresolved_mutation",
+        "tests/test_p0_review_corrections.py::test_pptx_patcher_fails_closed_on_unresolved_mutation"
       ],
       "changed_files": [
         "service/scripts/xlsx/patcher.py",
-        "service/scripts/pptx/patcher.py"
+        "service/scripts/xlsx/exceptions.py",
+        "service/scripts/pptx/patcher.py",
+        "service/scripts/pptx/exceptions.py"
       ]
     },
     "A18": {
       "severity": "S3",
       "status": "FIXED",
       "reproduced": true,
-      "title": "Existing lower-severity product/report issues",
+      "title": "Existing lower-severity product/report issues and UI claims",
       "tests": [
         "tests/test_dry_run.py",
-        "tests/test_capabilities_endpoint.py"
+        "tests/test_capabilities_endpoint.py",
+        "tests/test_p0_review_corrections.py::test_ui_truthfulness_no_stale_v21_or_overclaims",
+        "tests/test_p0_review_corrections.py::test_dry_run_never_increments_cleaned_count"
       ],
       "changed_files": [
         "service/scripts/server.py",
+        "service/web/index.html",
+        "service/web/app.js",
         "tools/build_release_evidence.py"
       ]
     }
   },
   "tests": {
+    "p0_review_corrections": {
+      "suite": "tests/test_p0_review_corrections.py",
+      "passed": 11,
+      "failed": 0,
+      "status": "PASS"
+    },
     "targeted": {
       "suite": "tests/test_rc2_hardening.py",
       "passed": 14,
@@ -270,14 +296,15 @@
     },
     "full_pytest": {
       "status": "PASS",
-      "passed": 2048,
+      "passed": 2060,
       "skipped": 152,
       "failed": 0,
       "errors": 0,
-      "duration_seconds": 225.65
+      "duration_seconds": 223.22
     },
     "browser": {
       "status": "PASS",
+      "passed": 19,
       "failed": 0
     },
     "desktop": {
