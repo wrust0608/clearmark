@@ -1,0 +1,24 @@
+{
+  "version": "2.2.0-rc1",
+  "build_timestamp": "2026-09-17T22:52:00.304255+00:00",
+  "git": {
+    "commit": "06b4d6c702d9e809c0522bde2c2ba452c3564b7d",
+    "branch": "feature/windows-desktop-v2.2.0",
+    "short_commit": "06b4d6c"
+  },
+  "host_environment": {
+    "python_version": "3.12.14 (main, Sep  1 2026, 14:17:39) [MSC v.1944 64 bit (AMD64)]",
+    "os": "win32",
+    "pyinstaller_version": "6.22.3",
+    "inno_setup_version": "6.7.3"
+  },
+  "reproducibility": {
+    "deterministic_packaging": true,
+    "frozen_engine_target": "v2.1.0",
+    "frozen_engine_hash_verified": true
+  },
+  "hashes": {
+    "ClearMark-Setup-v2.2.0-rc1.exe": "cb469d1be8e650043e6440f9e7716f29cb5d46e39f123c589dac4c05865a44a5",
+    "ClearMark-v2.2.0-rc1-Windows-x64-portable.zip": "41fff9d8320e196fc4306051d501b9cc6db20c439e4822ce752723d642d25e0b"
+  }
+}

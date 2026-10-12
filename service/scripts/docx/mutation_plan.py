@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import types
 from dataclasses import dataclass, field
+from typing import Any, Mapping, Sequence
 
 
 @dataclass(frozen=True)
@@ -14,6 +16,14 @@ class TextCodepointMutation:
     codepoint: int
     char_name: str
     offset: int
+    replacement: str = ""
+    logical_offset: int = 0
+    context_witness: str = ""
+    t_block_idx: int = 0
+
+    @property
+    def char(self) -> str:
+        return chr(self.codepoint)
 
 
 @dataclass(frozen=True)
@@ -38,10 +48,37 @@ class MediaScrubMutation:
 
 @dataclass
 class DocxMutationPlan:
-    text_mutations: list[TextCodepointMutation] = field(default_factory=list)
-    metadata_mutations: list[MetadataFieldScrubMutation] = field(default_factory=list)
-    part_drops: list[PartDropMutation] = field(default_factory=list)
-    media_mutations: list[MediaScrubMutation] = field(default_factory=list)
+    text_mutations: Sequence[TextCodepointMutation] = field(default_factory=list)
+    metadata_mutations: Sequence[MetadataFieldScrubMutation] = field(default_factory=list)
+    part_drops: Sequence[PartDropMutation] = field(default_factory=list)
+    media_mutations: Sequence[MediaScrubMutation] = field(default_factory=list)
+    surface_coverage: Mapping[str, str] = field(default_factory=dict)
+    _is_frozen: bool = False
+
+    def freeze(self) -> DocxMutationPlan:
+        """Freeze the mutation plan to make it truly immutable after detection."""
+        if not self._is_frozen:
+            object.__setattr__(self, "text_mutations", tuple(self.text_mutations))
+            object.__setattr__(self, "metadata_mutations", tuple(self.metadata_mutations))
+            object.__setattr__(self, "part_drops", tuple(self.part_drops))
+            object.__setattr__(self, "media_mutations", tuple(self.media_mutations))
+            object.__setattr__(
+                self,
+                "surface_coverage",
+                types.MappingProxyType(dict(self.surface_coverage)),
+            )
+            object.__setattr__(self, "_is_frozen", True)
+        return self
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        if getattr(self, "_is_frozen", False):
+            raise TypeError("Cannot modify DocxMutationPlan after freeze()")
+        super().__setattr__(name, value)
+
+    def __delattr__(self, name: str) -> None:
+        if getattr(self, "_is_frozen", False):
+            raise TypeError("Cannot delete attribute from DocxMutationPlan after freeze()")
+        super().__delattr__(name)
 
     def is_empty(self) -> bool:
         return not (
@@ -80,4 +117,6 @@ class DocxMutationPlan:
             "removed_codepoints": codepoint_counts,
             "metadata_fields_scrubbed": [m.label for m in self.metadata_mutations],
             "parts_dropped": [m.part_name for m in self.part_drops],
+            "surfaces": dict(self.surface_coverage),
+            "frozen": self._is_frozen,
         }

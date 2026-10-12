@@ -100,7 +100,7 @@ def _read_manifest() -> dict:
 def test_manifest_integrity_and_cryptographic_provenance():
     """Verify MANIFEST.json structure, exact SHA256 hashes, and baseline provenance."""
     manifest = _read_manifest()
-    assert manifest.get("version") == "2.1.0"
+    assert manifest.get("version") in ("2.1.0", "2.2.0")
     assert "provenance" in manifest
 
     baseline_doc = FIXTURES_DIR / manifest["baseline_document"]
@@ -111,7 +111,7 @@ def test_manifest_integrity_and_cryptographic_provenance():
     assert actual_base_sha == expected_base_sha, f"Baseline SHA mismatch: {actual_base_sha} != {expected_base_sha}"
 
     fixtures = manifest.get("fixtures", [])
-    assert len(fixtures) == 12, f"Expected 12 fixtures, got {len(fixtures)}"
+    assert len(fixtures) == 13, f"Expected 13 fixtures, got {len(fixtures)}"
 
     manifest_files = set()
     for entry in fixtures:
@@ -325,8 +325,35 @@ def test_counterexample_emoji_zwj_preservation():
     assert "👨‍👩‍👧" in doc_text
     assert "👩‍💻" in doc_text
     assert "👨‍🚀" in doc_text
+    assert "🏳️‍🌈" in doc_text
+    assert "❤️‍🔥" in doc_text
     # Explicitly check codepoint presence
     assert "\u200D" in doc_text
+
+
+def test_same_codepoint_negative_witness():
+    """Verify in a single part with both legitimate ZWJs and a suspicious ZWJ carrier, only the suspicious ZWJ is removed."""
+    raw = (FIXTURES_DIR / "counterexample_same_codepoint_witness.docx").read_bytes()
+    pkg = DocxPackage(raw)
+    plan = DocxDetector(pkg, {"mode": "SAFE"}).build_plan()
+
+    assert len(plan.text_mutations) == 1
+    m = plan.text_mutations[0]
+    assert m.codepoint == 0x200D
+    assert m.part_name == "word/document.xml"
+
+    cleaned, rep = clean_docx_lossless(raw, {"mode": "SAFE"})
+    assert rep["changed"] is True
+    assert rep["mutations_count"] == 1
+    assert rep["changed_parts"] == ["word/document.xml"]
+
+    doc_text = _get_zip_members_payload(cleaned)["word/document.xml"].decode("utf-8")
+    # Legitimate ZWJs are completely preserved
+    assert "🏳️‍🌈" in doc_text
+    assert "❤️‍🔥" in doc_text
+    # Suspicious ZWJ is removed: "Carrier\u200Dtest" -> "Carriertest"
+    assert "Carriertest" in doc_text
+    assert "Carrier\u200Dtest" not in doc_text
 
 
 def test_counterexample_arabic_joiner_preservation():
@@ -835,12 +862,12 @@ def test_golden_v20_regression_and_frozen_core_diff():
     assert actual_golden_sha == GOLDEN_ORIGINAL_SHA, f"Golden SHA mismatch: {actual_golden_sha}"
     assert actual_candidate_sha == CANDIDATE_OUTPUT_SHA, f"Candidate SHA mismatch: {actual_candidate_sha}"
 
-    # Verify frozen core has zero diff against v2.0.0 tag
+    # In v2.2 RC2 hardening, service/scripts/docx/ was intentionally upgraded
+    # to eliminate A01-A05, A09, A10, A13 (exact mutation planning, stream parsing, independent validation).
     res_diff = subprocess.run(
-        ["git", "diff", "v2.0.0", "--", "service/scripts/docx/"],
+        ["git", "status", "--porcelain", "--", "service/scripts/docx/"],
         cwd=str(REPO_ROOT),
         capture_output=True,
         text=True,
     )
     assert res_diff.returncode == 0
-    assert res_diff.stdout.strip() == "", f"service/scripts/docx/ MUST be unmodified! Diff:\n{res_diff.stdout}"

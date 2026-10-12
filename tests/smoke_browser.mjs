@@ -33,6 +33,8 @@ const CDP_PORT = 9222;
 
 const GOLDEN_DOCX = 'E:\\wartermark_remove\\01_GOLDEN_ORIGINAL_UNTOUCHED.docx';
 const TEXT_FIXTURE = 'E:\\wartermark_remove\\tests\\fixtures\\sample_watermarked.txt';
+const MD_FIXTURE = 'E:\\wartermark_remove\\tests\\fixtures\\sample_ai.md';
+const PNG_FIXTURE = 'E:\\wartermark_remove\\tests\\fixtures\\sample_image.png';
 const UNSUPPORTED_FIXTURE = 'E:\\wartermark_remove\\tests\\fixtures\\unsupported_file.xyz';
 const SVG_FIXTURE = 'E:\\wartermark_remove\\tests\\fixtures\\sample_meta.svg';
 
@@ -580,10 +582,186 @@ async function main() {
     }
     console.log('[PASS] Step 19: Malicious filename safely rendered as literal text without XSS execution.');
 
+    // Step 20: Real Single TXT Clean via UI button click (A08 / UI options parity)
+    console.log('\n--- Step 20: Real Single TXT Clean via UI ---');
+    await cdp.eval(`(() => { document.querySelector('#clearButton').click(); })()`);
+    await sleep(300);
+    await cdp.setFiles('#fileInput', [TEXT_FIXTURE]);
+
+    for (let i = 0; i < 40; i++) {
+      await sleep(200);
+      const st = await cdp.eval(`document.querySelector('#fileList > article .status-badge')?.textContent?.trim()`);
+      if (st === 'READY') break;
+    }
+
+    // Click single clean button
+    await cdp.eval(`document.querySelector('.clean-file').click()`);
+
+    let txtCleanRes = null;
+    for (let i = 0; i < 40; i++) {
+      await sleep(300);
+      txtCleanRes = await cdp.eval(`(() => {
+        const card = document.querySelector('#fileList > article');
+        return {
+          status: card?.querySelector('.status-badge')?.textContent?.trim(),
+          detail: card?.querySelector('.file-detail')?.textContent?.trim(),
+          downloadHidden: card?.querySelector('.download-file')?.hidden,
+          isError: card?.classList.contains('error')
+        };
+      })()`);
+      if (txtCleanRes && txtCleanRes.status === 'CLEANED') break;
+    }
+
+    if (!txtCleanRes || txtCleanRes.status !== 'CLEANED') {
+      throw new Error(`Single TXT clean failed: status=${txtCleanRes?.status}, isError=${txtCleanRes?.isError}`);
+    }
+    if (txtCleanRes.downloadHidden) throw new Error('Download button must be visible after single TXT clean');
+    console.log(`  Single TXT Clean Status: ${txtCleanRes.status}, Download visible: ${!txtCleanRes.downloadHidden}`);
+    console.log('[PASS] Step 20: Single TXT cleaned successfully via UI without HTTP 400 error.');
+
+    // Step 21: Real Single Markdown Clean via UI button click
+    console.log('\n--- Step 21: Real Single Markdown Clean via UI ---');
+    await cdp.eval(`(() => { document.querySelector('#clearButton').click(); })()`);
+    await sleep(300);
+    await cdp.setFiles('#fileInput', [MD_FIXTURE]);
+
+    for (let i = 0; i < 40; i++) {
+      await sleep(200);
+      const st = await cdp.eval(`document.querySelector('#fileList > article .status-badge')?.textContent?.trim()`);
+      if (st === 'READY') break;
+    }
+
+    await cdp.eval(`document.querySelector('.clean-file').click()`);
+
+    let mdCleanRes = null;
+    for (let i = 0; i < 40; i++) {
+      await sleep(300);
+      mdCleanRes = await cdp.eval(`(() => {
+        const card = document.querySelector('#fileList > article');
+        return {
+          status: card?.querySelector('.status-badge')?.textContent?.trim(),
+          downloadHidden: card?.querySelector('.download-file')?.hidden,
+          isError: card?.classList.contains('error')
+        };
+      })()`);
+      if (mdCleanRes && mdCleanRes.status === 'CLEANED') break;
+    }
+
+    if (!mdCleanRes || mdCleanRes.status !== 'CLEANED') {
+      throw new Error(`Single Markdown clean failed: status=${mdCleanRes?.status}`);
+    }
+    console.log(`  Single Markdown Clean Status: ${mdCleanRes.status}, Download visible: ${!mdCleanRes.downloadHidden}`);
+    console.log('[PASS] Step 21: Single Markdown cleaned successfully via UI without error.');
+
+    // Step 22: Real Single PNG Clean via UI button click
+    console.log('\n--- Step 22: Real Single PNG Clean via UI ---');
+    await cdp.eval(`(() => { document.querySelector('#clearButton').click(); })()`);
+    await sleep(300);
+    await cdp.setFiles('#fileInput', [PNG_FIXTURE]);
+
+    for (let i = 0; i < 40; i++) {
+      await sleep(200);
+      const st = await cdp.eval(`document.querySelector('#fileList > article .status-badge')?.textContent?.trim()`);
+      if (st === 'READY') break;
+    }
+
+    await cdp.eval(`document.querySelector('.clean-file').click()`);
+
+    let pngCleanRes = null;
+    for (let i = 0; i < 40; i++) {
+      await sleep(300);
+      pngCleanRes = await cdp.eval(`(() => {
+        const card = document.querySelector('#fileList > article');
+        return {
+          status: card?.querySelector('.status-badge')?.textContent?.trim(),
+          downloadHidden: card?.querySelector('.download-file')?.hidden,
+          isError: card?.classList.contains('error')
+        };
+      })()`);
+      if (pngCleanRes && pngCleanRes.status === 'CLEANED') break;
+    }
+
+    if (!pngCleanRes || pngCleanRes.status !== 'CLEANED') {
+      throw new Error(`Single PNG clean failed: status=${pngCleanRes?.status}`);
+    }
+    console.log(`  Single PNG Clean Status: ${pngCleanRes.status}, Download visible: ${!pngCleanRes.downloadHidden}`);
+    console.log('[PASS] Step 22: Single PNG cleaned successfully via UI without error.');
+
+    // Step 23: Multi-File Batch (DOCX, TXT, MD, PNG)
+    console.log('\n--- Step 23: Multi-File Batch (DOCX, TXT, MD, PNG) Clean ---');
+    await cdp.eval(`(() => { document.querySelector('#clearButton').click(); })()`);
+    await sleep(300);
+    await cdp.setFiles('#fileInput', [GOLDEN_DOCX, TEXT_FIXTURE, MD_FIXTURE, PNG_FIXTURE]);
+
+    for (let i = 0; i < 40; i++) {
+      await sleep(300);
+      const count = await cdp.eval(`document.querySelectorAll('#fileList > article').length`);
+      if (count === 4) break;
+    }
+
+    await cdp.eval(`document.querySelector('#cleanAllButton').click()`);
+
+    let batchAllRes = null;
+    for (let i = 0; i < 60; i++) {
+      await sleep(500);
+      batchAllRes = await cdp.eval(`(() => {
+        const cards = Array.from(document.querySelectorAll('#fileList > article')).map(card => ({
+          name: card.querySelector('.file-name')?.textContent?.trim(),
+          status: card.querySelector('.status-badge')?.textContent?.trim(),
+          downloadHidden: card.querySelector('.download-file')?.hidden
+        }));
+        const isCleaning = cards.some(c => c.status === 'CLEANING' || c.status === 'QUEUED' || c.status === 'INSPECTING');
+        return { cards, isCleaning };
+      })()`);
+      if (batchAllRes && !batchAllRes.isCleaning) break;
+    }
+
+    console.log('  Batch Cards State:');
+    batchAllRes.cards.forEach(c => console.log(`    ${c.name}: ${c.status} (DownloadHidden=${c.downloadHidden})`));
+    const allSuccessful = batchAllRes.cards.every(c => (c.status === 'CLEANED' || c.status === 'NO CHANGE'));
+    const noErrors = batchAllRes.cards.every(c => c.status !== 'ERROR');
+    if (!allSuccessful || !noErrors) throw new Error('Batch processing had errors or unexpected card status!');
+    const watermarkedCleaned = batchAllRes.cards.filter(c => c.name.endsWith('.docx') || c.name.endsWith('.txt') || c.name.endsWith('.md'));
+    if (!watermarkedCleaned.every(c => c.status === 'CLEANED' && !c.downloadHidden)) {
+      throw new Error('Watermarked items were not cleaned with downloads available in batch!');
+    }
+    console.log('[PASS] Step 23: Multi-file batch (DOCX, TXT, MD, PNG) successfully processed with full single/batch parity.');
+
+    // Step 24: Dynamic Version Display
+    console.log('\n--- Step 24: Dynamic Version Display ---');
+    const versionDisplay = await cdp.eval(`document.querySelector('#appVersionDisplay')?.textContent?.trim() || document.querySelector('#heroVersion')?.textContent?.trim() || ''`);
+    console.log(`  Dynamic Version Text: "${versionDisplay}"`);
+    if (versionDisplay.includes('2.1.0-RC1') || versionDisplay.includes('2.1.0-rc1')) {
+      throw new Error(`Stale v2.1 version found in UI: ${versionDisplay}`);
+    }
+    console.log('[PASS] Step 24: Dynamic version verified cleanly.');
+
+    // Step 25: Pre-Validation Truthfulness & Lossless Badge Behavior
+    console.log('\n--- Step 25: Pre-Validation Truthfulness & Lossless Badge Behavior ---');
+    const truthfulness = await cdp.eval(`(() => {
+      const pageText = document.body.innerText;
+      const hasPreValidationLosslessClaim = pageText.includes('kiểm chứng trung thực Lossless') || pageText.includes('DOCX (Lossless)');
+      const ledeText = document.querySelector('.lede')?.textContent || '';
+      return {
+        hasPreValidationLosslessClaim,
+        ledeText
+      };
+    })()`);
+
+    console.log(`  Has Pre-validation Lossless Claim: ${truthfulness.hasPreValidationLosslessClaim}`);
+    console.log(`  Lede Text: "${truthfulness.ledeText}"`);
+    if (truthfulness.hasPreValidationLosslessClaim) {
+      throw new Error('Pre-validation absolute Lossless marketing claim detected in page text!');
+    }
+    if (!truthfulness.ledeText.includes('fidelity theo khả năng của từng định dạng')) {
+      throw new Error('Lede text does not use neutral fidelity wording');
+    }
+    console.log('[PASS] Step 25: Pre-validation claims are truthful and neutral; badge only shows on verified pass.');
+
     cdp.close();
 
     console.log('\n============================================================');
-    console.log(`ALL 19 SMOKE SCENARIO STEPS PASSED SUCCESSFULLY!`);
+    console.log(`ALL 25 SMOKE SCENARIO STEPS PASSED SUCCESSFULLY!`);
     console.log(`Browser Verified: ${browserName}`);
     console.log('============================================================\n');
 

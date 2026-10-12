@@ -7,6 +7,7 @@ import unicodedata
 import xml.etree.ElementTree as ET
 
 try:
+    from .logical_stream import detect_mutations_in_part
     from .mutation_plan import (
         DocxMutationPlan,
         MetadataFieldScrubMutation,
@@ -15,6 +16,7 @@ try:
     )
     from .package import DocxPackage
 except (ImportError, ValueError):
+    from docx.logical_stream import detect_mutations_in_part
     from docx.mutation_plan import (
         DocxMutationPlan,
         MetadataFieldScrubMutation,
@@ -139,7 +141,7 @@ def _is_safe_carrier(
     # ZWJ / ZWNJ outside complex scripts & emoji sequences
     if cp in (0x200C, 0x200D):
         if prev_cp is not None and next_cp is not None:
-            if cp == 0x200D and _is_emoji_base(prev_cp) and _is_emoji_base(next_cp):
+            if cp == 0x200D and (_is_emoji_base(prev_cp) or prev_cp in (0xFE0E, 0xFE0F)) and _is_emoji_base(next_cp):
                 return False
             prev_cat = unicodedata.category(chr(prev_cp))[0]
             next_cat = unicodedata.category(chr(next_cp))[0]
@@ -173,11 +175,28 @@ class DocxDetector:
 
     def build_plan(self) -> DocxMutationPlan:
         plan = DocxMutationPlan()
+        self._record_surfaces(plan)
         self._detect_metadata(plan)
         self._detect_media(plan)
         if self.also_layer_a_text:
             self._detect_body_text(plan)
-        return plan
+        return plan.freeze()
+
+    def _record_surfaces(self, plan: DocxMutationPlan) -> None:
+        plan.surface_coverage = {
+            "body_document": "CHECKED" if self.package.has_member("word/document.xml") else "NOT_CHECKED",
+            "headers": "CHECKED" if any(re.match(r"^word/header\d+\.xml$", m, re.I) for m in self.package.member_order) else "NOT_CHECKED",
+            "footers": "CHECKED" if any(re.match(r"^word/footer\d+\.xml$", m, re.I) for m in self.package.member_order) else "NOT_CHECKED",
+            "footnotes": "CHECKED" if self.package.has_member("word/footnotes.xml") else "NOT_CHECKED",
+            "endnotes": "CHECKED" if self.package.has_member("word/endnotes.xml") else "NOT_CHECKED",
+            "comments": "CHECKED" if self.package.has_member("word/comments.xml") else "NOT_CHECKED",
+            "textboxes": "CHECKED",
+            "visible_field_results": "CHECKED",
+            "field_instructions_instrText": "NOT_CHECKED",
+            "tracked_deletions_delText": "NOT_CHECKED",
+            "tracked_deletions": "NOT_CHECKED",
+            "glossary": "NOT_CHECKED",
+        }
 
     def _detect_media(self, plan: DocxMutationPlan) -> None:
         media_names = [
@@ -265,22 +284,38 @@ class DocxDetector:
             except ET.ParseError:
                 pass
 
+        # A10: Dependency-aware custom property checking (Word DOCPROPERTY fields)
+        has_docproperty_ref = False
+        # A09: Dependency-aware customXml checking (Word data binding / content controls)
+        has_databinding_ref = False
+
+        for name in self.package.member_order:
+            if re.match(r"^word/(?:document|header\d+|footer\d+|footnotes|endnotes|comments)\.xml$", name, re.I):
+                raw = self.package.get_member(name)
+                if raw:
+                    if b"DOCPROPERTY" in raw:
+                        has_docproperty_ref = True
+                    if b"dataBinding" in raw or b"storeItemID" in raw or b"customXml" in raw:
+                        has_databinding_ref = True
+
         if self.package.has_member("docProps/custom.xml"):
-            plan.part_drops.append(
-                PartDropMutation("docProps/custom.xml", "custom document properties")
-            )
+            if not has_docproperty_ref:
+                plan.part_drops.append(
+                    PartDropMutation("docProps/custom.xml", "custom document properties")
+                )
 
         custom_parts = [name for name in self.package.member_order if name.startswith("customXml/")]
-        for cp in custom_parts:
-            plan.part_drops.append(
-                PartDropMutation(cp, "provenance customXml part")
-            )
+        if custom_parts and not has_databinding_ref:
+            for cp in custom_parts:
+                plan.part_drops.append(
+                    PartDropMutation(cp, "provenance customXml part")
+                )
 
     def _detect_body_text(self, plan: DocxMutationPlan) -> None:
         body_parts = [
             name
             for name in self.package.member_order
-            if re.match(r"^word/(?:document|header\d+|footer\d+|footnotes|endnotes)\.xml$", name, re.I)
+            if re.match(r"^word/(?:document|header\d+|footer\d+|footnotes|endnotes|comments)\.xml$", name, re.I)
         ]
 
         for part_name in body_parts:
@@ -288,32 +323,10 @@ class DocxDetector:
             if not raw:
                 continue
 
-            try:
-                root = ET.fromstring(raw)
-            except ET.ParseError:
-                continue
-
-            for p_idx, p in enumerate(root.iter(f"{{{W_NS}}}p")):
-                for r_idx, r in enumerate(p.iter(f"{{{W_NS}}}r")):
-                    for t_idx, t in enumerate(r.iter(f"{{{W_NS}}}t")):
-                        text = t.text or ""
-                        if not text:
-                            continue
-
-                        for offset, ch in enumerate(text):
-                            cp = ord(ch)
-                            prev_cp = ord(text[offset - 1]) if offset > 0 else None
-                            next_cp = ord(text[offset + 1]) if offset + 1 < len(text) else None
-
-                            if _is_safe_carrier(cp, prev_cp, next_cp, self.normalize_spaces):
-                                plan.text_mutations.append(
-                                    TextCodepointMutation(
-                                        part_name=part_name,
-                                        p_idx=p_idx,
-                                        r_idx=r_idx,
-                                        t_idx=t_idx,
-                                        codepoint=cp,
-                                        char_name=unicodedata.name(ch, f"U+{cp:04X}"),
-                                        offset=offset,
-                                    )
-                                )
+            xml_text = raw.decode("utf-8", errors="replace")
+            muts = detect_mutations_in_part(
+                part_name,
+                xml_text,
+                normalize_spaces=self.normalize_spaces,
+            )
+            plan.text_mutations.extend(muts)

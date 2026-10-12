@@ -1052,12 +1052,11 @@ def _parse_clean_options(options: Any) -> dict[str, Any]:
         raise ValueError(
             f"option 'clean_attachments' must be one of {sorted(CLEAN_ATTACHMENT_MODES)}"
         )
-    # A per-request strategy overrides the default; validate it up front so a bad
-    # tactic/intensity is a 400 rather than a mid-clean failure.
+    # A07: Reject strategy / Layer B requests explicitly in P0 canonical clean
     if "strategy" in options:
-        from rewrite_text import parse_strategy
-
-        parse_strategy(options["strategy"])
+        raise ValueError(
+            "Advanced Statistical Layer B rewriting is not available in P0 canonical clean; Layer B is disabled until P1."
+        )
     return options
 
 
@@ -1149,6 +1148,80 @@ def _apply_layer_b(text: str, strategy: str, options: dict[str, Any]) -> tuple[s
     except (RuntimeError, TimeoutError, urllib.error.URLError) as e:
         raise ValueError(f"Layer B rewrite failed: {e}") from e
     return out, stats
+
+
+def _get_max_batch_files() -> int:
+    import batch_processor
+    env_val = os.environ.get("WATERMARKS_MAX_BATCH_FILES")
+    if env_val is not None:
+        try:
+            return int(env_val)
+        except ValueError:
+            pass
+    bp_val = getattr(batch_processor, "MAX_BATCH_FILES", 100)
+    srv_val = globals().get("MAX_BATCH_FILES", 50)
+    if bp_val != 100:
+        return bp_val
+    return srv_val
+
+
+def _normalize_batch_request(
+    body: dict[str, Any], default_operation: str = "clean"
+) -> tuple[list[dict[str, Any]], ProcessingMode, bool, dict[str, Any], str]:
+    """Canonical batch request normalizer (A08).
+
+    Validates and unifies request semantics across /clean/batch and /batch:
+    - Verifies body structure and non-empty 'files' array.
+    - Enforces batch count cap (MAX_BATCH_FILES = 50).
+    - Validates top-level mode (strictly rejects invalid mode; no silent fallback).
+    - Validates top-level dry_run.
+    - Validates top-level options via _parse_clean_options (rejects strategy).
+    - Resolves operation ('clean' or 'inspect').
+    """
+    if not isinstance(body, dict):
+        raise ValueError("request body must be a JSON object")
+
+    files = body.get("files")
+    if not isinstance(files, list):
+        raise ValueError("missing array field 'files'")
+    if not files:
+        raise ValueError("'files' must not be empty")
+
+    from batch_processor import BatchLimitExceededError
+
+    max_files = _get_max_batch_files()
+    if len(files) > max_files:
+        raise BatchLimitExceededError(
+            f"Batch file count ({len(files)}) exceeds maximum allowed ({max_files})"
+        )
+
+    for entry in files:
+        if isinstance(entry, dict) and "options" in entry:
+            try:
+                _parse_clean_options(entry["options"])
+            except ValueError as e:
+                entry["_option_error"] = str(e)
+
+    # Top-level mode validation
+    mode_val = body.get("mode", "safe")
+    if not isinstance(mode_val, str) or mode_val.lower() not in ("safe", "balanced", "aggressive"):
+        raise ValueError(f"Invalid mode: {mode_val}")
+    mode = ProcessingMode(mode_val.upper())
+
+    # Top-level dry_run validation
+    dry_run_val = body.get("dry_run", False)
+    if not isinstance(dry_run_val, bool):
+        raise ValueError("'dry_run' must be a boolean")
+    dry_run = dry_run_val
+
+    # Top-level options validation (validates options and rejects strategy)
+    top_options = _parse_clean_options(body.get("options"))
+
+    operation = body.get("operation", default_operation)
+    if operation not in ("clean", "inspect"):
+        raise ValueError(f"Invalid operation: {operation}")
+
+    return files, mode, dry_run, top_options, operation
 
 
 def _batch_items(
@@ -1375,22 +1448,27 @@ def _clean_payload(data: bytes, name: str, options: dict[str, Any]) -> dict[str,
                 aggressive_homoglyphs=bool(options.get("aggressive_homoglyphs")),
                 normalize_spaces=bool(options.get("normalize_spaces", True)),
             )
-            # Layer B is a required step for text cleaning: always apply the
-            # default (or per-request) rewrite strategy and reject (400) when no
-            # strategy is available or a step's backend/model can't run.
-            strategy = options.get("strategy") or _DEFAULT_STRATEGY
-            if not strategy:
-                raise ValueError(
-                    "Layer B rewrite is required for text cleaning; configure a "
-                    "default strategy (config/clean_strategy.json) or pass "
-                    "options.strategy"
-                )
-            cleaned, layer_b = _apply_layer_b(cleaned, strategy, options)
+            # A07: Normal text clean is Layer A only by default (zero paraphrase, zero network).
+            # Layer B is an explicit opt-in only via options.strategy or options.layer_b / require_layer_b.
+            strategy = options.get("strategy")
+            if not strategy and (options.get("layer_b") or options.get("require_layer_b")):
+                strategy = _DEFAULT_STRATEGY
+                if not strategy:
+                    raise ValueError(
+                        "Layer B rewrite is required for text cleaning; configure a "
+                        "default strategy (config/clean_strategy.json) or pass "
+                        "options.strategy"
+                    )
+
+            layer_b = None
+            if strategy:
+                cleaned, layer_b = _apply_layer_b(cleaned, strategy, options)
             if detect_after:
                 detector_reports["after"] = run_text_detectors(cleaned)
             cleaned_bytes = cleaned.encode("utf-8", errors="surrogateescape")
             report: dict[str, Any] = {"kind": "text", "stats": stats, "length": len(cleaned)}
-            report["layer_b"] = layer_b
+            if layer_b is not None:
+                report["layer_b"] = layer_b
             if detector_reports:
                 report["text_detectors"] = detector_reports
         elif kind == "image":
@@ -1603,6 +1681,20 @@ class Handler(BaseHTTPRequestHandler):
             self._respond(HTTPStatus.OK, openapi_spec())
         else:
             web_dir = Path(__file__).resolve().parent.parent / "web"
+            if not web_dir.is_dir():
+                if hasattr(sys, "_MEIPASS"):
+                    base = Path(getattr(sys, "_MEIPASS"))
+                    if (base / "service" / "web").is_dir():
+                        web_dir = base / "service" / "web"
+                    elif (base / "web").is_dir():
+                        web_dir = base / "web"
+                elif hasattr(sys, "executable"):
+                    exe_dir = Path(sys.executable).resolve().parent
+                    if (exe_dir / "service" / "web").is_dir():
+                        web_dir = exe_dir / "service" / "web"
+                    elif (exe_dir / "_internal" / "service" / "web").is_dir():
+                        web_dir = exe_dir / "_internal" / "service" / "web"
+
             if path in ("/", "/index.html"):
                 target = web_dir / "index.html"
                 if target.is_file():
@@ -1961,15 +2053,7 @@ class Handler(BaseHTTPRequestHandler):
             })
             return
 
-        # Real clean
-        legacy_res = None
-        try:
-            legacy_res = _clean_payload(data, name, opts_raw)
-        except Exception as e:
-            # If _clean_payload fails on validation or options, let pipeline handle or raise
-            if not isinstance(e, ValueError):
-                pass
-
+        # Real clean via ONE canonical Pipeline (A06)
         cleaned_bytes, report = pipeline.clean(data, filename=name, mode=mode, dry_run=False, options=opts_raw)
 
         if report.status == PipelineStatus.ERROR:
@@ -1983,42 +2067,84 @@ class Handler(BaseHTTPRequestHandler):
             self._respond(HTTPStatus.UNPROCESSABLE_ENTITY, {"ok": False, "error": "Validation failed", "report": report.to_dict()})
             return
 
-        if legacy_res and report.input.format != "docx":
-            cleaned_b64 = legacy_res.get("cleaned", "")
-            try:
-                cleaned_bytes = base64.b64decode(cleaned_b64)
-            except Exception:
-                pass
-        else:
-            cleaned_b64 = base64.b64encode(cleaned_bytes).decode("ascii")
-
+        cleaned_b64 = base64.b64encode(cleaned_bytes).decode("ascii")
         report_dict = report.to_dict()
-        if legacy_res and "report" in legacy_res:
-            for k, v in legacy_res["report"].items():
-                if k not in report_dict:
+        report_dict["mode"] = report_dict.get("policy", {}).get("mode", mode.value)
+        report_dict["dry_run"] = bool(dry_run)
+        report_dict["changed"] = report.output.changed
+        report_dict["output"]["sha256"] = report.output.sha256
+        report_dict["output"]["size"] = report.output.size
+        report_dict["output"]["changed"] = report.output.changed
+        report_dict["format"] = report.input.format
+        report_dict["actions"] = [m.get("desc", "") for m in report.mutation_plan.mutations]
+        report_dict["bytes_out"] = report.output.size
+
+        # Normalize format name for API compatibility
+        if report.input.format in ("jpg", "jpeg"):
+            report_dict["format"] = "jpeg"
+        elif report.input.format in ("md", "markdown"):
+            report_dict["format"] = "markdown"
+
+        # Populate legacy-compatible read-only diagnostic fields from canonical pipeline report
+        for m in report.mutation_plan.mutations:
+            if "stats" in m:
+                report_dict["stats"] = m["stats"]
+            elif m.get("action") == "audio_mark_removal":
+                report_dict["audio_mark_removal"] = m.get("data", {})
+            elif m.get("action") == "pixel_removal":
+                report_dict["pixel_removal"] = m.get("data", {})
+
+        if hasattr(report, "av_extra") and getattr(report, "av_extra"):
+            for k, v in report.av_extra.items():
+                if k == "actions":
+                    for a in v:
+                        if a not in report_dict["actions"]:
+                            report_dict["actions"].append(a)
+                else:
                     report_dict[k] = v
-                elif k in ("stats", "actions", "format"):
-                    report_dict[k] = v
-        else:
-            rem_count = sum(m.get("count", 1) for m in report.mutation_plan.mutations)
-            report_dict["stats"] = {"removed_count": rem_count}
-            report_dict["actions"] = [m.get("desc", "") for m in report.mutation_plan.mutations]
-            report_dict["format"] = report.input.format
+
+        if "stats" not in report_dict and report.input.format in ("txt", "text", "md"):
+            rem_cnt = sum(1 for m in report.mutation_plan.mutations if m.get("action") == "unicode_carrier_remove")
+            report_dict["stats"] = {"removed_count": rem_cnt}
+
+        if kind == "text":
+            detect_before = bool(opts_raw.get("detect_before"))
+            detect_after = bool(opts_raw.get("detect_after"))
+            if detect_before or detect_after:
+                detector_reports: dict[str, Any] = {}
+                if detect_before:
+                    text_before = data.decode("utf-8", errors="surrogateescape")
+                    detector_reports["before"] = run_text_detectors(text_before)
+                if detect_after:
+                    text_after = cleaned_bytes.decode("utf-8", errors="surrogateescape")
+                    detector_reports["after"] = run_text_detectors(text_after)
+                report_dict["text_detectors"] = detector_reports
+        elif kind == "image":
+            detect_before = bool(opts_raw.get("detect_before"))
+            detect_after = bool(opts_raw.get("detect_after"))
+            if detect_before or detect_after:
+                with tempfile.TemporaryDirectory(prefix="wm-detect-") as _dtmp:
+                    _dpath = Path(_dtmp)
+                    if detect_before:
+                        _src = _dpath / f"before.{report.input.format or 'png'}"
+                        _src.write_bytes(data)
+                        report_dict["synthid_before"] = run_synthid_score(_src)
+                    if detect_after:
+                        _dst = _dpath / f"after.{report.input.format or 'png'}"
+                        _dst.write_bytes(cleaned_bytes)
+                        report_dict["synthid_after"] = run_synthid_score(_dst)
 
         if kind == "container":
-            if legacy_res and "report" in legacy_res and "still_has_c2pa" in legacy_res["report"]:
-                report_dict["still_has_c2pa"] = legacy_res["report"]["still_has_c2pa"]
-            else:
-                try:
-                    from container_meta import inspect_container
-                    with tempfile.TemporaryDirectory() as _tmpdir:
-                        _ext = f".{report.input.format}" if report.input.format else ".bin"
-                        _tmp_f = Path(_tmpdir) / f"cleaned{_ext}"
-                        _tmp_f.write_bytes(cleaned_bytes)
-                        _after = inspect_container(_tmp_f, fmt=report.input.format if report.input.format == "svg" else None)
-                        report_dict["still_has_c2pa"] = getattr(_after, "has_c2pa", False)
-                except Exception:
-                    report_dict["still_has_c2pa"] = False
+            try:
+                from container_meta import inspect_container
+                with tempfile.TemporaryDirectory() as _tmpdir:
+                    _ext = f".{report.input.format}" if report.input.format else ".bin"
+                    _tmp_f = Path(_tmpdir) / f"cleaned{_ext}"
+                    _tmp_f.write_bytes(cleaned_bytes)
+                    _after = inspect_container(_tmp_f, fmt=report.input.format if report.input.format == "svg" else None)
+                    report_dict["still_has_c2pa"] = getattr(_after, "has_c2pa", False)
+            except Exception:
+                report_dict["still_has_c2pa"] = False
 
         self._respond(HTTPStatus.OK, {
             "ok": True,
@@ -2028,56 +2154,106 @@ class Handler(BaseHTTPRequestHandler):
         })
 
     def _handle_clean_batch(self, body: dict[str, Any]) -> None:
-        items = _batch_items(body)
+        """Compatibility batch clean endpoint routing through canonical BatchProcessor (A08)."""
+        from batch_processor import BatchLimitExceededError, BatchProcessor
+
+        try:
+            files, mode, dry_run, top_options, operation = _normalize_batch_request(
+                body, default_operation="clean"
+            )
+        except BatchLimitExceededError as e:
+            self._respond(HTTPStatus.REQUEST_ENTITY_TOO_LARGE, {"ok": False, "error": str(e)})
+            return
+        except ValueError as e:
+            self._respond(HTTPStatus.BAD_REQUEST, {"ok": False, "error": str(e)})
+            return
+
+        processor = BatchProcessor(max_batch_files=_get_max_batch_files())
+        try:
+            batch_report = processor.process_items(
+                files,
+                mode=mode,
+                dry_run=dry_run,
+                operation="clean",
+                top_level_options=top_options,
+            )
+        except BatchLimitExceededError as e:
+            self._respond(HTTPStatus.REQUEST_ENTITY_TOO_LARGE, {"ok": False, "error": str(e)})
+            return
+        except Exception as e:
+            self._respond(HTTPStatus.INTERNAL_SERVER_ERROR, {"ok": False, "error": f"Batch processing failed: {e}"})
+            return
+
         results = []
-        for name, data, options, error in items:
-            if error is not None:
-                results.append({"name": name, "ok": False, "error": error})
-                continue
-            try:
-                payload = _clean_payload(data, name, options)
-            except ValueError as e:
-                results.append({"name": name, "ok": False, "error": str(e)})
-                continue
-            results.append({"name": name, **payload})
+        for item in batch_report.items:
+            if item.status in ("CLEANED", "NO_CHANGE_REQUIRED") or (dry_run and item.status == "INSPECTED"):
+                rep_dict = dict(item.report or {})
+                rep_dict["mode"] = rep_dict.get("policy", {}).get("mode", mode.value)
+                rep_dict["dry_run"] = bool(dry_run)
+                rep_dict["format"] = item.format
+                mutations = (rep_dict.get("mutation_plan") or {}).get("mutations", [])
+                rep_dict["actions"] = [m.get("desc", "") for m in mutations]
+                for m in mutations:
+                    if "stats" in m:
+                        rep_dict["stats"] = m["stats"]
+                        break
+                if "stats" not in rep_dict and item.format in ("txt", "text", "md"):
+                    rem_cnt = sum(1 for m in mutations if m.get("action") == "unicode_carrier_remove")
+                    rep_dict["stats"] = {"removed_count": rem_cnt}
+
+                cleaned_b64 = (
+                    base64.b64encode(item.cleaned_bytes).decode("ascii")
+                    if (not dry_run and item.cleaned_bytes is not None)
+                    else ""
+                )
+                results.append({
+                    "name": item.input_path,
+                    "ok": True,
+                    "cleaned": cleaned_b64,
+                    "report": rep_dict,
+                })
+            else:
+                err_msg = item.error_message_safe or "Processing error"
+                if item.status == "UNSUPPORTED":
+                    ext = Path(item.input_path).suffix.lstrip(".") or "unknown"
+                    err_msg = f"unrecognized file format: {ext}"
+                results.append({
+                    "name": item.input_path,
+                    "ok": False,
+                    "error": err_msg,
+                    "error_code": item.error_code,
+                    "report": item.report or {},
+                })
+
         self._respond(HTTPStatus.OK, {"ok": True, "results": results})
 
     def _handle_batch(self, body: dict[str, Any]) -> None:
-        if not isinstance(body, dict):
-            self._respond(HTTPStatus.BAD_REQUEST, {"ok": False, "error": "request body must be a JSON object"})
-            return
-        files = body.get("files")
-        if not isinstance(files, list) or len(files) == 0:
-            self._respond(HTTPStatus.BAD_REQUEST, {"ok": False, "error": "'files' array is required and must not be empty"})
-            return
-
         from batch_processor import (
-            MAX_BATCH_FILES,
             MAX_BATCH_INLINE_OUTPUT_BYTES,
-            MAX_BATCH_TOTAL_BYTES,
             BatchLimitExceededError,
             BatchProcessor,
         )
 
-        if len(files) > MAX_BATCH_FILES:
-            self._respond(HTTPStatus.REQUEST_ENTITY_TOO_LARGE, {"ok": False, "error": f"Batch file count ({len(files)}) exceeds maximum allowed ({MAX_BATCH_FILES})"})
-            return
-
-        mode_str = body.get("mode", "safe")
-        if not isinstance(mode_str, str) or mode_str.lower() not in ("safe", "balanced", "aggressive"):
-            self._respond(HTTPStatus.BAD_REQUEST, {"ok": False, "error": f"Invalid mode: {mode_str}"})
-            return
-
-        mode = ProcessingMode(mode_str.upper())
-        dry_run = bool(body.get("dry_run", False))
-        operation = body.get("operation", "clean")
-        if operation not in ("clean", "inspect"):
-            self._respond(HTTPStatus.BAD_REQUEST, {"ok": False, "error": f"Invalid operation: {operation}"})
-            return
-
-        processor = BatchProcessor()
         try:
-            batch_report = processor.process_items(files, mode=mode, dry_run=dry_run, operation=operation)
+            files, mode, dry_run, top_options, operation = _normalize_batch_request(
+                body, default_operation="clean"
+            )
+        except BatchLimitExceededError as e:
+            self._respond(HTTPStatus.REQUEST_ENTITY_TOO_LARGE, {"ok": False, "error": str(e)})
+            return
+        except ValueError as e:
+            self._respond(HTTPStatus.BAD_REQUEST, {"ok": False, "error": str(e)})
+            return
+
+        processor = BatchProcessor(max_batch_files=_get_max_batch_files())
+        try:
+            batch_report = processor.process_items(
+                files,
+                mode=mode,
+                dry_run=dry_run,
+                operation=operation,
+                top_level_options=top_options,
+            )
         except BatchLimitExceededError as e:
             self._respond(HTTPStatus.REQUEST_ENTITY_TOO_LARGE, {"ok": False, "error": str(e)})
             return
@@ -2230,8 +2406,34 @@ class Handler(BaseHTTPRequestHandler):
         self._respond(HTTPStatus.OK, {"ok": True, "results": results})
 
 
+def create_server(
+    host: str = "127.0.0.1",
+    port: int = 8765,
+    api_key: str | None = None,
+    strategy_config: Path | str | None = None,
+) -> ThreadingHTTPServer:
+    """Create and return a configured ThreadingHTTPServer instance without blocking."""
+    global API_KEY, _DEFAULT_STRATEGY  # noqa: PLW0603
+    if api_key is not None:
+        API_KEY = api_key
+    if strategy_config:
+        _DEFAULT_STRATEGY = _load_default_strategy(Path(strategy_config))
+    elif _DEFAULT_STRATEGY is None:
+        _DEFAULT_STRATEGY = _load_default_strategy(
+            Path(os.environ.get("WATERMARKS_CLEAN_STRATEGY_FILE", "config/clean_strategy.json"))
+        )
+
+    if host not in ("127.0.0.1", "localhost", "::1"):
+        eprint(f"warning: binding {host} — intended for a trusted network only")
+    if API_KEY:
+        eprint("API key required for requests")
+    else:
+        eprint("warning: no API key set — only bind to loopback or a trusted network")
+
+    return ThreadingHTTPServer((host, port), Handler)
+
+
 def main() -> int:
-    global API_KEY  # noqa: PLW0603 — CLI overrides env
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--host", default=os.environ.get("WATERMARKS_SERVER_HOST", "127.0.0.1"))
     p.add_argument(
@@ -2252,24 +2454,19 @@ def main() -> int:
         print(VERSION)
         return 0
 
-    API_KEY = args.api_key
-    global _DEFAULT_STRATEGY  # noqa: PLW0603 — loaded once at startup
-    _DEFAULT_STRATEGY = _load_default_strategy(Path(args.strategy_config))
-
-    if args.host not in ("127.0.0.1", "localhost", "::1"):
-        eprint(f"warning: binding {args.host} — intended for a trusted network only")
-    if API_KEY:
-        eprint("API key required for requests")
-    else:
-        eprint("warning: no API key set — only bind to loopback or a trusted network")
-
-    server = ThreadingHTTPServer((args.host, args.port), Handler)
+    server = create_server(
+        host=args.host,
+        port=args.port,
+        api_key=args.api_key,
+        strategy_config=args.strategy_config,
+    )
     eprint(f"watermarks-remover service {VERSION} on http://{args.host}:{args.port}")
     try:
         server.serve_forever()
     except KeyboardInterrupt:
         eprint("shutting down")
         server.shutdown()
+        server.server_close()
     return 0
 
 

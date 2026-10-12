@@ -6,6 +6,31 @@ ClearMark operates under an **inspection-first**, **security-bounded**, and **pr
 
 ---
 
+## Windows Download
+
+### Recommended — Windows Installer
+
+Visit [GitHub Releases](https://github.com/wrust0608/clearmark/releases) and download the latest Windows installer:
+
+- **`ClearMark-...-Windows-x64-Setup.exe`**
+
+Install once, then launch ClearMark normally from the Start Menu:
+- No Python installation required
+- No terminal or console window
+- Server starts automatically in the background
+- Browser interface opens automatically
+- System Tray icon controls status and shutdown
+
+### Portable Edition
+
+For users who prefer not to run an installer:
+
+- **`ClearMark-...-Windows-x64-Portable.zip`**
+
+Extract the ZIP archive and run `ClearMark.exe`.
+
+---
+
 ## What ClearMark Does and Does Not Do
 
 ### Supported Capabilities
@@ -24,9 +49,9 @@ For detailed format-by-format guarantees, consult the [Format Guarantees Specifi
 
 ---
 
-## Quick Start
+## Developer Quick Start (Python CLI & Core Engine)
 
-ClearMark requires Python 3.10+ and standard library modules for core operations.
+For developers and advanced users running directly from Python source (requires Python 3.10+):
 
 ### 1. Inspect a File (Read-Only)
 Inspection reports detected carriers without mutating disk contents:

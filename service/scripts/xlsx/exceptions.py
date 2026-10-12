@@ -11,3 +11,9 @@ class XlsxFidelityException(Exception):
 class XlsxUnsupportedFeatureException(XlsxFidelityException):
     """Raised when an unsupported XLSX feature (encryption, VBA macro, digital signature) is encountered."""
     pass
+
+
+class XlsxPatchError(XlsxFidelityException):
+    """Raised when an XLSX mutation plan cannot be applied by exact identity."""
+    pass
+

@@ -21,8 +21,17 @@ import stat
 import struct
 import zlib
 from dataclasses import asdict, dataclass, field
+
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 import xml.etree.ElementTree as ET
+
+
+try:
+    from .zip_utils import locate_zip_eocd, ZipEocdError
+except (ImportError, ValueError):
+    from zip_utils import locate_zip_eocd, ZipEocdError
+
+
 
 
 # ==============================================================================
@@ -387,40 +396,31 @@ def preflight_zip_container(
         limits = SecurityLimits()
 
     data_len = len(data)
-    if data_len < 22:
-        finding = SecurityFinding(
-            rule_id="SEC_TRUNCATED_ARCHIVE",
-            reason=f"Archive too small to contain valid EOCD ({data_len} B < 22 B)",
-        )
-        raise SecurityViolation(finding, is_limit=False)
-
-    # 1. Locate End of Central Directory (EOCD)
-    # Search backwards from end (EOCD record is 22 bytes + comment up to 65535 bytes)
-    search_limit = min(data_len, 65557)
-    eocd_pos = -1
-    for i in range(data_len - 22, data_len - search_limit - 1, -1):
-        if data[i : i + 4] == b"PK\x05\x06":
-            # Verify comment length matches exact file boundary
-            if i + 22 <= data_len:
-                comment_len = struct.unpack("<H", data[i + 20 : i + 22])[0]
-                if i + 22 + comment_len == data_len:
-                    eocd_pos = i
-                    break
-    if eocd_pos == -1:
-        # Fallback to standard rfind if comment length check failed
-        eocd_pos = data.rfind(b"PK\x05\x06")
-        if eocd_pos == -1:
+    # 1. Locate End of Central Directory (EOCD) with exact archive boundary validation
+    try:
+        eocd_pos, comment_len, _ = locate_zip_eocd(data)
+    except ZipEocdError as e:
+        rule_id = getattr(e, "rule_id", None)
+        if rule_id:
+            finding = SecurityFinding(
+                rule_id=rule_id,
+                reason=str(e),
+            )
+        elif "too small" in str(e):
+            finding = SecurityFinding(
+                rule_id="SEC_TRUNCATED_ARCHIVE",
+                reason=f"Archive too small to contain valid EOCD ({data_len} B < 22 B)",
+            )
+        elif "missing EOCD" in str(e):
             finding = SecurityFinding(
                 rule_id="SEC_MISSING_EOCD",
                 reason="Missing End of Central Directory (EOCD) record",
             )
-            raise SecurityViolation(finding, is_limit=False)
-
-    if eocd_pos + 22 > data_len:
-        finding = SecurityFinding(
-            rule_id="SEC_TRUNCATED_EOCD",
-            reason="Truncated End of Central Directory record",
-        )
+        else:
+            finding = SecurityFinding(
+                rule_id="SEC_TRUNCATED_EOCD",
+                reason=f"EOCD comment length does not match archive boundary or trailing data detected: {e}",
+            )
         raise SecurityViolation(finding, is_limit=False)
 
     (
@@ -430,15 +430,9 @@ def preflight_zip_container(
         total_entries,
         cd_size,
         cd_offset,
-        comment_len,
+        _c_len,
     ) = struct.unpack("<HHHHIIH", data[eocd_pos + 4 : eocd_pos + 22])
 
-    if eocd_pos + 22 + comment_len != data_len:
-        finding = SecurityFinding(
-            rule_id="SEC_TRUNCATED_EOCD",
-            reason="EOCD comment length does not match archive boundary",
-        )
-        raise SecurityViolation(finding, is_limit=False)
 
     # 2. Multi-disk archive check
     if disk_num != 0 or cd_disk != 0:
@@ -448,13 +442,15 @@ def preflight_zip_container(
         )
         raise SecurityViolation(finding, is_limit=False)
 
-    # 3. ZIP64 fail-closed policy (Option B)
+    # 3. ZIP64 fail-closed policy (structural detection only - no global substring search)
     if (
         total_entries == 0xFFFF
+        or disk_entries == 0xFFFF
+        or disk_num == 0xFFFF
+        or cd_disk == 0xFFFF
         or cd_size == 0xFFFFFFFF
         or cd_offset == 0xFFFFFFFF
-        or b"PK\x06\x07" in data
-        or b"PK\x06\x06" in data
+        or (eocd_pos >= 20 and data[eocd_pos - 20 : eocd_pos - 16] == b"PK\x06\x07")
     ):
         finding = SecurityFinding(
             rule_id="SEC_ZIP64_UNSUPPORTED",

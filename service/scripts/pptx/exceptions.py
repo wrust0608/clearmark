@@ -18,3 +18,8 @@ class PptxValidationError(PptxError):
 
 class PptxUnsupportedFeatureError(PptxError):
     """Raised when an unsupported feature (e.g. digital signatures, macros) is encountered."""
+
+
+class PptxPatchError(PptxError):
+    """Raised when a PPTX mutation plan cannot be applied by exact identity."""
+

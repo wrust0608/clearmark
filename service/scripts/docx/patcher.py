@@ -4,12 +4,17 @@ from __future__ import annotations
 
 import html
 import re
+import unicodedata
 
 try:
-    from .mutation_plan import DocxMutationPlan
+    from .exceptions import DocxFidelityException
+    from .logical_stream import parse_part_text_streams
+    from .mutation_plan import DocxMutationPlan, TextCodepointMutation
     from .package import DocxPackage
 except (ImportError, ValueError):
-    from docx.mutation_plan import DocxMutationPlan
+    from docx.exceptions import DocxFidelityException
+    from docx.logical_stream import parse_part_text_streams
+    from docx.mutation_plan import DocxMutationPlan, TextCodepointMutation
     from docx.package import DocxPackage
 
 _TEXT_OPEN_RE = re.compile(r"<w:t\b[^>]*>")
@@ -107,7 +112,6 @@ class DocxPatcher:
 
         # 1. Patch body text parts
         text_mutated_parts = {m.part_name for m in self.plan.text_mutations}
-        target_cps = self.plan.target_codepoints
 
         for part_name in text_mutated_parts:
             raw = self.package.get_member(part_name)
@@ -115,7 +119,8 @@ class DocxPatcher:
                 continue
 
             xml_text = raw.decode("utf-8", errors="strict")
-            patched_xml = self._patch_text_part(xml_text, target_cps)
+            part_muts = [m for m in self.plan.text_mutations if m.part_name == part_name]
+            patched_xml = self._patch_text_part(xml_text, part_muts)
             if patched_xml != xml_text:
                 changed_parts[part_name] = patched_xml.encode("utf-8")
 
@@ -167,59 +172,91 @@ class DocxPatcher:
 
         return self.package.rebuild(changed_parts, dropped_parts)
 
-    def _patch_text_part(self, xml_text: str, target_cps: set[int]) -> str:
+    def _patch_text_part(
+        self, xml_text: str, mutations: list[TextCodepointMutation]
+    ) -> str:
+        if not mutations:
+            return xml_text
+
+        # A02: Strictly reject legacy set/frozenset codepoint fallback
+        if isinstance(mutations, (set, frozenset)):
+            raise TypeError(
+                "DocxPatcher requires Sequence[TextCodepointMutation]; "
+                "legacy set[int] codepoint fallback has been completely removed (A02)."
+            )
+
+        for m in mutations:
+            if not isinstance(m, TextCodepointMutation):
+                raise TypeError(
+                    f"DocxPatcher requires TextCodepointMutation instances, got {type(m).__name__}"
+                )
+
+        # Exact mutation plan execution (A02)
+        _, all_blocks = parse_part_text_streams(xml_text)
+        mutations_by_block: dict[int, list[TextCodepointMutation]] = {}
+
+        for m in mutations:
+            target_idx = m.t_block_idx
+            # Fallback if t_block_idx is unset or out of range: match by (p_idx, r_idx, t_idx)
+            if target_idx >= len(all_blocks) or (
+                all_blocks[target_idx].p_idx != m.p_idx
+                or all_blocks[target_idx].r_idx != m.r_idx
+                or all_blocks[target_idx].t_idx != m.t_idx
+            ):
+                matched = False
+                for b in all_blocks:
+                    if b.p_idx == m.p_idx and b.r_idx == m.r_idx and b.t_idx == m.t_idx:
+                        target_idx = b.t_block_idx
+                        matched = True
+                        break
+                if not matched:
+                    raise DocxFidelityException(
+                        f"Cannot map mutation to target node in {m.part_name}: "
+                        f"p={m.p_idx} r={m.r_idx} t={m.t_idx}"
+                    )
+            mutations_by_block.setdefault(target_idx, []).append(m)
+
         out: list[str] = []
         last = 0
 
-        for os_, oe, cs_, ce in _iter_tag_blocks(xml_text, _TEXT_OPEN_RE, _TEXT_CLOSE_RE):
-            open_tag = xml_text[os_:oe]
-            inner = xml_text[oe:cs_]
-            close_tag = xml_text[cs_:ce]
-
-            decoded = _decode_xml_entities(inner)
-            out_chars = []
-            for ch in decoded:
-                cp = ord(ch)
-                if cp in target_cps:
-                    if cp in (
-                        0x00A0,
-                        0x1680,
-                        0x2000,
-                        0x2001,
-                        0x2002,
-                        0x2003,
-                        0x2004,
-                        0x2005,
-                        0x2006,
-                        0x2007,
-                        0x2008,
-                        0x2009,
-                        0x200A,
-                        0x202F,
-                        0x205F,
-                        0x3000,
-                    ):
-                        out_chars.append(" ")
-                    continue
-                out_chars.append(ch)
-            cleaned = "".join(out_chars)
-
-            if cleaned == decoded:
-                # No change in this run
+        for block in all_blocks:
+            if block.t_block_idx not in mutations_by_block:
                 continue
 
-            # Check whitespace preservation:
-            # If cleaned starts or ends with whitespace and xml:space="preserve" is not present, add it
-            has_edge_space = cleaned.startswith((" ", "\t", "\n", "\r")) or cleaned.endswith(
+            # Apply mutations to this block in descending order of local character offset
+            block_muts = sorted(mutations_by_block[block.t_block_idx], key=lambda x: x.offset, reverse=True)
+            chars = list(block.text)
+
+            for m in block_muts:
+                if m.offset >= len(chars):
+                    raise DocxFidelityException(
+                        f"Mutation offset out of range in {m.part_name}: "
+                        f"offset {m.offset} >= length {len(chars)}"
+                    )
+                if ord(chars[m.offset]) != m.codepoint:
+                    raise DocxFidelityException(
+                        f"Mutation target character mismatch in {m.part_name} at block {block.t_block_idx} offset {m.offset}: "
+                        f"expected U+{m.codepoint:04X} ({m.char_name}), found U+{ord(chars[m.offset]):04X}"
+                    )
+
+                if m.replacement:
+                    chars[m.offset] = m.replacement
+                else:
+                    del chars[m.offset]
+
+            new_text = "".join(chars)
+            open_tag = block.open_tag
+
+            # Preserve whitespace semantics (xml:space="preserve")
+            has_edge_space = new_text.startswith((" ", "\t", "\n", "\r")) or new_text.endswith(
                 (" ", "\t", "\n", "\r")
             )
             if has_edge_space and 'xml:space="preserve"' not in open_tag:
-                # Insert xml:space="preserve" before the closing bracket of open_tag
                 open_tag = open_tag[:-1] + ' xml:space="preserve">'
 
-            out.append(xml_text[last:os_])
-            out.append(open_tag + _reencode_xml_text(cleaned) + close_tag)
-            last = ce
+            out.append(xml_text[last:block.open_start])
+            out.append(open_tag + _reencode_xml_text(new_text) + "</w:t>")
+            last = block.close_end
 
         out.append(xml_text[last:])
         return "".join(out)

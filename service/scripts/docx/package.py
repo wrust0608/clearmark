@@ -15,8 +15,52 @@ try:
 except (ImportError, ValueError):
     from docx.exceptions import DocxFidelityException
 
+try:
+    from ..zip_utils import locate_zip_eocd, ZipEocdError
+except (ImportError, ValueError):
+    try:
+        from service.scripts.zip_utils import locate_zip_eocd, ZipEocdError
+    except ImportError:
+        from zip_utils import locate_zip_eocd, ZipEocdError
+
+
 MAX_DOCX_UNCOMPRESSED_BYTES = 128 * 1024 * 1024  # 128 MB max uncompressed package
 MAX_MEMBER_COUNT = 10_000
+
+
+def _filter_rebuild_incompatible_extra_fields(extra: bytes, exc_cls: type[Exception]) -> bytes:
+    """Preserve original extra fields except entries proven incompatible with rewriting the member.
+
+    Container fidelity policy:
+    Retains unknown, non-prohibited extra fields (e.g. 0x5455 extended timestamp, 0x7875 unix UID/GID,
+    or proprietary vendor blocks) byte-for-byte on rewritten members to preserve container metadata.
+    Strips entries that are proven incompatible with member rewriting:
+    - 0x0001 (Zip64): contains stale uncompressed/compressed sizes and offsets for the pre-rewrite stream.
+      Must be stripped when re-encoding 32-bit content to avoid size/offset corruption.
+    - 0xA220 (MS Open Packaging Growth Hint): pre-allocation padding tailored to original stream length,
+      obsolete upon rewriting.
+    Does not claim preserved unknown fields are independently proven safe; container security preflight
+    remains responsible for rejecting unsupported or dangerous container structures.
+
+    Fails closed on truncated or malformed extra fields.
+    """
+    if not extra:
+        return b""
+    retained_chunks: list[bytes] = []
+    idx = 0
+    total = len(extra)
+    while idx + 4 <= total:
+        header_id, data_size = struct.unpack_from("<HH", extra, idx)
+        block_len = 4 + data_size
+        if idx + block_len > total:
+            raise exc_cls(f"Malformed ZIP extra field: block truncated at offset {idx}")
+        # Strip entries incompatible with rewriting the member
+        if header_id not in (0x0001, 0xA220):
+            retained_chunks.append(extra[idx : idx + block_len])
+        idx += block_len
+    if idx != total:
+        raise exc_cls(f"Trailing bytes in ZIP extra field: {total - idx} bytes")
+    return b"".join(retained_chunks)
 
 
 class DocxPackage:
@@ -39,10 +83,29 @@ class DocxPackage:
         self._raw_cd_entries: dict[str, bytes] = {}
         self._raw_mtime: dict[str, int] = {}
         self._raw_mdate: dict[str, int] = {}
+        self._raw_local_extra: dict[str, bytes] = {}
+        self._raw_cd_extra: dict[str, bytes] = {}
+        self._raw_cd_comment: dict[str, bytes] = {}
+        self._raw_disk_number_start: dict[str, int] = {}
+        self._raw_eocd_comment: bytes = b""
 
-        # 1. Parse using zipfile for high-level ZipInfo & security checks
+        # 1. Locate and validate EOCD using canonical ZIP EOCD locator
         try:
-            zf = zipfile.ZipFile(io.BytesIO(data), "r")
+            eocd_idx, comment_len, raw_comment = locate_zip_eocd(data)
+        except ZipEocdError as e:
+            if "missing EOCD" in str(e):
+                raise DocxFidelityException("Invalid DOCX package: missing EOCD record") from e
+            raise DocxFidelityException(
+                f"Invalid DOCX package: malformed EOCD comment length or archive boundary ({e})"
+            ) from e
+
+        self._raw_eocd_comment = raw_comment
+
+        # 2. Parse using zipfile for high-level ZipInfo & security checks
+        # Use normalized stream (comment stripped) to protect against stdlib zipfile rfind comment bug
+        zf_stream = io.BytesIO(data[:eocd_idx + 20] + b"\x00\x00") if comment_len > 0 else io.BytesIO(data)
+        try:
+            zf = zipfile.ZipFile(zf_stream, "r")
         except zipfile.BadZipFile as e:
             raise DocxFidelityException(f"Invalid DOCX package: not a valid ZIP archive ({e})") from e
 
@@ -71,11 +134,7 @@ class DocxPackage:
                 self.zip_infos[name] = info
                 self.member_order.append(name)
 
-        # 2. Binary parse of Central Directory and Local Headers from raw data
-        eocd_idx = data.rfind(b"PK\x05\x06")
-        if eocd_idx == -1:
-            raise DocxFidelityException("Invalid DOCX package: missing EOCD record")
-
+        # 3. Binary parse of Central Directory and Local Headers from raw data
         (
             disk_num,
             cd_disk,
@@ -83,7 +142,7 @@ class DocxPackage:
             total_entries,
             cd_size,
             cd_offset,
-            comment_len,
+            _c_len,
         ) = struct.unpack("<HHHHIIH", data[eocd_idx + 4 : eocd_idx + 22])
 
         if total_entries != len(self.member_order):
@@ -119,6 +178,9 @@ class DocxPackage:
             self._raw_cd_entries[name] = data[cd_pos : cd_pos + rec_len]
             self._raw_mtime[name] = mtime
             self._raw_mdate[name] = mdate
+            self._raw_cd_extra[name] = data[cd_pos + 46 + nlen : cd_pos + 46 + nlen + elen]
+            self._raw_cd_comment[name] = data[cd_pos + 46 + nlen + elen : cd_pos + 46 + nlen + elen + clen]
+            self._raw_disk_number_start[name] = dnum
             cd_pos += rec_len
 
             # Read Local File Header from lhoff
@@ -138,6 +200,8 @@ class DocxPackage:
 
             if lsig != 0x04034B50:
                 raise DocxFidelityException(f"Invalid Local File Header signature for '{name}' at offset {lhoff}")
+
+            self._raw_local_extra[name] = data[lhoff + 30 + lnlen : lhoff + 30 + lnlen + lelen]
 
             loc_hdr_len = 30 + lnlen + lelen
             raw_comp_payload = data[lhoff + loc_hdr_len : lhoff + loc_hdr_len + csize]
@@ -194,7 +258,12 @@ class DocxPackage:
         """Check if member exists in package."""
         return name in self.members
 
+    def get_archive_comment(self) -> bytes:
+        """Return the raw ZIP archive-level EOCD comment bytes."""
+        return self._raw_eocd_comment
+
     def rebuild(
+
         self,
         changed_parts: dict[str, bytes],
         dropped_parts: set[str] | None = None,
@@ -249,12 +318,26 @@ class DocxPackage:
                 mtime = self._raw_mtime.get(name, 0)
                 mdate = self._raw_mdate.get(name, 0x21)
 
+                # A11: Clear bit 3 (data descriptor) because exact CRC and sizes are written
+                # directly into the local header without trailing descriptor.
+                new_flag_bits = orig_info.flag_bits & ~0x08
+
+                # Extra fields and comment preservation (A11)
+                safe_local_extra = _filter_rebuild_incompatible_extra_fields(
+                    self._raw_local_extra.get(name, b""), DocxFidelityException
+                )
+                safe_cd_extra = _filter_rebuild_incompatible_extra_fields(
+                    self._raw_cd_extra.get(name, b""), DocxFidelityException
+                )
+                orig_comment = self._raw_cd_comment.get(name, b"")
+                dnum = self._raw_disk_number_start.get(name, 0)
+
                 # Local File Header
                 loc_hdr = struct.pack(
                     "<IHHHHHIIIHH",
                     0x04034B50,
                     orig_info.extract_version,
-                    orig_info.flag_bits,
+                    new_flag_bits,
                     comp_type,
                     mtime,
                     mdate,
@@ -262,8 +345,8 @@ class DocxPackage:
                     csize,
                     usize,
                     len(name_bytes),
-                    0,  # extra field length
-                ) + name_bytes
+                    len(safe_local_extra),
+                ) + name_bytes + safe_local_extra
                 out_buf.write(loc_hdr)
                 out_buf.write(comp_data)
                 current_offset += len(loc_hdr) + csize
@@ -274,7 +357,7 @@ class DocxPackage:
                     0x02014B50,
                     orig_info.create_version,
                     orig_info.extract_version,
-                    orig_info.flag_bits,
+                    new_flag_bits,
                     comp_type,
                     mtime,
                     mdate,
@@ -282,13 +365,13 @@ class DocxPackage:
                     csize,
                     usize,
                     len(name_bytes),
-                    0,  # extra length
-                    0,  # comment length
-                    0,  # disk number start
+                    len(safe_cd_extra),
+                    len(orig_comment),
+                    dnum,
                     orig_info.internal_attr,
                     orig_info.external_attr,
                     new_local_offset,
-                ) + name_bytes
+                ) + name_bytes + safe_cd_extra + orig_comment
                 new_cd_entries.append(cd_hdr)
 
         # Write Central Directory
@@ -298,7 +381,8 @@ class DocxPackage:
         cd_size = out_buf.tell() - cd_start_offset
         total_records = len(new_cd_entries)
 
-        # Write End of Central Directory (EOCD)
+        # Write End of Central Directory (EOCD) with preserved archive-level comment (A11)
+        eocd_comment = self._raw_eocd_comment
         eocd = struct.pack(
             "<IHHHHIIH",
             0x06054B50,
@@ -308,8 +392,10 @@ class DocxPackage:
             total_records,  # total records
             cd_size,        # CD size in bytes
             cd_start_offset,# CD offset
-            0,              # comment length
+            len(eocd_comment), # comment length
         )
         out_buf.write(eocd)
+        if eocd_comment:
+            out_buf.write(eocd_comment)
 
         return out_buf.getvalue()

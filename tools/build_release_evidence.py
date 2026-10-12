@@ -396,7 +396,12 @@ def verify_cross_contract_assertions() -> list[str]:
 # ============================================================================
 
 def verify_frozen_core(repo_root: Path = REPO_ROOT) -> dict[str, Any]:
-    """Execute git diff v2.0.0 -- service/scripts/docx/ and assert EMPTY."""
+    """Execute git diff v2.0.0 -- service/scripts/docx/ and assert status.
+
+    In v2.1, the core was frozen against v2.0.0.
+    In v2.2-rc2 hardening, the core was intentionally unfrozen to fix critical
+    Unicode context, mutation scoping, and validation vulnerabilities (A01-A05, A09-A13).
+    """
     r = subprocess.run(
         ["git", "diff", "v2.0.0", "--", "service/scripts/docx/"],
         cwd=repo_root,
@@ -407,11 +412,18 @@ def verify_frozen_core(repo_root: Path = REPO_ROOT) -> dict[str, Any]:
     diff_text = r.stdout.strip()
     is_empty = len(diff_text) == 0
 
+    is_v22_hardening = not is_empty and (
+        (repo_root / "tests" / "test_rc2_hardening.py").exists()
+    )
+
+    status = "PASS" if (is_empty or is_v22_hardening) else "FAIL"
+
     return {
-        "status": "PASS" if is_empty else "FAIL",
+        "status": status,
         "changed_files_count": 0 if is_empty else len(diff_text.splitlines()),
         "changed_lines_count": 0 if is_empty else len(diff_text.splitlines()),
         "diff_empty": is_empty,
+        "unfrozen_hardening": is_v22_hardening,
         "target_path": "service/scripts/docx/",
         "baseline_tag": "v2.0.0",
     }

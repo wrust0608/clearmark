@@ -105,8 +105,9 @@ def test_apply_strategy_mlm_only(monkeypatch):
 
 
 def test_clean_options_strategy_valid():
-    opts = _parse_clean_options({"strategy": "paraphrase@0.8,mlm@0.2", "nfkc": True})
-    assert opts["strategy"] == "paraphrase@0.8,mlm@0.2"
+    # Under P0 A07, strategy is rejected until P1
+    with pytest.raises(ValueError, match="Advanced Statistical Layer B rewriting is not available in P0 canonical clean"):
+        _parse_clean_options({"strategy": "paraphrase@0.8,mlm@0.2", "nfkc": True})
 
 
 def test_clean_options_strategy_invalid():
@@ -146,13 +147,19 @@ def test_load_default_strategy_bad_strategy(tmp_path):
         _load_default_strategy(p)
 
 
-# --- server: Layer B is a required step for text ---------------------------
+# --- server: Layer B is opt-in only (A07) -----------------------------------
 
 
-def test_clean_text_requires_layer_b(monkeypatch):
+def test_clean_text_normal_does_not_require_layer_b(monkeypatch):
+    monkeypatch.setattr(server, "_DEFAULT_STRATEGY", None)
+    res = server._clean_payload(b"hello world", "a.txt", {})
+    assert res["ok"] is True
+
+
+def test_clean_text_explicit_layer_b_requires_strategy_or_default(monkeypatch):
     monkeypatch.setattr(server, "_DEFAULT_STRATEGY", None)
     with pytest.raises(ValueError, match="Layer B rewrite is required"):
-        server._clean_payload(b"hello world", "a.txt", {})
+        server._clean_payload(b"hello world", "a.txt", {"layer_b": True})
 
 
 # --- server: reject when backend/model unavailable --------------------------

@@ -7,6 +7,7 @@ import re
 from typing import Optional
 
 from text_unicode import clean_text
+from .exceptions import XlsxPatchError
 from .mutation_plan import XlsxMutationPlan
 from .package import XlsxPackage
 
@@ -114,7 +115,7 @@ class XlsxPatcher:
                 continue
 
             xml_text = raw.decode("utf-8", errors="replace")
-            patched_xml, changed = self._patch_text_nodes(xml_text)
+            patched_xml, changed = self._patch_text_nodes(part_name, xml_text)
             if changed:
                 changed_parts[part_name] = patched_xml.encode("utf-8")
 
@@ -168,28 +169,75 @@ class XlsxPatcher:
         # 4. Rebuild package with strict raw non-target pass-through
         return self.package.rebuild(changed_parts, dropped_parts)
 
-    def _patch_text_nodes(self, xml_text: str) -> tuple[str, bool]:
-        """Surgically patch targeted <t> text elements inside existing XML markup."""
+    def _patch_text_nodes(self, part_name: str, xml_text: str) -> tuple[str, bool]:
+        """Surgically patch targeted <t> text elements inside existing XML markup executing exact plan."""
         out: list[str] = []
         last = 0
         changed = False
+
+        muts = [tm for tm in self.plan.text_mutations if tm.part_name == part_name]
+        if not muts:
+            return xml_text, False
+
+        # Pre-index mutations
+        si_muts: dict[int, XlsxTextMutation] = {}
+        cell_muts: dict[str, XlsxTextMutation] = {}
+        for tm in muts:
+            if tm.si_idx is not None:
+                si_muts[tm.si_idx] = tm
+            if tm.cell_ref:
+                cell_muts[tm.cell_ref] = tm
+
+        resolved_mut_ids: set[int] = set()
+
+        is_sst = part_name == "xl/sharedStrings.xml"
+        is_sheet = "worksheets/" in part_name
+
+        si_re = re.compile(r"<si\b")
+        c_re = re.compile(r'<c\b[^>]*\br="([^"]+)"')
+
+        current_si = -1
+        last_search_pos = 0
 
         for os_, oe, cs_, ce in _iter_tag_blocks(xml_text, _TEXT_OPEN_RE, _TEXT_CLOSE_RE):
             open_tag = xml_text[os_:oe]
             inner = xml_text[oe:cs_]
             close_tag = xml_text[cs_:ce]
-
             decoded = _decode_xml_entities(inner)
-            cleaned, stats = clean_text(decoded, normalize_spaces=self.normalize_spaces)
 
-            if stats.get("removed_count", 0) > 0 or stats.get("replaced_count", 0) > 0:
-                changed = True
-                # Preserve whitespace semantics (Section 24)
-                if (cleaned[:1].isspace() or cleaned[-1:].isspace()) and "xml:space" not in open_tag:
-                    open_tag = open_tag[:-1] + ' xml:space="preserve">'
-                out.append(xml_text[last:os_])
-                out.append(open_tag + _reencode_xml_text(cleaned) + close_tag)
-                last = ce
+            target_tm: Optional[XlsxTextMutation] = None
+            if is_sst:
+                si_matches = list(si_re.finditer(xml_text, last_search_pos, os_))
+                current_si += len(si_matches)
+                last_search_pos = os_
+                if current_si in si_muts and si_muts[current_si].original_text == decoded:
+                    target_tm = si_muts[current_si]
+            elif is_sheet:
+                c_matches = list(c_re.finditer(xml_text[max(0, os_ - 200):os_]))
+                if c_matches:
+                    cell_ref = c_matches[-1].group(1)
+                    if cell_ref in cell_muts and cell_muts[cell_ref].original_text == decoded:
+                        target_tm = cell_muts[cell_ref]
+
+            if not target_tm:
+                continue
+
+            resolved_mut_ids.add(id(target_tm))
+            cleaned = target_tm.replacement_text
+
+            changed = True
+            # Preserve whitespace semantics (Section 24)
+            if (cleaned[:1].isspace() or cleaned[-1:].isspace()) and "xml:space" not in open_tag:
+                open_tag = open_tag[:-1] + ' xml:space="preserve">'
+            out.append(xml_text[last:os_])
+            out.append(open_tag + _reencode_xml_text(cleaned) + close_tag)
+            last = ce
+
+        if len(resolved_mut_ids) != len(muts):
+            unresolved = len(muts) - len(resolved_mut_ids)
+            raise XlsxPatchError(
+                f"Fail-closed: Could not resolve exact planned identity for {unresolved} mutation(s) in {part_name}"
+            )
 
         if changed:
             out.append(xml_text[last:])
